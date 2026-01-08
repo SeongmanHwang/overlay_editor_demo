@@ -191,7 +191,8 @@ namespace SimpleOverlayEditor.Views
                     return;
                 }
 
-                var imagePath = ViewModel.SelectedDocument.SourcePath;
+                // 정렬된 이미지 경로 사용 (정렬 실패 시 원본 사용)
+                var imagePath = ViewModel.SelectedDocument.GetImagePathForUse();
                 Logger.Instance.Debug($"이미지 경로: {imagePath}, 파일 존재: {File.Exists(imagePath)}");
                 
                 if (File.Exists(imagePath))

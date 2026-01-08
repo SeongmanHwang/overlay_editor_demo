@@ -48,7 +48,18 @@ namespace SimpleOverlayEditor.Services
                         SourcePath = doc.SourcePath,
                         ImageWidth = doc.ImageWidth,
                         ImageHeight = doc.ImageHeight,
-                        LastEditedAt = doc.LastEditedAt.ToString("O")
+                        LastEditedAt = doc.LastEditedAt.ToString("O"),
+                        AlignmentInfo = doc.AlignmentInfo != null ? new
+                        {
+                            Success = doc.AlignmentInfo.Success,
+                            Confidence = doc.AlignmentInfo.Confidence,
+                            Rotation = doc.AlignmentInfo.Rotation,
+                            ScaleX = doc.AlignmentInfo.ScaleX,
+                            ScaleY = doc.AlignmentInfo.ScaleY,
+                            TranslationX = doc.AlignmentInfo.TranslationX,
+                            TranslationY = doc.AlignmentInfo.TranslationY,
+                            AlignedImagePath = doc.AlignmentInfo.AlignedImagePath
+                        } : null
                     }).ToList()
                 };
 
@@ -166,12 +177,57 @@ namespace SimpleOverlayEditor.Services
                 {
                     foreach (var docElem in documentsElement.EnumerateArray())
                     {
+                        AlignmentInfo? alignmentInfo = null;
+                        
+                        // 정렬 정보 로드
+                        if (docElem.TryGetProperty("AlignmentInfo", out var alignmentElement) && 
+                            alignmentElement.ValueKind != System.Text.Json.JsonValueKind.Null)
+                        {
+                            alignmentInfo = new AlignmentInfo
+                            {
+                                Success = alignmentElement.TryGetProperty("Success", out var success) 
+                                    ? success.GetBoolean() 
+                                    : false,
+                                Confidence = alignmentElement.TryGetProperty("Confidence", out var confidence) 
+                                    ? confidence.GetDouble() 
+                                    : 0.0,
+                                Rotation = alignmentElement.TryGetProperty("Rotation", out var rotation) 
+                                    ? rotation.GetDouble() 
+                                    : 0.0,
+                                ScaleX = alignmentElement.TryGetProperty("ScaleX", out var scaleX) 
+                                    ? scaleX.GetDouble() 
+                                    : 1.0,
+                                ScaleY = alignmentElement.TryGetProperty("ScaleY", out var scaleY) 
+                                    ? scaleY.GetDouble() 
+                                    : 1.0,
+                                TranslationX = alignmentElement.TryGetProperty("TranslationX", out var tx) 
+                                    ? tx.GetDouble() 
+                                    : 0.0,
+                                TranslationY = alignmentElement.TryGetProperty("TranslationY", out var ty) 
+                                    ? ty.GetDouble() 
+                                    : 0.0,
+                                AlignedImagePath = alignmentElement.TryGetProperty("AlignedImagePath", out var alignedPath) 
+                                    ? alignedPath.GetString() 
+                                    : null
+                            };
+                            
+                            // 정렬된 이미지 파일이 존재하는지 확인
+                            if (!string.IsNullOrEmpty(alignmentInfo.AlignedImagePath) && 
+                                !File.Exists(alignmentInfo.AlignedImagePath))
+                            {
+                                // 캐시 파일이 없으면 정렬 정보 초기화
+                                Logger.Instance.Warning($"정렬된 이미지 캐시 파일이 없음: {alignmentInfo.AlignedImagePath}");
+                                alignmentInfo = null;
+                            }
+                        }
+
                         var imageDoc = new ImageDocument
                         {
                             ImageId = docElem.GetProperty("ImageId").GetString() ?? Guid.NewGuid().ToString(),
                             SourcePath = docElem.GetProperty("SourcePath").GetString() ?? string.Empty,
                             ImageWidth = docElem.GetProperty("ImageWidth").GetInt32(),
-                            ImageHeight = docElem.GetProperty("ImageHeight").GetInt32()
+                            ImageHeight = docElem.GetProperty("ImageHeight").GetInt32(),
+                            AlignmentInfo = alignmentInfo
                         };
 
                         if (docElem.TryGetProperty("LastEditedAt", out var lastEdited))

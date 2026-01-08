@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
@@ -20,6 +21,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly ImageLoader _imageLoader;
         private readonly Renderer _renderer;
         private readonly CoordinateConverter _coordConverter;
+        private readonly ImageAlignmentService _alignmentService;
         private TemplateViewModel? _templateViewModel;
         private MarkingViewModel? _markingViewModel;
 
@@ -42,6 +44,7 @@ namespace SimpleOverlayEditor.ViewModels
                 _imageLoader = new ImageLoader();
                 _renderer = new Renderer();
                 _coordConverter = new CoordinateConverter();
+                _alignmentService = new ImageAlignmentService();
 
                 _workspace = new Workspace();
                 _currentImageDisplayRect = new Rect();
@@ -582,9 +585,12 @@ namespace SimpleOverlayEditor.ViewModels
                     Logger.Instance.Debug("Workspace.Documents.Clear() 호출");
                     Workspace.Documents.Clear();
                     
-                    Logger.Instance.Debug($"문서 {documents.Count}개 추가 시작");
+                    Logger.Instance.Debug($"문서 {documents.Count}개 추가 및 정렬 적용 시작");
                     foreach (var doc in documents)
                     {
+                        // 이미지 정렬 적용
+                        ApplyAlignmentToDocument(doc);
+                        
                         Workspace.Documents.Add(doc);
                         Logger.Instance.Debug($"문서 추가: {doc.SourcePath} (ID: {doc.ImageId}, 크기: {doc.ImageWidth}x{doc.ImageHeight})");
                     }
@@ -626,6 +632,109 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
+
+        /// <summary>
+        /// 이미지에 정렬을 적용하고 캐시에 저장합니다.
+        /// </summary>
+        private void ApplyAlignmentToDocument(ImageDocument document)
+        {
+            try
+            {
+                // 타이밍 마크가 없으면 정렬 생략
+                if (Workspace.Template.TimingMarks.Count == 0)
+                {
+                    Logger.Instance.Debug($"타이밍 마크가 없어 정렬 생략: {document.SourcePath}");
+                    return;
+                }
+
+                Logger.Instance.Debug($"이미지 정렬 적용 시작: {document.SourcePath}");
+
+                // 원본 이미지 로드
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(document.SourcePath, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                // 정렬 적용
+                var result = _alignmentService.AlignImage(bitmap, Workspace.Template);
+
+                // 정렬 정보 저장
+                document.AlignmentInfo = new AlignmentInfo
+                {
+                    Success = result.Success,
+                    Confidence = result.Confidence
+                };
+
+                if (result.Success && result.Transform != null)
+                {
+                    document.AlignmentInfo.Rotation = result.Transform.Rotation;
+                    document.AlignmentInfo.ScaleX = result.Transform.ScaleX;
+                    document.AlignmentInfo.ScaleY = result.Transform.ScaleY;
+                    document.AlignmentInfo.TranslationX = result.Transform.TranslationX;
+                    document.AlignmentInfo.TranslationY = result.Transform.TranslationY;
+
+                    // 정렬된 이미지를 캐시에 저장
+                    var alignedImagePath = SaveAlignedImageToCache(document, result.AlignedImage);
+                    document.AlignmentInfo.AlignedImagePath = alignedImagePath;
+
+                    // 정렬된 이미지 크기로 ImageWidth/Height 업데이트
+                    document.ImageWidth = result.AlignedImage.PixelWidth;
+                    document.ImageHeight = result.AlignedImage.PixelHeight;
+
+                    Logger.Instance.Info(
+                        $"이미지 정렬 성공: {document.SourcePath}, " +
+                        $"신뢰도={result.Confidence:F2}, " +
+                        $"정렬된 이미지={alignedImagePath}");
+                }
+                else
+                {
+                    Logger.Instance.Info(
+                        $"이미지 정렬 실패 또는 생략: {document.SourcePath}, " +
+                        $"신뢰도={result.Confidence:F2}, 원본 이미지 사용");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error($"이미지 정렬 중 오류: {document.SourcePath}", ex);
+                // 오류 발생 시 정렬 정보를 실패로 설정하고 원본 사용
+                document.AlignmentInfo = new AlignmentInfo { Success = false, Confidence = 0.0 };
+            }
+        }
+
+        /// <summary>
+        /// 정렬된 이미지를 캐시 폴더에 저장합니다.
+        /// </summary>
+        private string SaveAlignedImageToCache(ImageDocument document, BitmapSource alignedImage)
+        {
+            try
+            {
+                PathService.EnsureDirectories();
+
+                // 캐시 파일명 생성 (원본 파일명 + ImageId 해시)
+                var originalFileName = Path.GetFileNameWithoutExtension(document.SourcePath);
+                var cacheFileName = $"{originalFileName}_{document.ImageId.Substring(0, 8)}_aligned.png";
+                var cachePath = Path.Combine(PathService.AlignmentCacheFolder, cacheFileName);
+
+                // PNG 인코더로 저장
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(alignedImage));
+
+                using (var stream = File.Create(cachePath))
+                {
+                    encoder.Save(stream);
+                }
+
+                Logger.Instance.Debug($"정렬된 이미지 캐시 저장: {cachePath}");
+                return cachePath;
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("정렬된 이미지 캐시 저장 실패", ex);
+                throw;
+            }
+        }
 
         /// <summary>
         /// MarkingViewModel의 데이터 소스를 업데이트합니다.

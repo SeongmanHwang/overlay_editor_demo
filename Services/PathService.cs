@@ -18,10 +18,14 @@ namespace SimpleOverlayEditor.Services
         public static string OutputFolder =>
             Path.Combine(AppDataFolder, "output");
 
+        public static string AlignmentCacheFolder =>
+            Path.Combine(AppDataFolder, "aligned_cache");
+
         public static void EnsureDirectories()
         {
             Directory.CreateDirectory(AppDataFolder);
             Directory.CreateDirectory(OutputFolder);
+            Directory.CreateDirectory(AlignmentCacheFolder);
         }
 
         public static string DefaultInputFolder =>

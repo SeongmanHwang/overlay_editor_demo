@@ -43,11 +43,14 @@ namespace SimpleOverlayEditor.Services
 
             try
             {
-                // 원본 이미지 로드
+                // 정렬된 이미지 경로 사용 (정렬 실패 시 원본 사용)
+                var imagePath = document.GetImagePathForUse();
+                
+                // 이미지 로드
                 var bitmap = new BitmapImage();
                 bitmap.BeginInit();
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.UriSource = new Uri(document.SourcePath, UriKind.Absolute);
+                bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
                 bitmap.EndInit();
                 bitmap.Freeze();
 

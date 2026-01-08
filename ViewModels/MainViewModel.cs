@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -19,6 +20,8 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly ImageLoader _imageLoader;
         private readonly Renderer _renderer;
         private readonly CoordinateConverter _coordConverter;
+        private TemplateViewModel? _templateViewModel;
+        private MarkingViewModel? _markingViewModel;
 
         private Workspace _workspace;
         private ImageDocument? _selectedDocument;
@@ -50,8 +53,6 @@ namespace SimpleOverlayEditor.ViewModels
                 ClearAllCommand = new RelayCommand(OnClearAll, () => GetCurrentOverlayCollection()?.Count > 0);
                 SaveCommand = new RelayCommand(OnSave);
                 LoadFolderCommand = new RelayCommand(OnLoadFolder);
-                SaveAsDefaultTemplateCommand = new RelayCommand(OnSaveAsDefaultTemplate);
-                LoadDefaultTemplateCommand = new RelayCommand(OnLoadDefaultTemplate);
                 
                 Logger.Instance.Info("MainViewModel 초기화 완료");
             }
@@ -78,15 +79,23 @@ namespace SimpleOverlayEditor.ViewModels
                 // 템플릿 변경 감지
                 if (value?.Template != null)
                 {
+                    // TemplateViewModel 업데이트
+                    if (_templateViewModel != null)
+                    {
+                        _templateViewModel.Template = value.Template;
+                    }
+                    
                     value.Template.TimingMarks.CollectionChanged += (s, e) => 
                     {
                         OnPropertyChanged(nameof(DisplayOverlays));
                         OnPropertyChanged(nameof(CurrentOverlayCollection));
+                        UpdateMarkingViewModel();
                     };
                     value.Template.ScoringAreas.CollectionChanged += (s, e) => 
                     {
                         OnPropertyChanged(nameof(DisplayOverlays));
                         OnPropertyChanged(nameof(CurrentOverlayCollection));
+                        UpdateMarkingViewModel();
                     };
                 }
                 
@@ -143,6 +152,12 @@ namespace SimpleOverlayEditor.ViewModels
                         Logger.Instance.Debug($"OnPropertyChanged 호출 전");
                         OnPropertyChanged();
                         OnPropertyChanged(nameof(DisplayOverlays));
+                        // 문서 변경 시 마킹 ViewModel 업데이트
+                        if (_markingViewModel != null)
+                        {
+                            _markingViewModel.SelectedDocument = value;
+                            _markingViewModel.CurrentMarkingResults = null;
+                        }
                         Logger.Instance.Debug($"SelectedDocument 변경 완료");
                     }
                     else
@@ -224,8 +239,10 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand ClearAllCommand { get; }
         public ICommand SaveCommand { get; }
         public ICommand LoadFolderCommand { get; }
-        public ICommand SaveAsDefaultTemplateCommand { get; }
-        public ICommand LoadDefaultTemplateCommand { get; }
+
+        // 분리된 ViewModel 속성
+        public TemplateViewModel TemplateViewModel => _templateViewModel ?? throw new InvalidOperationException("TemplateViewModel이 초기화되지 않았습니다.");
+        public MarkingViewModel MarkingViewModel => _markingViewModel ?? throw new InvalidOperationException("MarkingViewModel이 초기화되지 않았습니다.");
 
         private void LoadWorkspace()
         {
@@ -293,6 +310,28 @@ namespace SimpleOverlayEditor.ViewModels
                 // Workspace 로드 후 SelectedDocument 초기화
                 SelectedDocument = Workspace?.SelectedDocument;
                 Logger.Instance.Info($"SelectedDocument 초기화 완료: {(SelectedDocument != null ? SelectedDocument.SourcePath : "null")}");
+
+                // 분리된 ViewModel 초기화 (Workspace 로드 후)
+                if (Workspace.Template != null)
+                {
+                    if (_templateViewModel == null)
+                    {
+                        _templateViewModel = new TemplateViewModel(_stateStore, Workspace.Template);
+                    }
+                    else
+                    {
+                        _templateViewModel.Template = Workspace.Template;
+                    }
+                }
+
+                if (_markingViewModel == null)
+                {
+                    _markingViewModel = new MarkingViewModel(new MarkingDetector());
+                }
+                if (Workspace.Template != null)
+                {
+                    UpdateMarkingViewModel();
+                }
             }
             catch (Exception ex)
             {
@@ -569,6 +608,9 @@ namespace SimpleOverlayEditor.ViewModels
                         SelectedDocument = null;
                     }
 
+                    // MarkingViewModel 업데이트
+                    UpdateMarkingViewModel();
+
                     Logger.Instance.Info($"폴더 로드 완료. 총 {documents.Count}개 이미지 로드됨");
                     MessageBox.Show($"{documents.Count}개의 이미지를 로드했습니다.", "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -584,104 +626,17 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        /// <summary>
-        /// 현재 템플릿을 기본 템플릿으로 저장합니다.
-        /// </summary>
-        private void OnSaveAsDefaultTemplate()
-        {
-            try
-            {
-                _stateStore.SaveDefaultTemplate(Workspace.Template);
-                Logger.Instance.Info("기본 템플릿 저장 완료");
-                MessageBox.Show(
-                    "현재 템플릿이 기본 템플릿으로 저장되었습니다.\n다음에 프로그램을 시작할 때 이 템플릿이 자동으로 로드됩니다.",
-                    "기본 템플릿 저장 완료",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Error("기본 템플릿 저장 실패", ex);
-                MessageBox.Show($"기본 템플릿 저장 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
 
         /// <summary>
-        /// 기본 템플릿을 현재 템플릿으로 로드합니다.
+        /// MarkingViewModel의 데이터 소스를 업데이트합니다.
         /// </summary>
-        private void OnLoadDefaultTemplate()
+        private void UpdateMarkingViewModel()
         {
-            try
+            if (_markingViewModel != null)
             {
-                var defaultTemplate = _stateStore.LoadDefaultTemplate();
-                if (defaultTemplate == null)
-                {
-                    MessageBox.Show(
-                        "저장된 기본 템플릿이 없습니다.\n먼저 '기본 템플릿으로 저장' 기능을 사용하여 템플릿을 저장하세요.",
-                        "기본 템플릿 없음",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                    return;
-                }
-
-                var result = MessageBox.Show(
-                    "기본 템플릿을 로드하면 현재 템플릿이 덮어씌워집니다.\n계속하시겠습니까?",
-                    "확인",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    // 현재 템플릿 초기화
-                    Workspace.Template.TimingMarks.Clear();
-                    Workspace.Template.ScoringAreas.Clear();
-
-                    // 기본 템플릿 로드
-                    Workspace.Template.ReferenceWidth = defaultTemplate.ReferenceWidth;
-                    Workspace.Template.ReferenceHeight = defaultTemplate.ReferenceHeight;
-                    
-                    foreach (var overlay in defaultTemplate.TimingMarks)
-                    {
-                        Workspace.Template.TimingMarks.Add(new RectangleOverlay
-                        {
-                            X = overlay.X,
-                            Y = overlay.Y,
-                            Width = overlay.Width,
-                            Height = overlay.Height,
-                            StrokeThickness = overlay.StrokeThickness,
-                            OverlayType = overlay.OverlayType
-                        });
-                    }
-                    
-                    foreach (var overlay in defaultTemplate.ScoringAreas)
-                    {
-                        Workspace.Template.ScoringAreas.Add(new RectangleOverlay
-                        {
-                            X = overlay.X,
-                            Y = overlay.Y,
-                            Width = overlay.Width,
-                            Height = overlay.Height,
-                            StrokeThickness = overlay.StrokeThickness,
-                            OverlayType = overlay.OverlayType
-                        });
-                    }
-
-                    SelectedOverlay = null;
-                    OnPropertyChanged(nameof(DisplayOverlays));
-                    OnPropertyChanged(nameof(CurrentOverlayCollection));
-                    
-                    Logger.Instance.Info("기본 템플릿 로드 완료");
-                    MessageBox.Show(
-                        "기본 템플릿이 로드되었습니다.",
-                        "로드 완료",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Error("기본 템플릿 로드 실패", ex);
-                MessageBox.Show($"기본 템플릿 로드 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                _markingViewModel.SelectedDocument = SelectedDocument;
+                _markingViewModel.Documents = Workspace.Documents;
+                _markingViewModel.ScoringAreas = Workspace.Template.ScoringAreas;
             }
         }
 

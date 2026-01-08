@@ -52,19 +52,21 @@
             <StackPanel DockPanel.Dock="Top" 
                        Orientation="Horizontal" 
                        Background="#E8E8E8"
-                       Margin="5"
-                       Height="50">
+                       Margin="3"
+                       Height="36">
                 <ToggleButton Content="사각형 추가 모드" 
                              IsChecked="{Binding IsAddMode, Mode=TwoWay}"
-                             Margin="5"
-                             Padding="10,5"
-                             MinWidth="120"/>
-                <Separator Margin="5,0"/>
-                <TextBlock Text="오버레이 타입:" VerticalAlignment="Center" Margin="5,0"/>
+                             Margin="2"
+                             Padding="6,3"
+                             MinWidth="100"
+                             FontSize="11"/>
+                <Separator Margin="3,0"/>
+                <TextBlock Text="오버레이 타입:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
                 <ComboBox SelectedItem="{Binding CurrentOverlayType, Mode=TwoWay}"
-                         Margin="5,0"
+                         Margin="3,0"
                          VerticalAlignment="Center"
-                         MinWidth="120">
+                         MinWidth="100"
+                         FontSize="11">
                     <ComboBox.ItemsSource>
                         <x:Array Type="{x:Type models:OverlayType}">
                             <models:OverlayType>TimingMark</models:OverlayType>
@@ -72,60 +74,93 @@
                         </x:Array>
                     </ComboBox.ItemsSource>
                 </ComboBox>
-                <Separator Margin="5,0"/>
-                <TextBlock Text="기본 크기:" VerticalAlignment="Center" Margin="5,0"/>
-                <TextBlock Text="W:" VerticalAlignment="Center" Margin="5,0"/>
+                <Separator Margin="3,0"/>
+                <TextBlock Text="기본 크기:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
+                <TextBlock Text="W:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
                 <TextBox Text="{Binding DefaultRectWidth, UpdateSourceTrigger=PropertyChanged}" 
-                         Width="60" 
+                         Width="50" 
                          Margin="2,0"
-                         VerticalAlignment="Center"/>
-                <TextBlock Text="H:" VerticalAlignment="Center" Margin="5,0"/>
+                         VerticalAlignment="Center"
+                         FontSize="11"/>
+                <TextBlock Text="H:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
                 <TextBox Text="{Binding DefaultRectHeight, UpdateSourceTrigger=PropertyChanged}" 
-                         Width="60" 
+                         Width="50" 
                          Margin="2,0"
-                         VerticalAlignment="Center"/>
-                <Separator Margin="10,0"/>
+                         VerticalAlignment="Center"
+                         FontSize="11"/>
+                <Separator Margin="5,0"/>
                 <Button Content="선택 삭제" 
                        Command="{Binding DeleteSelectedCommand}"
-                       Margin="5"
-                       Padding="10,5"
-                       MinWidth="80"/>
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="65"
+                       FontSize="11"/>
                 <Button Content="전체 삭제" 
                        Command="{Binding ClearAllCommand}"
-                       Margin="5"
-                       Padding="10,5"
-                       MinWidth="80"/>
-                <Separator Margin="10,0"/>
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="65"
+                       FontSize="11"/>
+                <Separator Margin="5,0"/>
                 <Button Content="폴더 로드" 
                        Command="{Binding LoadFolderCommand}"
-                       Margin="5"
-                       Padding="10,5"
-                       MinWidth="80"/>
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="65"
+                       FontSize="11"/>
                 <Button Content="저장" 
                        Command="{Binding SaveCommand}"
-                       Margin="5"
-                       Padding="10,5"
-                       MinWidth="80"
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="65"
                        Background="#4CAF50"
                        Foreground="White"
-                       FontWeight="Bold"/>
-                <Separator Margin="10,0"/>
+                       FontWeight="Bold"
+                       FontSize="11"/>
+                <Separator Margin="5,0"/>
                 <Button Content="기본 템플릿 저장" 
-                       Command="{Binding SaveAsDefaultTemplateCommand}"
-                       Margin="5"
-                       Padding="10,5"
-                       MinWidth="120"
+                       Command="{Binding TemplateViewModel.SaveAsDefaultTemplateCommand}"
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="100"
                        Background="#2196F3"
                        Foreground="White"
+                       FontSize="11"
                        ToolTip="현재 템플릿을 기본 템플릿으로 저장합니다. 프로그램 시작 시 자동으로 로드됩니다."/>
                 <Button Content="기본 템플릿 로드" 
-                       Command="{Binding LoadDefaultTemplateCommand}"
-                       Margin="5"
-                       Padding="10,5"
-                       MinWidth="120"
+                       Command="{Binding TemplateViewModel.LoadDefaultTemplateCommand}"
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="100"
                        Background="#FF9800"
                        Foreground="White"
+                       FontSize="11"
                        ToolTip="저장된 기본 템플릿을 현재 템플릿으로 로드합니다."/>
+                <Separator Margin="5,0"/>
+                <TextBlock Text="임계값:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
+                <TextBox Text="{Binding MarkingViewModel.MarkingThreshold, UpdateSourceTrigger=PropertyChanged}" 
+                         Width="50" 
+                         Margin="2,0"
+                         VerticalAlignment="Center"
+                         FontSize="11"/>
+                <Button Content="마킹 감지" 
+                       Command="{Binding MarkingViewModel.DetectMarkingsCommand}"
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="80"
+                       Background="#9C27B0"
+                       Foreground="White"
+                       FontSize="11"
+                       ToolTip="현재 선택된 이미지의 채점 영역에서 마킹을 감지합니다."/>
+                <Button Content="전체 감지" 
+                       Command="{Binding MarkingViewModel.DetectAllMarkingsCommand}"
+                       Margin="2"
+                       Padding="6,3"
+                       MinWidth="80"
+                       Background="#673AB7"
+                       Foreground="White"
+                       FontSize="11"
+                       ToolTip="모든 이미지의 채점 영역에서 마킹을 감지합니다."/>
             </StackPanel>
 
             <!-- 이미지 캔버스 -->
@@ -220,6 +255,33 @@
                             <TextBox Text="{Binding SelectedOverlay.Height, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
                                     Margin="0,0,0,5"/>
                         </StackPanel>
+                    </GroupBox>
+
+                    <!-- 마킹 감지 결과 -->
+                    <GroupBox Header="마킹 감지 결과" Margin="0,0,0,10">
+                        <DataGrid ItemsSource="{Binding MarkingViewModel.CurrentMarkingResults}"
+                                 AutoGenerateColumns="False"
+                                 CanUserAddRows="False"
+                                 CanUserDeleteRows="False"
+                                 SelectionMode="Single"
+                                 HeadersVisibility="Column"
+                                 MaxHeight="200">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="영역" Binding="{Binding ScoringAreaId}" Width="50"/>
+                                <DataGridCheckBoxColumn Header="마킹" Binding="{Binding IsMarked}" Width="60"/>
+                                <DataGridTextColumn Header="밝기" Binding="{Binding AverageBrightness, StringFormat=F1}" Width="60"/>
+                                <DataGridTextColumn Header="임계값" Binding="{Binding Threshold, StringFormat=F1}" Width="60"/>
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMarked}" Value="True">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                        </DataGrid>
                     </GroupBox>
                 </StackPanel>
             </ScrollViewer>

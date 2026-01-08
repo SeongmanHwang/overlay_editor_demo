@@ -7,12 +7,15 @@
 ```
 overlay_editor/
 ├── SimpleOverlayEditor.csproj    # 프로젝트 파일
+├── Directory.Build.props          # 빌드 속성 설정
 ├── App.xaml / App.xaml.cs         # 애플리케이션 진입점
 │
 ├── Models/                        # 데이터 모델
 │   ├── RectangleOverlay.cs        # 직사각형 오버레이 데이터
-│   ├── ImageDocument.cs           # 이미지 문서 (이미지 + 오버레이 컬렉션)
-│   └── Workspace.cs               # 전체 세션 상태
+│   ├── ImageDocument.cs           # 이미지 문서 (이미지 정보)
+│   ├── Workspace.cs               # 전체 세션 상태
+│   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역)
+│   └── OverlayType.cs             # 오버레이 타입 열거형
 │
 ├── ViewModels/                    # 뷰모델 (MVVM)
 │   ├── MainViewModel.cs           # 메인 뷰모델
@@ -37,11 +40,15 @@ overlay_editor/
 ## 주요 기능
 
 1. **이미지 로드**: 폴더에서 이미지 파일들을 로드하여 목록으로 표시
-2. **직사각형 오버레이 추가**: 클릭 위치에 기본 크기의 직사각형 추가
-3. **오버레이 편집**: 선택한 오버레이의 X, Y, Width, Height 직접 편집
-4. **오버레이 삭제**: 선택한 오버레이 또는 전체 삭제
-5. **상태 저장**: AppData에 상태를 JSON으로 저장하여 재실행 시 복구
-6. **결과 이미지 생성**: 오버레이가 적용된 이미지를 output 폴더에 저장
+   - 지원 형식: JPG, JPEG, PNG, BMP, GIF, TIFF
+2. **OMR 템플릿 관리**: 모든 이미지에 공통으로 적용되는 OMR 템플릿 관리
+   - **타이밍 마크**: 상단에 위치한 이미지 정렬용 오버레이
+   - **채점 영역**: 우측에 위치한 마킹 감지용 오버레이
+3. **직사각형 오버레이 추가**: 클릭 위치에 기본 크기의 직사각형 추가
+4. **오버레이 편집**: 선택한 오버레이의 X, Y, Width, Height 직접 편집
+5. **오버레이 삭제**: 선택한 오버레이 또는 전체 삭제
+6. **상태 저장**: AppData에 상태를 JSON으로 저장하여 재실행 시 복구
+7. **결과 이미지 생성**: 오버레이가 적용된 이미지를 output 폴더에 저장
 
 ## 이미지 표시 규칙
 
@@ -129,8 +136,9 @@ dotnet build
 
 - .NET 8.0
 - WPF (Windows Presentation Foundation)
+- Windows Forms (폴더 선택 대화상자)
 - MVVM 패턴
-- System.Text.Json (상태 저장)
+- System.Text.Json 9.0.0 (상태 저장)
 
 ## 주의사항
 

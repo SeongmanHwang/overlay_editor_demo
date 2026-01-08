@@ -10,6 +10,7 @@ namespace SimpleOverlayEditor.Models
         private double _width;
         private double _height;
         private double _strokeThickness = 2.0;
+        private OverlayType _overlayType = OverlayType.ScoringArea;
 
         public double X
         {
@@ -39,6 +40,12 @@ namespace SimpleOverlayEditor.Models
         {
             get => _strokeThickness;
             set { _strokeThickness = value; OnPropertyChanged(); }
+        }
+
+        public OverlayType OverlayType
+        {
+            get => _overlayType;
+            set { _overlayType = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

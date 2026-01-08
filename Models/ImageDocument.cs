@@ -37,6 +37,7 @@ namespace SimpleOverlayEditor.Models
             set { _imageHeight = value; OnPropertyChanged(); }
         }
 
+        [Obsolete("오버레이는 이제 Workspace.Template에서 관리됩니다. 이 속성은 하위 호환성을 위해 유지되지만 사용하지 마세요.")]
         public ObservableCollection<RectangleOverlay> Overlays { get; set; } = new();
 
         public DateTime LastEditedAt

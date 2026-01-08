@@ -25,7 +25,7 @@ namespace SimpleOverlayEditor.Services
 
                 foreach (var doc in workspace.Documents)
                 {
-                    RenderDocument(doc);
+                    RenderDocument(doc, workspace);
                 }
             }
             catch (Exception ex)
@@ -34,7 +34,7 @@ namespace SimpleOverlayEditor.Services
             }
         }
 
-        private void RenderDocument(ImageDocument doc)
+        private void RenderDocument(ImageDocument doc, Workspace workspace)
         {
             if (!File.Exists(doc.SourcePath))
             {
@@ -52,6 +52,8 @@ namespace SimpleOverlayEditor.Services
                 originalImage.EndInit();
                 originalImage.Freeze();
 
+                var template = workspace.Template;
+                
                 // DrawingVisual로 렌더링
                 var drawingVisual = new DrawingVisual();
                 using (var drawingContext = drawingVisual.RenderOpen())
@@ -59,12 +61,20 @@ namespace SimpleOverlayEditor.Services
                     // 원본 이미지 그리기
                     drawingContext.DrawImage(originalImage, new Rect(0, 0, doc.ImageWidth, doc.ImageHeight));
 
-                    // 오버레이 그리기
-                    var pen = new Pen(Brushes.Red, 2.0);
-                    foreach (var overlay in doc.Overlays)
+                    // 템플릿의 타이밍 마크 그리기 (녹색)
+                    var timingMarkPen = new Pen(Brushes.Green, 2.0);
+                    foreach (var overlay in template.TimingMarks)
                     {
                         var rect = new Rect(overlay.X, overlay.Y, overlay.Width, overlay.Height);
-                        drawingContext.DrawRectangle(null, pen, rect);
+                        drawingContext.DrawRectangle(null, timingMarkPen, rect);
+                    }
+                    
+                    // 템플릿의 채점 영역 그리기 (빨간색)
+                    var scoringAreaPen = new Pen(Brushes.Red, 2.0);
+                    foreach (var overlay in template.ScoringAreas)
+                    {
+                        var rect = new Rect(overlay.X, overlay.Y, overlay.Width, overlay.Height);
+                        drawingContext.DrawRectangle(null, scoringAreaPen, rect);
                     }
                 }
 

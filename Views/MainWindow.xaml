@@ -38,7 +38,7 @@
                                 <Run Text="px"/>
                             </TextBlock>
                             <TextBlock FontSize="11" Foreground="Blue">
-                                <Run Text="오버레이:"/> <Run Text="{Binding Overlays.Count, Mode=OneWay}"/>
+                                <Run Text="템플릿 적용"/>
                             </TextBlock>
                         </StackPanel>
                     </DataTemplate>
@@ -59,6 +59,19 @@
                              Margin="5"
                              Padding="10,5"
                              MinWidth="120"/>
+                <Separator Margin="5,0"/>
+                <TextBlock Text="오버레이 타입:" VerticalAlignment="Center" Margin="5,0"/>
+                <ComboBox SelectedItem="{Binding CurrentOverlayType, Mode=TwoWay}"
+                         Margin="5,0"
+                         VerticalAlignment="Center"
+                         MinWidth="120">
+                    <ComboBox.ItemsSource>
+                        <x:Array Type="{x:Type models:OverlayType}">
+                            <models:OverlayType>TimingMark</models:OverlayType>
+                            <models:OverlayType>ScoringArea</models:OverlayType>
+                        </x:Array>
+                    </ComboBox.ItemsSource>
+                </ComboBox>
                 <Separator Margin="5,0"/>
                 <TextBlock Text="기본 크기:" VerticalAlignment="Center" Margin="5,0"/>
                 <TextBlock Text="W:" VerticalAlignment="Center" Margin="5,0"/>
@@ -96,6 +109,23 @@
                        Background="#4CAF50"
                        Foreground="White"
                        FontWeight="Bold"/>
+                <Separator Margin="10,0"/>
+                <Button Content="기본 템플릿 저장" 
+                       Command="{Binding SaveAsDefaultTemplateCommand}"
+                       Margin="5"
+                       Padding="10,5"
+                       MinWidth="120"
+                       Background="#2196F3"
+                       Foreground="White"
+                       ToolTip="현재 템플릿을 기본 템플릿으로 저장합니다. 프로그램 시작 시 자동으로 로드됩니다."/>
+                <Button Content="기본 템플릿 로드" 
+                       Command="{Binding LoadDefaultTemplateCommand}"
+                       Margin="5"
+                       Padding="10,5"
+                       MinWidth="120"
+                       Background="#FF9800"
+                       Foreground="White"
+                       ToolTip="저장된 기본 템플릿을 현재 템플릿으로 로드합니다."/>
             </StackPanel>
 
             <!-- 이미지 캔버스 -->
@@ -156,7 +186,7 @@
 
                     <!-- 오버레이 목록 -->
                     <GroupBox Header="오버레이 목록" Margin="0,0,0,10">
-                        <DataGrid ItemsSource="{Binding SelectedDocument.Overlays}"
+                        <DataGrid ItemsSource="{Binding CurrentOverlayCollection}"
                                  SelectedItem="{Binding SelectedOverlay}"
                                  AutoGenerateColumns="False"
                                  CanUserAddRows="False"
@@ -165,6 +195,7 @@
                                  HeadersVisibility="Column"
                                  MaxHeight="200">
                             <DataGrid.Columns>
+                                <DataGridTextColumn Header="타입" Binding="{Binding OverlayType}" Width="80"/>
                                 <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F1}" Width="50"/>
                                 <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F1}" Width="50"/>
                                 <DataGridTextColumn Header="W" Binding="{Binding Width, StringFormat=F1}" Width="50"/>

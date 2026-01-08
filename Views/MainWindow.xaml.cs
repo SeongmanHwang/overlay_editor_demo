@@ -21,7 +21,6 @@ namespace SimpleOverlayEditor.Views
         
         // 이벤트 핸들러 구독 관리 (누적 방지)
         private Models.ImageDocument? _currentSubscribedDocument;
-        private NotifyCollectionChangedEventHandler? _overlaysCollectionChangedHandler;
         private PropertyChangedEventHandler? _documentPropertyChangedHandler;
 
         public MainWindow()
@@ -43,11 +42,8 @@ namespace SimpleOverlayEditor.Views
                     };
                 }
 
-                // SelectedDocument의 Overlays 변경 감지
-                if (ViewModel.SelectedDocument != null)
-                {
-                    ViewModel.SelectedDocument.Overlays.CollectionChanged += (s, e) => DrawOverlays();
-                }
+                // 템플릿 변경 감지 (ViewModel_PropertyChanged에서도 처리됨)
+                SubscribeToTemplateEvents();
             }
             catch (Exception ex)
             {
@@ -73,13 +69,6 @@ namespace SimpleOverlayEditor.Views
                     // 이전 문서의 이벤트 핸들러 해제 (누적 방지)
                     if (_currentSubscribedDocument != null)
                     {
-                        if (_overlaysCollectionChangedHandler != null)
-                        {
-                            _currentSubscribedDocument.Overlays.CollectionChanged -= _overlaysCollectionChangedHandler;
-                            _overlaysCollectionChangedHandler = null;
-                            Logger.Instance.Debug($"이전 문서의 Overlays.CollectionChanged 핸들러 해제");
-                        }
-                        
                         if (_documentPropertyChangedHandler != null)
                         {
                             _currentSubscribedDocument.PropertyChanged -= _documentPropertyChangedHandler;
@@ -96,20 +85,6 @@ namespace SimpleOverlayEditor.Views
                     if (ViewModel.SelectedDocument != null)
                     {
                         _currentSubscribedDocument = ViewModel.SelectedDocument;
-                        
-                        Logger.Instance.Debug($"SelectedDocument의 Overlays 변경 감지 등록");
-                        _overlaysCollectionChangedHandler = (s, args) => 
-                        {
-                            try
-                            {
-                                DrawOverlays();
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Instance.Error("Overlays.CollectionChanged에서 DrawOverlays 실패", ex);
-                            }
-                        };
-                        ViewModel.SelectedDocument.Overlays.CollectionChanged += _overlaysCollectionChangedHandler;
                         
                         _documentPropertyChangedHandler = (s, args) =>
                         {
@@ -148,6 +123,15 @@ namespace SimpleOverlayEditor.Views
                     Logger.Instance.Debug($"SelectedOverlay 변경. DrawOverlays 호출");
                     DrawOverlays();
                 }
+                
+                // 템플릿 관련 속성 변경 감지
+                if (e.PropertyName == nameof(ViewModel.DisplayOverlays) || 
+                    e.PropertyName == nameof(ViewModel.CurrentOverlayCollection) ||
+                    e.PropertyName == nameof(ViewModel.CurrentOverlayType))
+                {
+                    Logger.Instance.Debug($"{e.PropertyName} 변경. DrawOverlays 호출");
+                    DrawOverlays();
+                }
             }
             catch (Exception ex)
             {
@@ -161,6 +145,22 @@ namespace SimpleOverlayEditor.Views
             // SelectedDocumentId 변경은 ViewModel.SelectedDocument 변경으로 처리되므로
             // 여기서는 UpdateImageDisplay를 호출하지 않음 (중복 호출 방지)
             // ViewModel.SelectedDocument 변경 시 ViewModel_PropertyChanged에서 처리됨
+            
+            // Template 변경 시 이벤트 재구독
+            if (e.PropertyName == nameof(ViewModel.Workspace.Template))
+            {
+                SubscribeToTemplateEvents();
+            }
+        }
+        
+        private void SubscribeToTemplateEvents()
+        {
+            // 템플릿 변경 감지
+            if (ViewModel.Workspace?.Template != null)
+            {
+                ViewModel.Workspace.Template.TimingMarks.CollectionChanged += (s, e) => DrawOverlays();
+                ViewModel.Workspace.Template.ScoringAreas.CollectionChanged += (s, e) => DrawOverlays();
+            }
         }
 
         private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -292,8 +292,16 @@ namespace SimpleOverlayEditor.Views
 
                 var displayRect = ViewModel.CurrentImageDisplayRect;
                 var doc = ViewModel.SelectedDocument;
+                var template = ViewModel.Workspace?.Template;
                 
-                Logger.Instance.Debug($"표시 영역: {displayRect.Width}x{displayRect.Height}, 문서 크기: {doc.ImageWidth}x{doc.ImageHeight}, 오버레이 수: {doc.Overlays.Count}");
+                if (template == null)
+                {
+                    Logger.Instance.Debug("Template이 null이므로 DrawOverlays 종료");
+                    return;
+                }
+                
+                var allOverlays = template.TimingMarks.Concat(template.ScoringAreas).ToList();
+                Logger.Instance.Debug($"표시 영역: {displayRect.Width}x{displayRect.Height}, 문서 크기: {doc.ImageWidth}x{doc.ImageHeight}, 오버레이 수: {allOverlays.Count}");
 
                 // 0으로 나누기 방지
                 if (doc.ImageWidth <= 0 || doc.ImageHeight <= 0)
@@ -314,7 +322,7 @@ namespace SimpleOverlayEditor.Views
                 
                 Logger.Instance.Debug($"스케일 계산: scaleX={scaleX}, scaleY={scaleY}");
 
-                foreach (var overlay in doc.Overlays)
+                foreach (var overlay in allOverlays)
                 {
                     try
                     {
@@ -336,6 +344,16 @@ namespace SimpleOverlayEditor.Views
                             rect.Stroke = Brushes.Blue;
                             rect.StrokeThickness = (overlay.StrokeThickness + 2) * Math.Min(scaleX, scaleY);
                         }
+                        
+                        // 오버레이 타입에 따라 색상 구분
+                        if (overlay.OverlayType == Models.OverlayType.TimingMark)
+                        {
+                            rect.Stroke = overlay == ViewModel.SelectedOverlay ? Brushes.Blue : Brushes.Green;
+                        }
+                        else if (overlay.OverlayType == Models.OverlayType.ScoringArea)
+                        {
+                            rect.Stroke = overlay == ViewModel.SelectedOverlay ? Brushes.Blue : Brushes.Red;
+                        }
 
                         ImageCanvas.Children.Add(rect);
                     }
@@ -345,7 +363,7 @@ namespace SimpleOverlayEditor.Views
                     }
                 }
                 
-                Logger.Instance.Debug($"DrawOverlays 완료. 추가된 오버레이 수: {doc.Overlays.Count}");
+                Logger.Instance.Debug($"DrawOverlays 완료. 추가된 오버레이 수: {allOverlays.Count}");
             }
             catch (Exception ex)
             {

@@ -26,6 +26,7 @@ namespace SimpleOverlayEditor.ViewModels
         private double _defaultRectWidth = 30;
         private double _defaultRectHeight = 30;
         private bool _isAddMode = false;
+        private OverlayType _currentOverlayType = OverlayType.ScoringArea;
         private Rect _currentImageDisplayRect;
 
         public MainViewModel()
@@ -46,9 +47,11 @@ namespace SimpleOverlayEditor.ViewModels
 
                 AddRectangleCommand = new RelayCommand(() => IsAddMode = !IsAddMode);
                 DeleteSelectedCommand = new RelayCommand(OnDeleteSelected, () => SelectedOverlay != null);
-                ClearAllCommand = new RelayCommand(OnClearAll, () => SelectedDocument?.Overlays.Count > 0);
+                ClearAllCommand = new RelayCommand(OnClearAll, () => GetCurrentOverlayCollection()?.Count > 0);
                 SaveCommand = new RelayCommand(OnSave);
                 LoadFolderCommand = new RelayCommand(OnLoadFolder);
+                SaveAsDefaultTemplateCommand = new RelayCommand(OnSaveAsDefaultTemplate);
+                LoadDefaultTemplateCommand = new RelayCommand(OnLoadDefaultTemplate);
                 
                 Logger.Instance.Info("MainViewModel 초기화 완료");
             }
@@ -71,6 +74,21 @@ namespace SimpleOverlayEditor.ViewModels
                 
                 // Workspace 변경 시 SelectedDocument 동기화
                 SelectedDocument = value?.SelectedDocument;
+                
+                // 템플릿 변경 감지
+                if (value?.Template != null)
+                {
+                    value.Template.TimingMarks.CollectionChanged += (s, e) => 
+                    {
+                        OnPropertyChanged(nameof(DisplayOverlays));
+                        OnPropertyChanged(nameof(CurrentOverlayCollection));
+                    };
+                    value.Template.ScoringAreas.CollectionChanged += (s, e) => 
+                    {
+                        OnPropertyChanged(nameof(DisplayOverlays));
+                        OnPropertyChanged(nameof(CurrentOverlayCollection));
+                    };
+                }
                 
                 // Documents 컬렉션 변경 감지
                 if (value != null)
@@ -124,6 +142,7 @@ namespace SimpleOverlayEditor.ViewModels
 
                         Logger.Instance.Debug($"OnPropertyChanged 호출 전");
                         OnPropertyChanged();
+                        OnPropertyChanged(nameof(DisplayOverlays));
                         Logger.Instance.Debug($"SelectedDocument 변경 완료");
                     }
                     else
@@ -179,6 +198,17 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
+        public OverlayType CurrentOverlayType
+        {
+            get => _currentOverlayType;
+            set
+            {
+                _currentOverlayType = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentOverlayCollection));
+            }
+        }
+
         public Rect CurrentImageDisplayRect
         {
             get => _currentImageDisplayRect;
@@ -194,6 +224,8 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand ClearAllCommand { get; }
         public ICommand SaveCommand { get; }
         public ICommand LoadFolderCommand { get; }
+        public ICommand SaveAsDefaultTemplateCommand { get; }
+        public ICommand LoadDefaultTemplateCommand { get; }
 
         private void LoadWorkspace()
         {
@@ -207,6 +239,55 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     Workspace.InputFolderPath = PathService.DefaultInputFolder;
                     Logger.Instance.Info($"기본 InputFolderPath 설정: {PathService.DefaultInputFolder}");
+                }
+                
+                // 템플릿이 비어있으면 기본 템플릿 로드 시도
+                if (Workspace.Template.TimingMarks.Count == 0 && 
+                    Workspace.Template.ScoringAreas.Count == 0 && 
+                    Workspace.Template.ReferenceWidth == 0 && 
+                    Workspace.Template.ReferenceHeight == 0)
+                {
+                    Logger.Instance.Info("템플릿이 비어있어 기본 템플릿 로드 시도");
+                    var defaultTemplate = _stateStore.LoadDefaultTemplate();
+                    if (defaultTemplate != null)
+                    {
+                        Logger.Instance.Info("기본 템플릿 로드 성공");
+                        Workspace.Template.ReferenceWidth = defaultTemplate.ReferenceWidth;
+                        Workspace.Template.ReferenceHeight = defaultTemplate.ReferenceHeight;
+                        
+                        foreach (var overlay in defaultTemplate.TimingMarks)
+                        {
+                            Workspace.Template.TimingMarks.Add(new RectangleOverlay
+                            {
+                                X = overlay.X,
+                                Y = overlay.Y,
+                                Width = overlay.Width,
+                                Height = overlay.Height,
+                                StrokeThickness = overlay.StrokeThickness,
+                                OverlayType = overlay.OverlayType
+                            });
+                        }
+                        
+                        foreach (var overlay in defaultTemplate.ScoringAreas)
+                        {
+                            Workspace.Template.ScoringAreas.Add(new RectangleOverlay
+                            {
+                                X = overlay.X,
+                                Y = overlay.Y,
+                                Width = overlay.Width,
+                                Height = overlay.Height,
+                                StrokeThickness = overlay.StrokeThickness,
+                                OverlayType = overlay.OverlayType
+                            });
+                        }
+                        
+                        OnPropertyChanged(nameof(DisplayOverlays));
+                        OnPropertyChanged(nameof(CurrentOverlayCollection));
+                    }
+                    else
+                    {
+                        Logger.Instance.Info("기본 템플릿이 없음");
+                    }
                 }
                 
                 // Workspace 로드 후 SelectedDocument 초기화
@@ -257,10 +338,27 @@ namespace SimpleOverlayEditor.ViewModels
                 overlay.X = Math.Max(0, Math.Min(overlay.X, SelectedDocument.ImageWidth - overlay.Width));
                 overlay.Y = Math.Max(0, Math.Min(overlay.Y, SelectedDocument.ImageHeight - overlay.Height));
 
-                Logger.Instance.Info($"오버레이 추가. 위치: ({overlay.X}, {overlay.Y}), 크기: {overlay.Width}x{overlay.Height}");
-                SelectedDocument.Overlays.Add(overlay);
-                SelectedOverlay = overlay;
-                SelectedDocument.LastEditedAt = DateTime.Now;
+                overlay.OverlayType = CurrentOverlayType;
+                
+                Logger.Instance.Info($"오버레이 추가. 타입: {CurrentOverlayType}, 위치: ({overlay.X}, {overlay.Y}), 크기: {overlay.Width}x{overlay.Height}");
+                
+                // 템플릿의 적절한 컬렉션에 추가
+                var collection = GetCurrentOverlayCollection();
+                if (collection != null)
+                {
+                    collection.Add(overlay);
+                    SelectedOverlay = overlay;
+                    
+                    // 템플릿 기준 크기 업데이트 (첫 번째 오버레이 추가 시)
+                    if (Workspace.Template.ReferenceWidth == 0 && SelectedDocument != null)
+                    {
+                        Workspace.Template.ReferenceWidth = SelectedDocument.ImageWidth;
+                        Workspace.Template.ReferenceHeight = SelectedDocument.ImageHeight;
+                    }
+                    
+                    OnPropertyChanged(nameof(DisplayOverlays));
+                    OnPropertyChanged(nameof(CurrentOverlayCollection));
+                }
             }
             catch (Exception ex)
             {
@@ -294,30 +392,89 @@ namespace SimpleOverlayEditor.ViewModels
 
         private void OnDeleteSelected()
         {
-            if (SelectedOverlay != null && SelectedDocument != null)
+            if (SelectedOverlay != null)
             {
-                SelectedDocument.Overlays.Remove(SelectedOverlay);
+                // 템플릿의 적절한 컬렉션에서 제거
+                if (Workspace.Template.TimingMarks.Contains(SelectedOverlay))
+                {
+                    Workspace.Template.TimingMarks.Remove(SelectedOverlay);
+                }
+                else if (Workspace.Template.ScoringAreas.Contains(SelectedOverlay))
+                {
+                    Workspace.Template.ScoringAreas.Remove(SelectedOverlay);
+                }
+                
                 SelectedOverlay = null;
-                SelectedDocument.LastEditedAt = DateTime.Now;
+                OnPropertyChanged(nameof(DisplayOverlays));
+                OnPropertyChanged(nameof(CurrentOverlayCollection));
             }
         }
 
         private void OnClearAll()
         {
-            if (SelectedDocument != null)
+            var collection = GetCurrentOverlayCollection();
+            if (collection != null && collection.Count > 0)
             {
                 var result = MessageBox.Show(
-                    "모든 오버레이를 삭제하시겠습니까?",
+                    $"모든 {CurrentOverlayType} 오버레이를 삭제하시겠습니까?",
                     "확인",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    SelectedDocument.Overlays.Clear();
+                    collection.Clear();
                     SelectedOverlay = null;
-                    SelectedDocument.LastEditedAt = DateTime.Now;
+                    OnPropertyChanged(nameof(DisplayOverlays));
+                    OnPropertyChanged(nameof(CurrentOverlayCollection));
                 }
+            }
+        }
+
+        /// <summary>
+        /// 현재 선택된 오버레이 타입에 해당하는 컬렉션을 반환합니다.
+        /// </summary>
+        private System.Collections.ObjectModel.ObservableCollection<RectangleOverlay>? GetCurrentOverlayCollection()
+        {
+            return CurrentOverlayType switch
+            {
+                OverlayType.TimingMark => Workspace.Template.TimingMarks,
+                OverlayType.ScoringArea => Workspace.Template.ScoringAreas,
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// 현재 선택된 이미지에 표시할 모든 오버레이를 반환합니다 (템플릿 기반).
+        /// </summary>
+        public System.Collections.Generic.IEnumerable<RectangleOverlay> DisplayOverlays
+        {
+            get
+            {
+                if (SelectedDocument == null)
+                {
+                    return Enumerable.Empty<RectangleOverlay>();
+                }
+
+                // 템플릿의 모든 오버레이를 반환
+                // (나중에 정렬 기능이 추가되면 여기서 변환 적용)
+                return Workspace.Template.TimingMarks.Concat(Workspace.Template.ScoringAreas);
+            }
+        }
+
+        /// <summary>
+        /// 현재 선택된 오버레이 타입의 컬렉션을 반환합니다 (UI 바인딩용).
+        /// </summary>
+        public System.Collections.ObjectModel.ObservableCollection<RectangleOverlay> CurrentOverlayCollection
+        {
+            get
+            {
+                return CurrentOverlayType switch
+                {
+                    OverlayType.TimingMark => Workspace.Template.TimingMarks,
+                    OverlayType.ScoringArea => Workspace.Template.ScoringAreas,
+                    _ => Workspace.Template.ScoringAreas
+                };
             }
         }
 
@@ -424,6 +581,107 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Logger.Instance.Error("폴더 로드 실패", ex);
                 MessageBox.Show($"폴더 로드 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 현재 템플릿을 기본 템플릿으로 저장합니다.
+        /// </summary>
+        private void OnSaveAsDefaultTemplate()
+        {
+            try
+            {
+                _stateStore.SaveDefaultTemplate(Workspace.Template);
+                Logger.Instance.Info("기본 템플릿 저장 완료");
+                MessageBox.Show(
+                    "현재 템플릿이 기본 템플릿으로 저장되었습니다.\n다음에 프로그램을 시작할 때 이 템플릿이 자동으로 로드됩니다.",
+                    "기본 템플릿 저장 완료",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("기본 템플릿 저장 실패", ex);
+                MessageBox.Show($"기본 템플릿 저장 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 기본 템플릿을 현재 템플릿으로 로드합니다.
+        /// </summary>
+        private void OnLoadDefaultTemplate()
+        {
+            try
+            {
+                var defaultTemplate = _stateStore.LoadDefaultTemplate();
+                if (defaultTemplate == null)
+                {
+                    MessageBox.Show(
+                        "저장된 기본 템플릿이 없습니다.\n먼저 '기본 템플릿으로 저장' 기능을 사용하여 템플릿을 저장하세요.",
+                        "기본 템플릿 없음",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
+                var result = MessageBox.Show(
+                    "기본 템플릿을 로드하면 현재 템플릿이 덮어씌워집니다.\n계속하시겠습니까?",
+                    "확인",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // 현재 템플릿 초기화
+                    Workspace.Template.TimingMarks.Clear();
+                    Workspace.Template.ScoringAreas.Clear();
+
+                    // 기본 템플릿 로드
+                    Workspace.Template.ReferenceWidth = defaultTemplate.ReferenceWidth;
+                    Workspace.Template.ReferenceHeight = defaultTemplate.ReferenceHeight;
+                    
+                    foreach (var overlay in defaultTemplate.TimingMarks)
+                    {
+                        Workspace.Template.TimingMarks.Add(new RectangleOverlay
+                        {
+                            X = overlay.X,
+                            Y = overlay.Y,
+                            Width = overlay.Width,
+                            Height = overlay.Height,
+                            StrokeThickness = overlay.StrokeThickness,
+                            OverlayType = overlay.OverlayType
+                        });
+                    }
+                    
+                    foreach (var overlay in defaultTemplate.ScoringAreas)
+                    {
+                        Workspace.Template.ScoringAreas.Add(new RectangleOverlay
+                        {
+                            X = overlay.X,
+                            Y = overlay.Y,
+                            Width = overlay.Width,
+                            Height = overlay.Height,
+                            StrokeThickness = overlay.StrokeThickness,
+                            OverlayType = overlay.OverlayType
+                        });
+                    }
+
+                    SelectedOverlay = null;
+                    OnPropertyChanged(nameof(DisplayOverlays));
+                    OnPropertyChanged(nameof(CurrentOverlayCollection));
+                    
+                    Logger.Instance.Info("기본 템플릿 로드 완료");
+                    MessageBox.Show(
+                        "기본 템플릿이 로드되었습니다.",
+                        "로드 완료",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("기본 템플릿 로드 실패", ex);
+                MessageBox.Show($"기본 템플릿 로드 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

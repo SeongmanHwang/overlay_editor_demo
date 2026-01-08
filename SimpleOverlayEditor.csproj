@@ -1,4 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  
+  <PropertyGroup>
+    <SolutionDir>$(MSBuildProjectDirectory)</SolutionDir>
+  </PropertyGroup>
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -8,6 +12,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>SimpleOverlayEditor</AssemblyName>
     <RootNamespace>SimpleOverlayEditor</RootNamespace>
+    <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildProjectDirectory)</SolutionDir>
+    <SolutionName Condition="'$(SolutionName)' == ''">SimpleOverlayEditor</SolutionName>
   </PropertyGroup>
 
   <ItemGroup>

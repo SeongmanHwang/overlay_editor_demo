@@ -9,6 +9,7 @@ namespace SimpleOverlayEditor.Models
     {
         private string _inputFolderPath = string.Empty;
         private string? _selectedDocumentId;
+        private OmrTemplate _template = new OmrTemplate();
 
         public string InputFolderPath
         {
@@ -26,6 +27,19 @@ namespace SimpleOverlayEditor.Models
 
         public ImageDocument? SelectedDocument =>
             Documents.FirstOrDefault(d => d.ImageId == SelectedDocumentId);
+
+        /// <summary>
+        /// OMR 템플릿 (모든 이미지에 공통으로 적용)
+        /// </summary>
+        public OmrTemplate Template
+        {
+            get => _template;
+            set
+            {
+                _template = value;
+                OnPropertyChanged();
+            }
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

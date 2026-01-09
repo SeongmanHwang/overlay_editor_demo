@@ -1,6 +1,29 @@
 # Simple Overlay Editor
 
-이미지 위에 직사각형 오버레이를 그리고 저장하는 WPF 애플리케이션입니다.
+OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 감지하는 WPF 애플리케이션입니다.
+
+## 목차
+
+- [프로젝트 개요](#프로젝트-개요)
+- [프로젝트 구조](#프로젝트-구조)
+- [애플리케이션 생애주기](#애플리케이션-생애주기)
+- [주요 기능 및 구성](#주요-기능-및-구성)
+- [아키텍처 개요](#아키텍처-개요)
+- [기술 스택](#기술-스택)
+- [빌드 및 실행](#빌드-및-실행)
+- [사용 방법](#사용-방법)
+- [저장 위치](#저장-위치)
+- [로그 파일](#로그-파일)
+- [주의사항](#주의사항)
+
+## 프로젝트 개요
+
+이 애플리케이션은 OMR 시트의 템플릿을 제작하고, 스캔된 이미지에서 마킹을 자동으로 감지하는 도구입니다. 주요 기능은 다음과 같습니다:
+
+- **템플릿 편집**: 타이밍 마크와 채점 영역을 시각적으로 편집
+- **이미지 정렬**: 타이밍 마크를 기반으로 스캔 이미지 자동 정렬
+- **마킹 감지**: 채점 영역에서 마킹 여부 자동 판단
+- **상태 관리**: 작업 상태를 자동 저장하여 재실행 시 복구
 
 ## 프로젝트 구조
 
@@ -20,7 +43,9 @@ overlay_editor/
 │   └── AlignmentInfo.cs           # 이미지 정렬 정보 모델
 │
 ├── ViewModels/                    # 뷰모델 (MVVM)
-│   ├── MainViewModel.cs           # 메인 뷰모델
+│   ├── NavigationViewModel.cs     # 네비게이션 관리 뷰모델
+│   ├── HomeViewModel.cs           # 홈 화면 뷰모델
+│   ├── TemplateEditViewModel.cs   # 템플릿 편집 뷰모델
 │   ├── TemplateViewModel.cs       # 템플릿 관리 뷰모델
 │   ├── MarkingViewModel.cs        # 마킹 감지 뷰모델
 │   └── RelayCommand.cs            # 커맨드 패턴 구현
@@ -41,6 +66,439 @@ overlay_editor/
     ├── CoordinateConverter.cs     # 화면 좌표 ↔ 원본 픽셀 좌표 변환
     ├── ZoomHelper.cs              # 줌/피트 계산 (Uniform 스케일)
     └── Converters.cs              # XAML 데이터 바인딩 컨버터
+```
+
+### 디렉토리 구조 상세 설명
+
+#### Models/ - 데이터 모델 계층
+- **Workspace.cs**: 전체 애플리케이션 상태를 관리하는 루트 모델
+  - `InputFolderPath`: 입력 이미지 폴더 경로
+  - `Documents`: 로드된 이미지 문서 컬렉션
+  - `SelectedDocumentId`: 현재 선택된 문서 ID
+  - `Template`: OMR 템플릿 (모든 이미지에 공통 적용)
+- **OmrTemplate.cs**: OMR 템플릿 정의
+  - `TimingMarks`: 이미지 정렬용 타이밍 마크 오버레이
+  - `ScoringAreas`: 마킹 감지용 채점 영역 오버레이
+  - `ReferenceWidth/Height`: 템플릿 기준 이미지 크기
+- **ImageDocument.cs**: 개별 이미지 문서 정보
+  - `ImageId`: 고유 식별자
+  - `SourcePath`: 원본 이미지 경로
+  - `ImageWidth/Height`: 이미지 크기
+  - `AlignmentInfo`: 정렬 정보 (정렬된 이미지 경로 포함)
+- **RectangleOverlay.cs**: 직사각형 오버레이 데이터 (X, Y, Width, Height)
+- **OverlayType.cs**: 오버레이 타입 열거형 (TimingMark, ScoringArea)
+- **MarkingResult.cs**: 마킹 감지 결과 (영역별 마킹 여부, 평균 밝기)
+- **AlignmentInfo.cs**: 이미지 정렬 정보 (회전, 스케일, 이동, 신뢰도)
+
+#### ViewModels/ - 프레젠테이션 로직 계층 (MVVM)
+- **NavigationViewModel.cs**: 애플리케이션 모드 전환 관리
+  - `CurrentMode`: 현재 모드 (Home, TemplateEdit, Marking)
+  - `CurrentViewModel`: 현재 모드에 해당하는 ViewModel
+  - 모드별 ViewModel 생성 및 전환
+- **HomeViewModel.cs**: 홈 화면 로직 (모드 선택)
+- **TemplateEditViewModel.cs**: 템플릿 편집 화면 로직
+  - 오버레이 추가/편집/삭제
+  - 기본 템플릿 저장/로드
+- **TemplateViewModel.cs**: 템플릿 데이터 관리
+- **MarkingViewModel.cs**: 마킹 감지 화면 로직
+  - 단일/전체 이미지 마킹 감지
+  - 감지 결과 표시
+- **RelayCommand.cs**: ICommand 구현 (커맨드 패턴)
+
+#### Views/ - UI 계층
+- **MainWindow.xaml/cs**: 메인 윈도우
+  - `ContentControl`을 통한 모드별 View 전환
+  - `DataTemplate`을 사용한 View 자동 선택
+- **HomeView.xaml/cs**: 홈 화면 (모드 선택)
+- **TemplateEditView.xaml/cs**: 템플릿 편집 화면
+- **MarkingView.xaml/cs**: 마킹 감지 화면
+
+#### Services/ - 비즈니스 로직 계층
+- **StateStore.cs**: 상태 영속성 관리
+  - `Save()`: Workspace를 JSON으로 저장
+  - `Load()`: 저장된 상태 복구
+  - `SaveDefaultTemplate()` / `LoadDefaultTemplate()`: 기본 템플릿 관리
+- **ImageLoader.cs**: 이미지 파일 로드
+  - 폴더에서 이미지 파일 검색 및 로드
+  - 지원 형식: JPG, JPEG, PNG, BMP, GIF, TIFF
+- **ImageAlignmentService.cs**: 이미지 정렬 서비스
+  - 타이밍 마크 감지
+  - 변환 행렬 계산 (회전, 스케일, 이동)
+  - 정렬된 이미지 생성 및 캐시 저장
+- **MarkingDetector.cs**: 마킹 감지 서비스
+  - 채점 영역 ROI에서 평균 밝기 분석
+  - 임계값 기반 마킹 판단
+- **Renderer.cs**: 결과 이미지 렌더링
+  - 정렬된 이미지 + 오버레이 합성
+  - PNG 형식으로 출력 폴더에 저장
+- **PathService.cs**: 경로 관리
+  - AppData 폴더 경로
+  - 상태 파일, 출력 폴더, 캐시 폴더 경로
+- **Logger.cs**: 로깅 서비스
+  - 파일 기반 로깅 (날짜별 로그 파일)
+  - Debug, Info, Warning, Error 레벨
+
+#### Utils/ - 유틸리티
+- **CoordinateConverter.cs**: 좌표 변환
+  - 화면 좌표 ↔ 원본 픽셀 좌표 변환
+- **ZoomHelper.cs**: 이미지 표시 계산
+  - Uniform 스케일 계산
+  - Fit 모드 이미지 배치
+- **Converters.cs**: XAML 데이터 바인딩 컨버터
+  - `FileNameConverter`: 파일 경로에서 파일명 추출
+  - `NullToBoolConverter`: null 체크를 bool로 변환
+
+## 애플리케이션 생애주기
+
+### 1. 시작 (Startup)
+
+```
+App.xaml.cs OnStartup()
+  ↓
+  - Logger 초기화 및 로그 파일 경로 설정
+  - 처리되지 않은 예외 핸들러 등록
+  ↓
+MainWindow.xaml.cs 생성자
+  ↓
+  - StateStore 생성
+  - Workspace 로드 (state.json에서 복구)
+    - 템플릿 정보 복구
+    - 문서 목록 복구
+    - 정렬 정보 복구
+  - NavigationViewModel 생성
+  - 초기 모드: Home
+  - HomeViewModel 생성 및 설정
+  ↓
+MainWindow 표시
+```
+
+### 2. 모드 전환 (Navigation)
+
+애플리케이션은 세 가지 모드를 지원합니다:
+
+- **Home 모드**: 모드 선택 화면
+- **TemplateEdit 모드**: 템플릿 편집 화면
+- **Marking 모드**: 마킹 감지 화면
+
+모드 전환 흐름:
+
+```
+사용자 모드 선택
+  ↓
+NavigationViewModel.NavigateTo(mode)
+  ↓
+  - CurrentMode 변경
+  - CurrentViewModel을 null로 설정 (지연 생성)
+  ↓
+MainWindow.PropertyChanged 이벤트 감지
+  ↓
+  - 현재 모드에 맞는 ViewModel 생성
+    - Home → HomeViewModel
+    - TemplateEdit → TemplateEditViewModel (Workspace, StateStore 주입)
+    - Marking → MarkingViewModel (MarkingDetector, Workspace 데이터 주입)
+  ↓
+NavigationViewModel.SetXXXViewModel(viewModel)
+  ↓
+  - CurrentViewModel 설정
+  ↓
+MainWindow.ContentControl이 DataTemplate을 통해 자동으로 View 선택
+  ↓
+해당 View 표시
+```
+
+### 3. 이미지 로드 및 정렬
+
+```
+사용자 "폴더 로드" 버튼 클릭
+  ↓
+MainViewModel.OnLoadFolder()
+  ↓
+  - FolderBrowserDialog 표시
+  - ImageLoader.LoadImagesFromFolder()
+    - 폴더에서 이미지 파일 검색
+    - ImageDocument 객체 생성
+  ↓
+각 이미지에 대해 정렬 적용
+  ↓
+MainViewModel.ApplyAlignmentToDocument()
+  ↓
+  - ImageAlignmentService.AlignImage()
+    - 타이밍 마크 감지
+    - 변환 행렬 계산
+    - 정렬된 이미지 생성
+  ↓
+  - 정렬된 이미지를 캐시 폴더에 저장
+  - AlignmentInfo를 ImageDocument에 저장
+  ↓
+Workspace.Documents에 추가
+  ↓
+첫 번째 문서 자동 선택
+```
+
+### 4. 템플릿 편집
+
+```
+TemplateEdit 모드 진입
+  ↓
+TemplateEditViewModel 초기화
+  - Workspace.Template 바인딩
+  ↓
+사용자 오버레이 추가/편집/삭제
+  ↓
+  - 오버레이 타입 선택 (TimingMark / ScoringArea)
+  - "사각형 추가 모드" 활성화
+  - 캔버스 클릭 → 오버레이 추가
+  - 오버레이 선택 → 속성 편집
+  - 오버레이 삭제
+  ↓
+Workspace.Template 업데이트
+  ↓
+PropertyChanged 이벤트로 UI 자동 업데이트
+```
+
+### 5. 마킹 감지
+
+```
+Marking 모드 진입
+  ↓
+MarkingViewModel 초기화
+  - Workspace.Documents 바인딩
+  - Workspace.Template.ScoringAreas 바인딩
+  ↓
+사용자 "마킹 감지" 또는 "전체 감지" 버튼 클릭
+  ↓
+MarkingViewModel.DetectMarkings() 또는 DetectAllMarkings()
+  ↓
+MarkingDetector.DetectMarkings()
+  ↓
+  - 정렬된 이미지 로드 (또는 원본)
+  - 그레이스케일 변환
+  - 각 ScoringArea ROI 추출
+  - 평균 밝기 계산
+  - 임계값 비교하여 마킹 판단
+  ↓
+MarkingResult 리스트 반환
+  ↓
+UI에 결과 표시
+```
+
+### 6. 저장
+
+```
+사용자 "저장" 버튼 클릭
+  ↓
+MainViewModel.OnSave()
+  ↓
+  - StateStore.Save(Workspace)
+    - Workspace를 JSON으로 직렬화
+    - state.json에 저장
+  ↓
+  - Renderer.RenderAll(Workspace)
+    - 각 문서에 대해:
+      - 정렬된 이미지 로드
+      - 오버레이 그리기 (타이밍 마크: 녹색, 채점 영역: 빨간색)
+      - PNG로 저장 (output 폴더)
+```
+
+### 7. 종료 (Shutdown)
+
+```
+사용자 창 닫기
+  ↓
+MainWindow.OnClosed()
+  ↓
+  - StateStore.Save(Workspace)
+    - 현재 상태를 state.json에 저장
+  ↓
+  - Logger.Instance.Info("애플리케이션 종료")
+  ↓
+애플리케이션 종료
+```
+
+## 주요 기능 및 구성
+
+### 기능 그룹화
+
+애플리케이션의 주요 기능은 다음과 같이 구성되어 있습니다:
+
+#### 1. 템플릿 관리 기능 그룹
+**위치**: `TemplateEditViewModel`, `TemplateViewModel`, `TemplateEditView`
+
+**기능들**:
+- 타이밍 마크 편집 (이미지 정렬용)
+- 채점 영역 편집 (마킹 감지용)
+- 오버레이 추가/편집/삭제
+- 기본 템플릿 저장/로드
+
+**데이터 흐름**:
+```
+사용자 입력
+  ↓
+TemplateEditViewModel
+  ↓
+Workspace.Template (OmrTemplate)
+  ↓
+StateStore.SaveDefaultTemplate() (선택적)
+```
+
+#### 2. 이미지 처리 기능 그룹
+**위치**: `ImageLoader`, `ImageAlignmentService`, `MainViewModel`
+
+**기능들**:
+- 이미지 파일 로드
+- 타이밍 마크 기반 이미지 정렬
+- 정렬된 이미지 캐시 관리
+
+**데이터 흐름**:
+```
+폴더 선택
+  ↓
+ImageLoader.LoadImagesFromFolder()
+  ↓
+ImageDocument 생성
+  ↓
+ImageAlignmentService.AlignImage()
+  ↓
+정렬된 이미지 캐시 저장
+  ↓
+ImageDocument.AlignmentInfo 업데이트
+```
+
+#### 3. 마킹 감지 기능 그룹
+**위치**: `MarkingDetector`, `MarkingViewModel`, `MarkingView`
+
+**기능들**:
+- 단일 이미지 마킹 감지
+- 전체 이미지 일괄 마킹 감지
+- 감지 결과 표시
+
+**데이터 흐름**:
+```
+사용자 "마킹 감지" 클릭
+  ↓
+MarkingViewModel.DetectMarkings()
+  ↓
+MarkingDetector.DetectMarkings()
+  ↓
+  - 정렬된 이미지 로드
+  - ScoringArea ROI 추출
+  - 평균 밝기 분석
+  - 임계값 비교
+  ↓
+MarkingResult 리스트
+  ↓
+UI 표시
+```
+
+#### 4. 상태 관리 기능 그룹
+**위치**: `StateStore`, `Workspace`, `PathService`
+
+**기능들**:
+- Workspace 상태 저장/로드
+- 기본 템플릿 저장/로드
+- 정렬 정보 영속성
+
+**데이터 흐름**:
+```
+애플리케이션 시작
+  ↓
+StateStore.Load()
+  ↓
+Workspace 복구
+  ↓
+작업 수행
+  ↓
+StateStore.Save(Workspace)
+  ↓
+JSON 파일에 저장
+```
+
+#### 5. 렌더링 기능 그룹
+**위치**: `Renderer`, `MainViewModel`
+
+**기능들**:
+- 정렬된 이미지 + 오버레이 합성
+- 결과 이미지 PNG 저장
+
+**데이터 흐름**:
+```
+사용자 "저장" 클릭
+  ↓
+Renderer.RenderAll(Workspace)
+  ↓
+각 ImageDocument에 대해:
+  - 정렬된 이미지 로드
+  - 타이밍 마크 그리기 (녹색)
+  - 채점 영역 그리기 (빨간색)
+  - PNG로 저장
+```
+
+### 기능 간 의존성
+
+```
+NavigationViewModel
+  ├── HomeViewModel
+  ├── TemplateEditViewModel
+  │     ├── Workspace (의존)
+  │     └── StateStore (의존)
+  └── MarkingViewModel
+        ├── MarkingDetector (의존)
+        └── Workspace 데이터 (의존)
+
+MainViewModel
+  ├── StateStore (의존)
+  ├── ImageLoader (의존)
+  ├── ImageAlignmentService (의존)
+  ├── Renderer (의존)
+  └── Workspace (관리)
+
+Workspace
+  ├── OmrTemplate
+  │     ├── TimingMarks (RectangleOverlay[])
+  │     └── ScoringAreas (RectangleOverlay[])
+  └── Documents (ImageDocument[])
+        └── AlignmentInfo
+```
+
+## 아키텍처 개요
+
+### 설계 패턴
+
+1. **MVVM (Model-View-ViewModel)**
+   - View: XAML 파일 (UI 정의)
+   - ViewModel: 비즈니스 로직 및 상태 관리
+   - Model: 데이터 모델 (INotifyPropertyChanged 구현)
+
+2. **서비스 패턴**
+   - 비즈니스 로직을 서비스 클래스로 분리
+   - 의존성 주입 (생성자 주입)
+
+3. **커맨드 패턴**
+   - `RelayCommand`를 통한 UI 액션 처리
+   - `ICommand` 인터페이스 구현
+
+4. **상태 관리 패턴**
+   - `Workspace`를 루트 모델로 사용
+   - `StateStore`를 통한 영속성 관리
+
+### 데이터 바인딩
+
+- **양방향 바인딩**: 사용자 입력 ↔ ViewModel 속성
+- **단방향 바인딩**: ViewModel 속성 → UI 표시
+- **컬렉션 바인딩**: `ObservableCollection`을 통한 동적 UI 업데이트
+- **컨버터**: `Converters.cs`의 데이터 변환
+
+### 모드 전환 메커니즘
+
+```
+MainWindow
+  └── ContentControl
+        └── Content="{Binding CurrentViewModel}"
+              ↓
+              DataTemplate 선택
+              ├── HomeViewModel → HomeView
+              ├── TemplateEditViewModel → TemplateEditView
+              └── MarkingViewModel → MarkingView
 ```
 
 ## 주요 기능
@@ -197,11 +655,25 @@ dotnet build
 
 ## 기술 스택
 
-- .NET 8.0
-- WPF (Windows Presentation Foundation)
-- Windows Forms (폴더 선택 대화상자)
-- MVVM 패턴
-- System.Text.Json 9.0.0 (상태 저장)
+### 프레임워크 및 런타임
+- **.NET 8.0**: 최신 .NET 런타임
+- **WPF (Windows Presentation Foundation)**: 데스크톱 UI 프레임워크
+- **Windows Forms**: 폴더 선택 대화상자용 (System.Windows.Forms)
+
+### 아키텍처 패턴
+- **MVVM (Model-View-ViewModel)**: UI와 비즈니스 로직 분리
+- **서비스 패턴**: 비즈니스 로직을 서비스 클래스로 분리
+- **커맨드 패턴**: UI 액션 처리
+
+### 라이브러리
+- **System.Text.Json 9.0.0**: 상태 저장 및 직렬화
+
+### 주요 기술
+- **데이터 바인딩**: 양방향/단방향 바인딩을 통한 UI 업데이트
+- **ObservableCollection**: 컬렉션 변경 시 자동 UI 업데이트
+- **INotifyPropertyChanged**: 속성 변경 알림
+- **이미지 처리**: WPF BitmapSource API
+- **파일 시스템**: AppData 폴더 기반 데이터 저장
 
 ## 주의사항
 

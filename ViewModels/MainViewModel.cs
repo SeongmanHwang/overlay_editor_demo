@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -8,7 +7,6 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.Win32;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
 using SimpleOverlayEditor.Utils;
@@ -315,7 +313,7 @@ namespace SimpleOverlayEditor.ViewModels
                 Logger.Instance.Info($"SelectedDocument 초기화 완료: {(SelectedDocument != null ? SelectedDocument.SourcePath : "null")}");
 
                 // 분리된 ViewModel 초기화 (Workspace 로드 후)
-                if (Workspace.Template != null)
+                if (Workspace != null && Workspace.Template != null)
                 {
                     if (_templateViewModel == null)
                     {
@@ -327,14 +325,16 @@ namespace SimpleOverlayEditor.ViewModels
                     }
                 }
 
-                if (_markingViewModel == null)
-                {
-                    _markingViewModel = new MarkingViewModel(new MarkingDetector());
-                }
-                if (Workspace.Template != null)
-                {
-                    UpdateMarkingViewModel();
-                }
+                // MainViewModel은 레거시 코드로 사용되지 않음
+                // MarkingViewModel은 NavigationViewModel 기반 구조에서 생성됨
+                // if (_markingViewModel == null)
+                // {
+                //     _markingViewModel = new MarkingViewModel(new MarkingDetector(), null);
+                // }
+                // if (Workspace != null && Workspace.Template != null)
+                // {
+                //     UpdateMarkingViewModel();
+                // }
             }
             catch (Exception ex)
             {

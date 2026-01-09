@@ -391,3 +391,11 @@ namespace SimpleOverlayEditor.Services
         public double TranslationY { get; set; }
     }
 }
+
+
+
+
+
+
+
+

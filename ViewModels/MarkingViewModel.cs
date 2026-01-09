@@ -16,12 +16,14 @@ namespace SimpleOverlayEditor.ViewModels
     public class MarkingViewModel : INotifyPropertyChanged
     {
         private readonly MarkingDetector _markingDetector;
+        private readonly NavigationViewModel _navigation;
         private List<MarkingResult>? _currentMarkingResults;
         private double _markingThreshold = 180.0;
 
-        public MarkingViewModel(MarkingDetector markingDetector)
+        public MarkingViewModel(MarkingDetector markingDetector, NavigationViewModel navigation)
         {
             _markingDetector = markingDetector ?? throw new ArgumentNullException(nameof(markingDetector));
+            _navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
 
             DetectMarkingsCommand = new RelayCommand(
                 OnDetectMarkings, 
@@ -57,6 +59,11 @@ namespace SimpleOverlayEditor.ViewModels
 
         public ICommand DetectMarkingsCommand { get; }
         public ICommand DetectAllMarkingsCommand { get; }
+        
+        /// <summary>
+        /// 네비게이션 ViewModel (홈으로 이동 등)
+        /// </summary>
+        public NavigationViewModel Navigation => _navigation;
 
         /// <summary>
         /// 현재 선택된 문서의 마킹을 감지합니다.

@@ -14,6 +14,7 @@
     <RootNamespace>SimpleOverlayEditor</RootNamespace>
     <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildProjectDirectory)</SolutionDir>
     <SolutionName Condition="'$(SolutionName)' == ''">SimpleOverlayEditor</SolutionName>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>

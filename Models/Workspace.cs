@@ -12,6 +12,7 @@ namespace SimpleOverlayEditor.Models
         private string? _selectedDocumentId;
         private OmrTemplate _template = new OmrTemplate();
         private Dictionary<string, List<MarkingResult>> _markingResults = new();
+        private Dictionary<string, List<BarcodeResult>> _barcodeResults = new();
 
         public string InputFolderPath
         {
@@ -52,6 +53,19 @@ namespace SimpleOverlayEditor.Models
             set
             {
                 _markingResults = value ?? new Dictionary<string, List<MarkingResult>>();
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 문서별 바코드 디코딩 결과 (ImageId -> BarcodeResult 리스트)
+        /// </summary>
+        public Dictionary<string, List<BarcodeResult>> BarcodeResults
+        {
+            get => _barcodeResults;
+            set
+            {
+                _barcodeResults = value ?? new Dictionary<string, List<BarcodeResult>>();
                 OnPropertyChanged();
             }
         }

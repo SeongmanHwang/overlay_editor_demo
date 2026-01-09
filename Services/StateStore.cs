@@ -40,6 +40,15 @@ namespace SimpleOverlayEditor.Services
                             Height = ov.Height,
                             StrokeThickness = ov.StrokeThickness,
                             OverlayType = ov.OverlayType.ToString()
+                        }).ToList(),
+                        BarcodeAreas = workspace.Template.BarcodeAreas.Select(ov => new
+                        {
+                            X = ov.X,
+                            Y = ov.Y,
+                            Width = ov.Width,
+                            Height = ov.Height,
+                            StrokeThickness = ov.StrokeThickness,
+                            OverlayType = ov.OverlayType.ToString()
                         }).ToList()
                     },
                     Documents = workspace.Documents.Select(doc => new
@@ -168,6 +177,34 @@ namespace SimpleOverlayEditor.Services
                             }
                             
                             template.ScoringAreas.Add(overlay);
+                        }
+                    }
+
+                    // 바코드 영역 로드
+                    if (templateElement.TryGetProperty("BarcodeAreas", out var barcodeAreasElement))
+                    {
+                        foreach (var ovElem in barcodeAreasElement.EnumerateArray())
+                        {
+                            var overlay = new RectangleOverlay
+                            {
+                                X = ovElem.GetProperty("X").GetDouble(),
+                                Y = ovElem.GetProperty("Y").GetDouble(),
+                                Width = ovElem.GetProperty("Width").GetDouble(),
+                                Height = ovElem.GetProperty("Height").GetDouble(),
+                                StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                    ? thickness.GetDouble()
+                                    : 2.0
+                            };
+                            
+                            if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                            {
+                                if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                {
+                                    overlay.OverlayType = type;
+                                }
+                            }
+                            
+                            template.BarcodeAreas.Add(overlay);
                         }
                     }
                 }
@@ -324,6 +361,15 @@ namespace SimpleOverlayEditor.Services
                         Height = ov.Height,
                         StrokeThickness = ov.StrokeThickness,
                         OverlayType = ov.OverlayType.ToString()
+                    }).ToList(),
+                    BarcodeAreas = template.BarcodeAreas.Select(ov => new
+                    {
+                        X = ov.X,
+                        Y = ov.Y,
+                        Width = ov.Width,
+                        Height = ov.Height,
+                        StrokeThickness = ov.StrokeThickness,
+                        OverlayType = ov.OverlayType.ToString()
                     }).ToList()
                 };
 
@@ -422,6 +468,34 @@ namespace SimpleOverlayEditor.Services
                         }
                         
                         template.ScoringAreas.Add(overlay);
+                    }
+                }
+
+                // 바코드 영역 로드
+                if (root.TryGetProperty("BarcodeAreas", out var barcodeAreasElement))
+                {
+                    foreach (var ovElem in barcodeAreasElement.EnumerateArray())
+                    {
+                        var overlay = new RectangleOverlay
+                        {
+                            X = ovElem.GetProperty("X").GetDouble(),
+                            Y = ovElem.GetProperty("Y").GetDouble(),
+                            Width = ovElem.GetProperty("Width").GetDouble(),
+                            Height = ovElem.GetProperty("Height").GetDouble(),
+                            StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                ? thickness.GetDouble()
+                                : 2.0
+                        };
+                        
+                        if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                        {
+                            if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                            {
+                                overlay.OverlayType = type;
+                            }
+                        }
+                        
+                        template.BarcodeAreas.Add(overlay);
                     }
                 }
 

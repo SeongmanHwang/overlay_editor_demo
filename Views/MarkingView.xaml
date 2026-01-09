@@ -273,6 +273,87 @@
                         </StackPanel>
                     </GroupBox>
 
+                    <!-- 바코드 디코딩 결과 -->
+                    <GroupBox Header="바코드 디코딩 결과" Margin="0,0,0,10">
+                        <StackPanel Margin="5">
+                            <!-- 안내 메시지 (바코드 디코딩 전) -->
+                            <TextBlock Text="바코드 디코딩을 실행하세요." 
+                                      FontSize="11" 
+                                      Foreground="#666"
+                                      TextWrapping="Wrap"
+                                      Margin="0,5"
+                                      TextAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentBarcodeResults, Converter={StaticResource NullToBoolConverter}}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            
+                            <!-- 바코드 결과 DataGrid -->
+                            <DataGrid ItemsSource="{Binding CurrentBarcodeResults}"
+                                     AutoGenerateColumns="False"
+                                     CanUserAddRows="False"
+                                     CanUserDeleteRows="False"
+                                     HeadersVisibility="Column"
+                                     MaxHeight="200">
+                                <DataGrid.Style>
+                                    <Style TargetType="DataGrid">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentBarcodeResults, Converter={StaticResource NullToBoolConverter}}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.Style>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="영역" Binding="{Binding BarcodeAreaId}" Width="50"/>
+                                    <DataGridTextColumn Header="성공" Binding="{Binding Success}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Success}" Value="True">
+                                                        <Setter Property="Foreground" Value="Green"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Success}" Value="False">
+                                                        <Setter Property="Foreground" Value="Red"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="바코드" Binding="{Binding DecodedText}" Width="*"/>
+                                    <DataGridTextColumn Header="포맷" Binding="{Binding Format}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- 바코드 요약 -->
+                    <GroupBox Header="바코드 요약" Margin="0,0,0,10">
+                        <StackPanel Margin="5">
+                            <TextBlock TextWrapping="Wrap" Margin="0,5,0,2">
+                                <Run Text="총 영역:" FontWeight="Bold"/>
+                                <Run Text="{Binding CurrentBarcodeResults.Count, Mode=OneWay, TargetNullValue=0}"/> <Run Text="개"/>
+                            </TextBlock>
+                            <TextBlock TextWrapping="Wrap" Margin="0,5,0,2">
+                                <Run Text="성공:" FontWeight="Bold" Foreground="Green"/>
+                                <Run Text="{Binding CurrentBarcodeResults, Converter={StaticResource BarcodeSuccessCountConverter}}" Foreground="Green"/> <Run Text="개"/>
+                            </TextBlock>
+                            <TextBlock TextWrapping="Wrap" Margin="0,5,0,2">
+                                <Run Text="실패:" FontWeight="Bold" Foreground="Red"/>
+                                <Run Text="{Binding CurrentBarcodeResults, Converter={StaticResource BarcodeFailureCountConverter}}" Foreground="Red"/> <Run Text="개"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </GroupBox>
+
                     <!-- 채점 영역 정보 -->
                     <GroupBox Header="채점 영역 정보" Margin="0,0,0,10">
                         <StackPanel Margin="5">
@@ -282,6 +363,8 @@
                                 <Run Text="• 빨간색: 채점 영역 (미마킹)"/>
                                 <LineBreak/>
                                 <Run Text="• 파란색: 채점 영역 (마킹 감지)"/>
+                                <LineBreak/>
+                                <Run Text="• 주황색: 바코드 영역"/>
                             </TextBlock>
                         </StackPanel>
                     </GroupBox>

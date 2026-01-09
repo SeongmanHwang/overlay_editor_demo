@@ -13,7 +13,12 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 채점 영역 (우측에 위치, 마킹 감지용)
         /// </summary>
-        ScoringArea
+        ScoringArea,
+        
+        /// <summary>
+        /// 바코드 영역 (좌측에 위치, 수험번호/면접위원 번호 바코드 디코딩용)
+        /// </summary>
+        BarcodeArea
     }
 }
 

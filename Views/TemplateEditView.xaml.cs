@@ -42,6 +42,7 @@ namespace SimpleOverlayEditor.Views
                 {
                     ViewModel.Workspace.Template.TimingMarks.CollectionChanged += (s, args) => DrawOverlays();
                     ViewModel.Workspace.Template.ScoringAreas.CollectionChanged += (s, args) => DrawOverlays();
+                    ViewModel.Workspace.Template.BarcodeAreas.CollectionChanged += (s, args) => DrawOverlays();
                 }
             }
         }
@@ -198,7 +199,10 @@ namespace SimpleOverlayEditor.Views
                 var doc = ViewModel.SelectedDocument;
                 var template = ViewModel.Workspace.Template;
 
-                var allOverlays = template.TimingMarks.Concat(template.ScoringAreas).ToList();
+                var allOverlays = template.TimingMarks
+                    .Concat(template.ScoringAreas)
+                    .Concat(template.BarcodeAreas)
+                    .ToList();
 
                 if (doc.ImageWidth <= 0 || doc.ImageHeight <= 0 ||
                     displayRect.Width <= 0 || displayRect.Height <= 0)
@@ -242,6 +246,10 @@ namespace SimpleOverlayEditor.Views
                         {
                             rect.Stroke = overlay == ViewModel.SelectedOverlay ? Brushes.Blue : Brushes.Red;
                         }
+                        else if (overlay.OverlayType == Models.OverlayType.BarcodeArea)
+                        {
+                            rect.Stroke = overlay == ViewModel.SelectedOverlay ? Brushes.Blue : Brushes.Orange;
+                        }
 
                         ImageCanvas.Children.Add(rect);
                     }
@@ -274,6 +282,7 @@ namespace SimpleOverlayEditor.Views
         }
     }
 }
+
 
 
 

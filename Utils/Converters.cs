@@ -72,6 +72,40 @@ namespace SimpleOverlayEditor.Utils
             throw new NotImplementedException();
         }
     }
+
+    public class BarcodeSuccessCountConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is List<BarcodeResult> results)
+            {
+                return results.Count(r => r.Success);
+            }
+            return 0;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class BarcodeFailureCountConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is List<BarcodeResult> results)
+            {
+                return results.Count(r => !r.Success);
+            }
+            return 0;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
 
 

@@ -11,6 +11,7 @@ namespace SimpleOverlayEditor.Models
     {
         private ObservableCollection<RectangleOverlay> _timingMarks = new();
         private ObservableCollection<RectangleOverlay> _scoringAreas = new();
+        private ObservableCollection<RectangleOverlay> _barcodeAreas = new();
         private int _referenceWidth;
         private int _referenceHeight;
 
@@ -36,6 +37,19 @@ namespace SimpleOverlayEditor.Models
             set
             {
                 _scoringAreas = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 바코드 영역 오버레이 목록 (좌측에 위치, 수험번호/면접위원 번호 바코드 디코딩용)
+        /// </summary>
+        public ObservableCollection<RectangleOverlay> BarcodeAreas
+        {
+            get => _barcodeAreas;
+            set
+            {
+                _barcodeAreas = value;
                 OnPropertyChanged();
             }
         }

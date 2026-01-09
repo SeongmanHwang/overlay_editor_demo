@@ -82,6 +82,7 @@
                         <x:Array Type="{x:Type models:OverlayType}">
                             <models:OverlayType>TimingMark</models:OverlayType>
                             <models:OverlayType>ScoringArea</models:OverlayType>
+                            <models:OverlayType>BarcodeArea</models:OverlayType>
                         </x:Array>
                     </ComboBox.ItemsSource>
                 </ComboBox>
@@ -217,6 +218,7 @@
         </DockPanel>
     </Grid>
 </UserControl>
+
 
 
 

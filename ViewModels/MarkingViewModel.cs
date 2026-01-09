@@ -20,6 +20,7 @@ namespace SimpleOverlayEditor.ViewModels
     public class MarkingViewModel : INotifyPropertyChanged
     {
         private readonly MarkingDetector _markingDetector;
+        private readonly BarcodeReaderService _barcodeReaderService;
         private readonly NavigationViewModel _navigation;
         private readonly Workspace _workspace;
         private readonly StateStore _stateStore;
@@ -27,12 +28,14 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly ImageAlignmentService _alignmentService;
         private readonly Renderer _renderer;
         private List<MarkingResult>? _currentMarkingResults;
+        private List<BarcodeResult>? _currentBarcodeResults;
         private double _markingThreshold = 180.0;
         private BitmapSource? _displayImage;
 
         public MarkingViewModel(MarkingDetector markingDetector, NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
             _markingDetector = markingDetector ?? throw new ArgumentNullException(nameof(markingDetector));
+            _barcodeReaderService = new BarcodeReaderService();
             _navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
             _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
             _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
@@ -61,10 +64,11 @@ namespace SimpleOverlayEditor.ViewModels
                     // Workspace와 동기화
                     _workspace.SelectedDocumentId = value?.ImageId;
                     
-                    // 문서 변경 시 마킹 결과 복원 또는 초기화
+                    // 문서 변경 시 마킹/바코드 결과 복원 또는 초기화
                     if (_selectedDocument == null)
                     {
                         CurrentMarkingResults = null;
+                        CurrentBarcodeResults = null;
                         DisplayImage = null;
                     }
                     else
@@ -79,6 +83,23 @@ namespace SimpleOverlayEditor.ViewModels
                         {
                             // 마킹 결과가 없으면 null로 설정 (마킹 감지 전까지)
                             CurrentMarkingResults = null;
+                        }
+
+                        // Workspace.BarcodeResults에서 해당 문서의 바코드 결과 복원
+                        if (_workspace.BarcodeResults != null && 
+                            _workspace.BarcodeResults.TryGetValue(_selectedDocument.ImageId, out var barcodeResults))
+                        {
+                            CurrentBarcodeResults = barcodeResults;
+                        }
+                        else
+                        {
+                            // 바코드 결과가 없으면 null로 설정
+                            CurrentBarcodeResults = null;
+                        }
+
+                        // 결과가 없으면 DisplayImage도 null
+                        if (CurrentMarkingResults == null && CurrentBarcodeResults == null)
+                        {
                             DisplayImage = null;
                         }
                     }
@@ -86,8 +107,8 @@ namespace SimpleOverlayEditor.ViewModels
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(SelectedDocument));
                     
-                    // 마킹 결과가 있을 때만 DisplayImage 생성
-                    if (CurrentMarkingResults != null)
+                    // 마킹 또는 바코드 결과가 있을 때 DisplayImage 생성
+                    if (CurrentMarkingResults != null || CurrentBarcodeResults != null)
                     {
                         UpdateDisplayImage();
                     }
@@ -125,6 +146,17 @@ namespace SimpleOverlayEditor.ViewModels
                 _currentMarkingResults = value;
                 OnPropertyChanged();
                 UpdateDisplayImage(); // 마킹 결과 변경 시 이미지 업데이트
+            }
+        }
+
+        public List<BarcodeResult>? CurrentBarcodeResults
+        {
+            get => _currentBarcodeResults;
+            set
+            {
+                _currentBarcodeResults = value;
+                OnPropertyChanged();
+                UpdateDisplayImage(); // 바코드 결과 변경 시 이미지 업데이트
             }
         }
 
@@ -168,6 +200,7 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Logger.Instance.Info($"마킹 감지 시작: {SelectedDocument.SourcePath}");
                 
+                // 마킹 감지
                 var results = _markingDetector.DetectMarkings(
                     SelectedDocument, 
                     ScoringAreas, 
@@ -183,6 +216,41 @@ namespace SimpleOverlayEditor.ViewModels
                         _workspace.MarkingResults = new Dictionary<string, List<MarkingResult>>();
                     }
                     _workspace.MarkingResults[SelectedDocument.ImageId] = results;
+                }
+
+                // 바코드 디코딩 (바코드 영역이 있는 경우)
+                List<BarcodeResult>? barcodeResults = null;
+                if (SelectedDocument != null && 
+                    _workspace.Template.BarcodeAreas != null && 
+                    _workspace.Template.BarcodeAreas.Count > 0)
+                {
+                    try
+                    {
+                        Logger.Instance.Info($"바코드 디코딩 시작: {SelectedDocument.SourcePath}");
+                        barcodeResults = _barcodeReaderService.DecodeBarcodes(
+                            SelectedDocument,
+                            _workspace.Template.BarcodeAreas);
+
+                        CurrentBarcodeResults = barcodeResults;
+
+                        // Workspace에 바코드 결과 저장
+                        if (_workspace.BarcodeResults == null)
+                        {
+                            _workspace.BarcodeResults = new Dictionary<string, List<BarcodeResult>>();
+                        }
+                        _workspace.BarcodeResults[SelectedDocument.ImageId] = barcodeResults;
+
+                        if (barcodeResults != null)
+                        {
+                            var successCount = barcodeResults.Count(r => r.Success);
+                            Logger.Instance.Info($"바코드 디코딩 완료: 총 {barcodeResults.Count}개 영역 중 {successCount}개 성공");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Error("바코드 디코딩 실패", ex);
+                        // 바코드 디코딩 실패해도 마킹 감지는 완료되었으므로 계속 진행
+                    }
                 }
 
                 // 오버레이 이미지 생성 및 표시
@@ -208,8 +276,19 @@ namespace SimpleOverlayEditor.ViewModels
                              $"총 영역: {results.Count}개\n" +
                              $"마킹 감지: {markedCount}개\n" +
                              $"미마킹: {results.Count - markedCount}개\n\n" +
-                             $"임계값: {MarkingThreshold}\n\n" +
-                             $"결과 이미지가 저장되었습니다.";
+                             $"임계값: {MarkingThreshold}";
+                
+                // 바코드 결과 추가
+                if (barcodeResults != null && barcodeResults.Count > 0)
+                {
+                    var barcodeSuccessCount = barcodeResults.Count(r => r.Success);
+                    message += $"\n\n바코드 디코딩:\n" +
+                              $"총 영역: {barcodeResults.Count}개\n" +
+                              $"성공: {barcodeSuccessCount}개\n" +
+                              $"실패: {barcodeResults.Count - barcodeSuccessCount}개";
+                }
+
+                message += "\n\n결과 이미지가 저장되었습니다.";
 
                 Logger.Instance.Info($"마킹 감지 완료: {markedCount}/{results.Count}개 마킹 감지");
                 MessageBox.Show(message, "마킹 감지 완료", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -252,10 +331,29 @@ namespace SimpleOverlayEditor.ViewModels
 
                 Logger.Instance.Info($"전체 문서 마킹 감지 시작: {Documents.Count()}개 문서");
                 
+                // 마킹 감지
                 var allResults = _markingDetector.DetectAllMarkings(workspace, MarkingThreshold);
 
                 // Workspace에 마킹 결과 저장
                 _workspace.MarkingResults = allResults;
+
+                // 바코드 디코딩 (바코드 영역이 있는 경우)
+                Dictionary<string, List<BarcodeResult>>? allBarcodeResults = null;
+                if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
+                {
+                    try
+                    {
+                        Logger.Instance.Info($"전체 문서 바코드 디코딩 시작");
+                        allBarcodeResults = _barcodeReaderService.DecodeAllBarcodes(_workspace);
+                        _workspace.BarcodeResults = allBarcodeResults;
+                        Logger.Instance.Info($"전체 문서 바코드 디코딩 완료");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Error("전체 문서 바코드 디코딩 실패", ex);
+                        // 바코드 디코딩 실패해도 마킹 감지는 완료되었으므로 계속 진행
+                    }
+                }
 
                 int totalDocuments = allResults.Count;
                 int totalAreas = 0;
@@ -274,13 +372,39 @@ namespace SimpleOverlayEditor.ViewModels
                              $"미마킹: {totalAreas - totalMarked}개\n\n" +
                              $"임계값: {MarkingThreshold}";
 
+                // 바코드 결과 추가
+                if (allBarcodeResults != null && allBarcodeResults.Count > 0)
+                {
+                    int totalBarcodeAreas = 0;
+                    int totalBarcodeSuccess = 0;
+                    foreach (var kvp in allBarcodeResults)
+                    {
+                        totalBarcodeAreas += kvp.Value.Count;
+                        totalBarcodeSuccess += kvp.Value.Count(r => r.Success);
+                    }
+                    message += $"\n\n바코드 디코딩:\n" +
+                              $"총 영역: {totalBarcodeAreas}개\n" +
+                              $"성공: {totalBarcodeSuccess}개\n" +
+                              $"실패: {totalBarcodeAreas - totalBarcodeSuccess}개";
+                }
+
                 Logger.Instance.Info($"전체 문서 마킹 감지 완료: {totalMarked}/{totalAreas}개 마킹 감지");
                 MessageBox.Show(message, "전체 마킹 감지 완료", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // 현재 선택된 문서의 결과 표시
-                if (SelectedDocument != null && allResults.TryGetValue(SelectedDocument.ImageId, out var currentResults))
+                if (SelectedDocument != null)
                 {
-                    CurrentMarkingResults = currentResults;
+                    if (allResults.TryGetValue(SelectedDocument.ImageId, out var currentResults))
+                    {
+                        CurrentMarkingResults = currentResults;
+                    }
+
+                    if (allBarcodeResults != null && 
+                        allBarcodeResults.TryGetValue(SelectedDocument.ImageId, out var currentBarcodeResults))
+                    {
+                        CurrentBarcodeResults = currentBarcodeResults;
+                    }
+
                     UpdateDisplayImage();
                 }
 
@@ -359,6 +483,7 @@ namespace SimpleOverlayEditor.ViewModels
                     SelectedDocument = null;
                     _workspace.SelectedDocumentId = null;
                     CurrentMarkingResults = null;
+                    CurrentBarcodeResults = null;
                     DisplayImage = null;
 
                     // Documents 컬렉션 업데이트 (Workspace의 ObservableCollection을 직접 사용)
@@ -572,6 +697,76 @@ namespace SimpleOverlayEditor.ViewModels
                         }
                         
                         drawingContext.DrawRectangle(fillBrush, pen, rect);
+                    }
+
+                    // 템플릿의 바코드 영역 그리기
+                    var barcodeAreas = template.BarcodeAreas.ToList();
+                    for (int i = 0; i < barcodeAreas.Count; i++)
+                    {
+                        var overlay = barcodeAreas[i];
+                        var rect = new Rect(overlay.X, overlay.Y, overlay.Width, overlay.Height);
+                        
+                        // 바코드 디코딩 결과 확인
+                        Brush? fillBrush = null;
+                        Pen? pen = null;
+                        
+                        if (CurrentBarcodeResults != null && i < CurrentBarcodeResults.Count)
+                        {
+                            var result = CurrentBarcodeResults[i];
+                            if (result.Success)
+                            {
+                                // 바코드 디코딩 성공: 주황색 반투명 채우기 + 주황색 테두리
+                                fillBrush = new SolidColorBrush(Color.FromArgb(128, 255, 165, 0));
+                                pen = new Pen(Brushes.Orange, 2.0);
+                            }
+                            else
+                            {
+                                // 바코드 디코딩 실패: 회색 반투명 채우기 + 회색 테두리
+                                fillBrush = new SolidColorBrush(Color.FromArgb(128, 128, 128, 128));
+                                pen = new Pen(Brushes.Gray, 2.0);
+                            }
+                        }
+                        else
+                        {
+                            // 바코드 디코딩 결과 없음: 주황색 테두리만
+                            pen = new Pen(Brushes.Orange, 2.0);
+                        }
+                        
+                        drawingContext.DrawRectangle(fillBrush, pen, rect);
+
+                        // 바코드 디코딩 성공 시 텍스트 표시
+                        if (CurrentBarcodeResults != null && i < CurrentBarcodeResults.Count)
+                        {
+                            var result = CurrentBarcodeResults[i];
+                            if (result.Success && !string.IsNullOrEmpty(result.DecodedText))
+                            {
+                                var text = result.DecodedText;
+                                var formattedText = new FormattedText(
+                                    text,
+                                    System.Globalization.CultureInfo.CurrentCulture,
+                                    FlowDirection.LeftToRight,
+                                    new Typeface("Arial"),
+                                    12,
+                                    Brushes.White,
+                                    96.0);
+
+                                // 텍스트 배경 (검은색 반투명)
+                                var textRect = new Rect(
+                                    overlay.X,
+                                    overlay.Y - formattedText.Height - 2,
+                                    Math.Max(formattedText.Width + 4, overlay.Width),
+                                    formattedText.Height + 2);
+                                drawingContext.DrawRectangle(
+                                    new SolidColorBrush(Color.FromArgb(200, 0, 0, 0)),
+                                    null,
+                                    textRect);
+
+                                // 텍스트 그리기
+                                drawingContext.DrawText(
+                                    formattedText,
+                                    new Point(overlay.X + 2, overlay.Y - formattedText.Height));
+                            }
+                        }
                     }
                 }
 

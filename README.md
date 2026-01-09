@@ -18,11 +18,12 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
 
 ## 프로젝트 개요
 
-이 애플리케이션은 OMR 시트의 템플릿을 제작하고, 스캔된 이미지에서 마킹을 자동으로 감지하는 도구입니다. 주요 기능은 다음과 같습니다:
+이 애플리케이션은 OMR 시트의 템플릿을 제작하고, 스캔된 이미지에서 마킹을 자동으로 감지하며, 바코드를 읽는 도구입니다. 주요 기능은 다음과 같습니다:
 
-- **템플릿 편집**: 타이밍 마크와 채점 영역을 시각적으로 편집
+- **템플릿 편집**: 타이밍 마크, 채점 영역, 바코드 영역을 시각적으로 편집
 - **이미지 정렬**: 타이밍 마크를 기반으로 스캔 이미지 자동 정렬
 - **마킹 감지**: 채점 영역에서 마킹 여부 자동 판단
+- **바코드 디코딩**: 바코드 영역에서 자동으로 바코드 텍스트 추출
 - **상태 관리**: 작업 상태를 자동 저장하여 재실행 시 복구
 
 ## 프로젝트 구조
@@ -37,9 +38,10 @@ overlay_editor/
 │   ├── RectangleOverlay.cs        # 직사각형 오버레이 데이터
 │   ├── ImageDocument.cs           # 이미지 문서 (이미지 정보)
 │   ├── Workspace.cs               # 전체 세션 상태
-│   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역)
-│   ├── OverlayType.cs             # 오버레이 타입 열거형
+│   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역, 바코드 영역)
+│   ├── OverlayType.cs             # 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
 │   ├── MarkingResult.cs           # 마킹 감지 결과 모델
+│   ├── BarcodeResult.cs           # 바코드 디코딩 결과 모델
 │   └── AlignmentInfo.cs           # 이미지 정렬 정보 모델
 │
 ├── ViewModels/                    # 뷰모델 (MVVM)
@@ -60,6 +62,7 @@ overlay_editor/
 │   ├── ImageAlignmentService.cs   # 타이밍 마크 기반 이미지 정렬 서비스
 │   ├── Renderer.cs                # 오버레이 + 이미지 합성 → output/
 │   ├── MarkingDetector.cs         # 마킹 감지 서비스 (ROI 분석)
+│   ├── BarcodeReaderService.cs    # 바코드 디코딩 서비스 (ZXing.Net 사용)
 │   └── Logger.cs                  # 로깅 서비스 (파일 로그)
 │
 └── Utils/                         # 유틸리티
@@ -79,6 +82,7 @@ overlay_editor/
 - **OmrTemplate.cs**: OMR 템플릿 정의
   - `TimingMarks`: 이미지 정렬용 타이밍 마크 오버레이
   - `ScoringAreas`: 마킹 감지용 채점 영역 오버레이
+  - `BarcodeAreas`: 바코드 디코딩용 바코드 영역 오버레이
   - `ReferenceWidth/Height`: 템플릿 기준 이미지 크기
 - **ImageDocument.cs**: 개별 이미지 문서 정보
   - `ImageId`: 고유 식별자
@@ -86,8 +90,9 @@ overlay_editor/
   - `ImageWidth/Height`: 이미지 크기
   - `AlignmentInfo`: 정렬 정보 (정렬된 이미지 경로 포함)
 - **RectangleOverlay.cs**: 직사각형 오버레이 데이터 (X, Y, Width, Height)
-- **OverlayType.cs**: 오버레이 타입 열거형 (TimingMark, ScoringArea)
+- **OverlayType.cs**: 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
 - **MarkingResult.cs**: 마킹 감지 결과 (영역별 마킹 여부, 평균 밝기)
+- **BarcodeResult.cs**: 바코드 디코딩 결과 (디코딩된 텍스트, 바코드 포맷, 성공 여부)
 - **AlignmentInfo.cs**: 이미지 정렬 정보 (회전, 스케일, 이동, 신뢰도)
 
 #### ViewModels/ - 프레젠테이션 로직 계층 (MVVM)
@@ -128,6 +133,12 @@ overlay_editor/
 - **MarkingDetector.cs**: 마킹 감지 서비스
   - 채점 영역 ROI에서 평균 밝기 분석
   - 임계값 기반 마킹 판단
+- **BarcodeReaderService.cs**: 바코드 디코딩 서비스
+  - 바코드 영역 ROI에서 바코드 자동 디코딩
+  - ZXing.Net 라이브러리 사용
+  - 지원 포맷: CODE_128, CODE_39, EAN_13, EAN_8, CODABAR, ITF
+  - 이미지 전처리: 그레이스케일 변환, 대비 강화, 이진화
+  - Stride-aware 픽셀 변환 및 BGR→RGB 변환으로 정확도 향상
 - **Renderer.cs**: 결과 이미지 렌더링
   - 정렬된 이미지 + 오버레이 합성
   - PNG 형식으로 출력 폴더에 저장
@@ -390,7 +401,34 @@ MarkingResult 리스트
 UI 표시
 ```
 
-#### 4. 상태 관리 기능 그룹
+#### 4. 바코드 디코딩 기능 그룹
+**위치**: `BarcodeReaderService`, `MarkingViewModel`, `MarkingView`
+
+**기능들**:
+- 단일 이미지 바코드 디코딩
+- 전체 이미지 일괄 바코드 디코딩
+- 디코딩 결과 표시 (성공/실패, 디코딩된 텍스트, 바코드 포맷)
+
+**데이터 흐름**:
+```
+마킹 감지와 동시에 실행
+  ↓
+MarkingViewModel.OnDetectMarkings()
+  ↓
+BarcodeReaderService.DecodeBarcodes()
+  ↓
+  - 정렬된 이미지 로드
+  - BarcodeArea ROI 크롭
+  - 그레이스케일 변환
+  - 이미지 전처리 (대비 강화, 이진화)
+  - ZXing.Net으로 바코드 디코딩
+  ↓
+BarcodeResult 리스트
+  ↓
+UI 표시 (바코드 영역, 디코딩된 텍스트)
+```
+
+#### 5. 상태 관리 기능 그룹
 **위치**: `StateStore`, `Workspace`, `PathService`
 
 **기능들**:
@@ -413,7 +451,7 @@ StateStore.Save(Workspace)
 JSON 파일에 저장
 ```
 
-#### 5. 렌더링 기능 그룹
+#### 6. 렌더링 기능 그룹
 **위치**: `Renderer`, `MainViewModel`
 
 **기능들**:
@@ -430,6 +468,8 @@ Renderer.RenderAll(Workspace)
   - 정렬된 이미지 로드
   - 타이밍 마크 그리기 (녹색)
   - 채점 영역 그리기 (빨간색)
+  - 바코드 영역 그리기 (주황색)
+  - 디코딩된 바코드 텍스트 표시
   - PNG로 저장
 ```
 
@@ -455,7 +495,10 @@ MainViewModel
 Workspace
   ├── OmrTemplate
   │     ├── TimingMarks (RectangleOverlay[])
-  │     └── ScoringAreas (RectangleOverlay[])
+  │     ├── ScoringAreas (RectangleOverlay[])
+  │     └── BarcodeAreas (RectangleOverlay[])
+  ├── MarkingResults (Dictionary<string, List<MarkingResult>>)
+  ├── BarcodeResults (Dictionary<string, List<BarcodeResult>>)
   └── Documents (ImageDocument[])
         └── AlignmentInfo
 ```
@@ -515,6 +558,9 @@ MainWindow
      - 변환 범위 제한 (회전 ±5도, 스케일 90~110%)
      - 정렬 실패 시 원본 이미지 사용 (투명한 fallback)
    - **채점 영역**: 우측에 위치한 마킹 감지용 오버레이
+   - **바코드 영역**: 좌측에 위치한 바코드 디코딩용 오버레이
+     - 수험번호, 면접위원 번호 등 바코드 영역 지정
+     - CODE_128, CODE_39, EAN_13, EAN_8, CODABAR, ITF 포맷 지원
    - **직사각형 오버레이 추가**: 클릭 위치에 기본 크기의 직사각형 추가
    - **오버레이 편집**: 선택한 오버레이의 X, Y, Width, Height 직접 편집
    - **오버레이 삭제**: 선택한 오버레이 또는 전체 삭제
@@ -528,13 +574,24 @@ MainWindow
    - 단일 이미지 또는 전체 이미지 일괄 감지
    - 감지 결과를 표로 표시 (영역별 마킹 여부, 평균 밝기)
 
-4. **상태 저장**
+4. **바코드 디코딩**
+   - 바코드 영역(BarcodeArea)에서 자동으로 바코드 텍스트 추출
+   - 마킹 감지와 동시에 자동 실행
+   - 정렬된 이미지에서 정확한 위치의 바코드 읽기
+   - 이미지 전처리: 그레이스케일 변환, 대비 강화, 이진화
+   - Stride-aware 픽셀 변환 및 BGR→RGB 변환으로 정확도 향상
+   - 단일 이미지 또는 전체 이미지 일괄 디코딩
+   - 디코딩 결과를 표로 표시 (성공/실패, 디코딩된 텍스트, 바코드 포맷)
+   - 결과 이미지에 바코드 영역(주황색) 및 디코딩된 텍스트 표시
+
+5. **상태 저장**
    - AppData에 상태를 JSON으로 저장하여 재실행 시 복구
    - 템플릿 정보, 정렬 정보, 문서 목록 저장
 
-5. **결과 이미지 생성**
+6. **결과 이미지 생성**
    - 정렬된 이미지에 오버레이를 적용하여 output 폴더에 저장
-   - 타이밍 마크(녹색), 채점 영역(빨간색) 표시
+   - 타이밍 마크(녹색), 채점 영역(빨간색), 바코드 영역(주황색) 표시
+   - 디코딩된 바코드 텍스트 표시
 
 ## 이미지 표시 규칙
 
@@ -631,6 +688,12 @@ dotnet build
      - 오버레이 타입을 "ScoringArea"로 선택
      - "사각형 추가 모드" 토글 버튼을 활성화
      - 각 채점 영역 위치를 클릭하여 사각형 추가
+   
+   - **바코드 영역 추가** (바코드 디코딩용):
+     - 오버레이 타입을 "BarcodeArea"로 선택
+     - "사각형 추가 모드" 토글 버튼을 활성화
+     - 각 바코드 영역 위치를 클릭하여 사각형 추가
+     - 바코드가 포함된 영역을 정확하게 지정 (좌우 여백 포함 권장)
 
 3. **오버레이 편집**
    - 오버레이 목록에서 사각형을 선택
@@ -641,17 +704,23 @@ dotnet build
    - 템플릿 설정 완료 후 "기본 템플릿 저장" 버튼 클릭
    - 다음 실행 시 자동으로 템플릿이 로드됩니다
 
-5. **마킹 감지 (리딩)**
+5. **마킹 감지 및 바코드 디코딩 (리딩)**
    - 채점 영역(ScoringArea)이 설정되어 있어야 합니다
    - 임계값을 조정 (기본값: 180, 0-255 범위)
-   - "마킹 감지" 버튼: 현재 선택된 이미지에 대해 감지
-   - "전체 감지" 버튼: 로드된 모든 이미지에 대해 일괄 감지
-   - 오른쪽 패널의 "마킹 감지 결과"에서 각 영역별 마킹 여부와 평균 밝기 확인
+   - "마킹 감지" 버튼: 현재 선택된 이미지에 대해 마킹 감지 및 바코드 디코딩 수행
+   - "전체 감지" 버튼: 로드된 모든 이미지에 대해 일괄 마킹 감지 및 바코드 디코딩 수행
+   - 오른쪽 패널에서 다음 결과 확인:
+     - **마킹 감지 결과**: 각 영역별 마킹 여부와 평균 밝기
+     - **바코드 디코딩 결과**: 각 바코드 영역별 디코딩 성공/실패, 디코딩된 텍스트, 바코드 포맷
+     - **바코드 요약**: 전체 바코드 디코딩 성공/실패 개수
+   - 중앙 이미지에 바코드 영역(주황색) 및 디코딩된 텍스트가 표시됩니다
 
 6. **저장**
    - "저장" 버튼을 클릭하여 상태와 결과 이미지 저장
-   - 상태 파일: 템플릿 정보, 정렬 정보, 문서 목록이 저장됩니다
+   - 상태 파일: 템플릿 정보, 정렬 정보, 문서 목록, 마킹 결과, 바코드 결과가 저장됩니다
    - 출력 이미지: 정렬된 이미지에 오버레이가 적용된 이미지가 output 폴더에 저장됩니다
+     - 타이밍 마크(녹색), 채점 영역(빨간색), 바코드 영역(주황색) 표시
+     - 디코딩된 바코드 텍스트 표시
 
 ## 기술 스택
 
@@ -667,6 +736,9 @@ dotnet build
 
 ### 라이브러리
 - **System.Text.Json 9.0.0**: 상태 저장 및 직렬화
+- **ZXing.Net 0.15.0**: 바코드 디코딩 라이브러리
+  - 지원 포맷: CODE_128, CODE_39, EAN_13, EAN_8, CODABAR, ITF
+  - 이미지 전처리 및 바코드 패턴 인식
 
 ### 주요 기술
 - **데이터 바인딩**: 양방향/단방향 바인딩을 통한 UI 업데이트
@@ -699,4 +771,12 @@ dotnet build
   - 정렬된 이미지에서 채점 영역의 평균 밝기를 분석하여 판단합니다
   - 임계값보다 어두우면 마킹으로 판단 (기본값: 180)
   - 이미지 품질과 조명 조건에 따라 임계값 조정이 필요할 수 있습니다
+
+- **바코드 디코딩**:
+  - 마킹 감지와 동시에 자동으로 실행됩니다
+  - 바코드 영역이 정확하게 지정되어 있어야 합니다 (바코드 주변 여백 포함 권장)
+  - 이미지 전처리(그레이스케일 변환, 대비 강화, 이진화)가 자동으로 수행됩니다
+  - Stride-aware 픽셀 변환 및 BGR→RGB 변환을 통해 정확한 바코드 인식을 보장합니다
+  - 디코딩 실패 시 로그 파일에 상세 정보가 기록됩니다
+  - 디버그 모드에서는 크롭된 바코드 영역 이미지가 `%AppData%/SimpleOverlayEditor/barcode_debug/` 폴더에 저장됩니다
 

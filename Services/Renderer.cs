@@ -121,6 +121,80 @@ namespace SimpleOverlayEditor.Services
                         
                         drawingContext.DrawRectangle(fillBrush, pen, rect);
                     }
+
+                    // 템플릿의 바코드 영역 그리기
+                    var barcodeAreas = template.BarcodeAreas.ToList();
+                    for (int i = 0; i < barcodeAreas.Count; i++)
+                    {
+                        var overlay = barcodeAreas[i];
+                        var rect = new Rect(overlay.X, overlay.Y, overlay.Width, overlay.Height);
+                        
+                        // 바코드 디코딩 결과 확인
+                        Brush? fillBrush = null;
+                        Pen? pen = null;
+                        
+                        if (workspace.BarcodeResults != null && 
+                            workspace.BarcodeResults.TryGetValue(doc.ImageId, out var barcodeResults) &&
+                            i < barcodeResults.Count)
+                        {
+                            var result = barcodeResults[i];
+                            if (result.Success)
+                            {
+                                // 바코드 디코딩 성공: 주황색 반투명 채우기 + 주황색 테두리
+                                fillBrush = new SolidColorBrush(Color.FromArgb(128, 255, 165, 0));
+                                pen = new Pen(Brushes.Orange, 2.0);
+                            }
+                            else
+                            {
+                                // 바코드 디코딩 실패: 회색 반투명 채우기 + 회색 테두리
+                                fillBrush = new SolidColorBrush(Color.FromArgb(128, 128, 128, 128));
+                                pen = new Pen(Brushes.Gray, 2.0);
+                            }
+                        }
+                        else
+                        {
+                            // 바코드 디코딩 결과 없음: 주황색 테두리만
+                            pen = new Pen(Brushes.Orange, 2.0);
+                        }
+                        
+                        drawingContext.DrawRectangle(fillBrush, pen, rect);
+
+                        // 바코드 디코딩 성공 시 텍스트 표시
+                        if (workspace.BarcodeResults != null && 
+                            workspace.BarcodeResults.TryGetValue(doc.ImageId, out var barcodeResults2) &&
+                            i < barcodeResults2.Count)
+                        {
+                            var result = barcodeResults2[i];
+                            if (result.Success && !string.IsNullOrEmpty(result.DecodedText))
+                            {
+                                var text = result.DecodedText;
+                                var formattedText = new FormattedText(
+                                    text,
+                                    System.Globalization.CultureInfo.CurrentCulture,
+                                    FlowDirection.LeftToRight,
+                                    new Typeface("Arial"),
+                                    12,
+                                    Brushes.White,
+                                    96.0);
+
+                                // 텍스트 배경 (검은색 반투명)
+                                var textRect = new Rect(
+                                    overlay.X,
+                                    overlay.Y - formattedText.Height - 2,
+                                    Math.Max(formattedText.Width + 4, overlay.Width),
+                                    formattedText.Height + 2);
+                                drawingContext.DrawRectangle(
+                                    new SolidColorBrush(Color.FromArgb(200, 0, 0, 0)),
+                                    null,
+                                    textRect);
+
+                                // 텍스트 그리기
+                                drawingContext.DrawText(
+                                    formattedText,
+                                    new Point(overlay.X + 2, overlay.Y - formattedText.Height));
+                            }
+                        }
+                    }
                 }
 
                 // RenderTargetBitmap으로 변환

@@ -8,6 +8,8 @@
         <utils:NullToBoolConverter x:Key="NullToBoolConverter"/>
         <utils:MarkedCountConverter x:Key="MarkedCountConverter"/>
         <utils:UnmarkedCountConverter x:Key="UnmarkedCountConverter"/>
+        <utils:BarcodeSuccessCountConverter x:Key="BarcodeSuccessCountConverter"/>
+        <utils:BarcodeFailureCountConverter x:Key="BarcodeFailureCountConverter"/>
         
         <!-- 홈 화면 모드 버튼 스타일 -->
         <Style x:Key="HomeModeButton" TargetType="Button">

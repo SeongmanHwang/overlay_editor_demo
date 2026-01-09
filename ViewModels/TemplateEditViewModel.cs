@@ -58,6 +58,11 @@ namespace SimpleOverlayEditor.ViewModels
                     OnPropertyChanged(nameof(DisplayOverlays));
                     OnPropertyChanged(nameof(CurrentOverlayCollection));
                 };
+                _workspace.Template.BarcodeAreas.CollectionChanged += (s, e) =>
+                {
+                    OnPropertyChanged(nameof(DisplayOverlays));
+                    OnPropertyChanged(nameof(CurrentOverlayCollection));
+                };
             }
 
             // Commands
@@ -185,6 +190,7 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 OverlayType.TimingMark => _workspace.Template.TimingMarks,
                 OverlayType.ScoringArea => _workspace.Template.ScoringAreas,
+                OverlayType.BarcodeArea => _workspace.Template.BarcodeAreas,
                 _ => null
             };
         }
@@ -201,7 +207,9 @@ namespace SimpleOverlayEditor.ViewModels
                     return Enumerable.Empty<RectangleOverlay>();
                 }
 
-                return _workspace.Template.TimingMarks.Concat(_workspace.Template.ScoringAreas);
+                return _workspace.Template.TimingMarks
+                    .Concat(_workspace.Template.ScoringAreas)
+                    .Concat(_workspace.Template.BarcodeAreas);
             }
         }
 
@@ -216,6 +224,7 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     OverlayType.TimingMark => _workspace.Template.TimingMarks,
                     OverlayType.ScoringArea => _workspace.Template.ScoringAreas,
+                    OverlayType.BarcodeArea => _workspace.Template.BarcodeAreas,
                     _ => _workspace.Template.ScoringAreas
                 };
             }
@@ -317,6 +326,10 @@ namespace SimpleOverlayEditor.ViewModels
                 else if (_workspace.Template.ScoringAreas.Contains(SelectedOverlay))
                 {
                     _workspace.Template.ScoringAreas.Remove(SelectedOverlay);
+                }
+                else if (_workspace.Template.BarcodeAreas.Contains(SelectedOverlay))
+                {
+                    _workspace.Template.BarcodeAreas.Remove(SelectedOverlay);
                 }
 
                 SelectedOverlay = null;
@@ -435,6 +448,7 @@ namespace SimpleOverlayEditor.ViewModels
         }
     }
 }
+
 
 
 

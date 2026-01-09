@@ -55,16 +55,14 @@ namespace SimpleOverlayEditor.Views
                     else if (_navigation.CurrentMode == ApplicationMode.Marking && _navigation.CurrentViewModel == null)
                     {
                         // Marking 모드로 전환 시 ViewModel 생성
+                        // 완전히 빈 상태로 시작 (이전 세션 데이터 로드 안 함)
                         var markingDetector = new Services.MarkingDetector();
-                        var markingViewModel = new MarkingViewModel(markingDetector, _navigation);
+                        var markingViewModel = new MarkingViewModel(markingDetector, _navigation, _workspace, _stateStore);
                         
-                        // Workspace에서 데이터 설정
-                        markingViewModel.Documents = _workspace.Documents;
+                        // ScoringAreas만 설정 (템플릿은 공유)
                         markingViewModel.ScoringAreas = _workspace.Template.ScoringAreas;
-                        if (!string.IsNullOrEmpty(_workspace.SelectedDocumentId))
-                        {
-                            markingViewModel.SelectedDocument = _workspace.Documents.FirstOrDefault(d => d.ImageId == _workspace.SelectedDocumentId);
-                        }
+                        
+                        // Documents와 SelectedDocument는 null로 시작 (사용자가 폴더를 로드해야 함)
                         
                         _navigation.SetMarkingViewModel(markingViewModel);
                     }
@@ -174,15 +172,12 @@ namespace SimpleOverlayEditor.Views
                         {
                             Services.Logger.Instance.Info($"MainNavigationViewModel: MarkingViewModel 생성 시작");
                             var markingDetector = new Services.MarkingDetector();
-                            var markingViewModel = new MarkingViewModel(markingDetector, _navigation);
+                            var markingViewModel = new MarkingViewModel(markingDetector, _navigation, _workspace, _stateStore);
                             
-                            // Workspace에서 데이터 설정
-                            markingViewModel.Documents = _workspace.Documents;
+                            // ScoringAreas만 설정 (템플릿은 공유)
                             markingViewModel.ScoringAreas = _workspace.Template.ScoringAreas;
-                            if (!string.IsNullOrEmpty(_workspace.SelectedDocumentId))
-                            {
-                                markingViewModel.SelectedDocument = _workspace.Documents.FirstOrDefault(d => d.ImageId == _workspace.SelectedDocumentId);
-                            }
+                            
+                            // Documents와 SelectedDocument는 null로 시작 (사용자가 폴더를 로드해야 함)
                             
                             _navigation.SetMarkingViewModel(markingViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: MarkingViewModel 생성 완료");

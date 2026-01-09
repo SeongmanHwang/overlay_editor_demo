@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -32,6 +34,15 @@ namespace SimpleOverlayEditor.Services
             {
                 throw new InvalidOperationException($"렌더링 실패: {ex.Message}", ex);
             }
+        }
+
+        /// <summary>
+        /// 단일 문서의 오버레이 이미지를 저장합니다.
+        /// </summary>
+        public void RenderSingleDocument(ImageDocument doc, Workspace workspace)
+        {
+            PathService.EnsureDirectories();
+            RenderDocument(doc, workspace);
         }
 
         private void RenderDocument(ImageDocument doc, Workspace workspace)
@@ -72,12 +83,43 @@ namespace SimpleOverlayEditor.Services
                         drawingContext.DrawRectangle(null, timingMarkPen, rect);
                     }
                     
-                    // 템플릿의 채점 영역 그리기 (빨간색)
-                    var scoringAreaPen = new Pen(Brushes.Red, 2.0);
-                    foreach (var overlay in template.ScoringAreas)
+                    // 템플릿의 채점 영역 그리기
+                    // 마킹 감지 결과가 있으면 결과에 따라 색상 변경
+                    var scoringAreas = template.ScoringAreas.ToList();
+                    for (int i = 0; i < scoringAreas.Count; i++)
                     {
+                        var overlay = scoringAreas[i];
                         var rect = new Rect(overlay.X, overlay.Y, overlay.Width, overlay.Height);
-                        drawingContext.DrawRectangle(null, scoringAreaPen, rect);
+                        
+                        // 마킹 감지 결과 확인
+                        Brush? fillBrush = null;
+                        Pen? pen = null;
+                        
+                        if (workspace.MarkingResults != null && 
+                            workspace.MarkingResults.TryGetValue(doc.ImageId, out var results) &&
+                            i < results.Count)
+                        {
+                            var result = results[i];
+                            if (result.IsMarked)
+                            {
+                                // 마킹 감지: 파란색 반투명 채우기 + 파란색 테두리
+                                fillBrush = new SolidColorBrush(Color.FromArgb(128, 0, 0, 255));
+                                pen = new Pen(Brushes.Blue, 2.0);
+                            }
+                            else
+                            {
+                                // 미마킹: 빨간색 반투명 채우기 + 빨간색 테두리
+                                fillBrush = new SolidColorBrush(Color.FromArgb(128, 255, 0, 0));
+                                pen = new Pen(Brushes.Red, 2.0);
+                            }
+                        }
+                        else
+                        {
+                            // 마킹 감지 결과 없음: 빨간색 테두리만
+                            pen = new Pen(Brushes.Red, 2.0);
+                        }
+                        
+                        drawingContext.DrawRectangle(fillBrush, pen, rect);
                     }
                 }
 

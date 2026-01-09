@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -10,6 +11,7 @@ namespace SimpleOverlayEditor.Models
         private string _inputFolderPath = string.Empty;
         private string? _selectedDocumentId;
         private OmrTemplate _template = new OmrTemplate();
+        private Dictionary<string, List<MarkingResult>> _markingResults = new();
 
         public string InputFolderPath
         {
@@ -37,6 +39,19 @@ namespace SimpleOverlayEditor.Models
             set
             {
                 _template = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 문서별 마킹 감지 결과 (ImageId -> MarkingResult 리스트)
+        /// </summary>
+        public Dictionary<string, List<MarkingResult>> MarkingResults
+        {
+            get => _markingResults;
+            set
+            {
+                _markingResults = value ?? new Dictionary<string, List<MarkingResult>>();
                 OnPropertyChanged();
             }
         }

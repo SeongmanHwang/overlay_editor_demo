@@ -26,10 +26,8 @@ namespace SimpleOverlayEditor.ViewModels
         private Workspace _workspace;
         private ImageDocument? _selectedDocument;
         private RectangleOverlay? _selectedOverlay;
-        private double _defaultRectWidth = 30;
-        private double _defaultRectHeight = 30;
-        private bool _isAddMode = false;
         private OverlayType _currentOverlayType = OverlayType.ScoringArea;
+        private int? _currentQuestionNumber = 1; // ScoringArea일 때 사용 (1-4)
         private Rect _currentImageDisplayRect;
 
         public TemplateEditViewModel(NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
@@ -63,10 +61,22 @@ namespace SimpleOverlayEditor.ViewModels
                     OnPropertyChanged(nameof(DisplayOverlays));
                     OnPropertyChanged(nameof(CurrentOverlayCollection));
                 };
+                _workspace.Template.Questions.CollectionChanged += (s, e) =>
+                {
+                    OnPropertyChanged(nameof(DisplayOverlays));
+                    OnPropertyChanged(nameof(CurrentOverlayCollection));
+                };
+                foreach (var question in _workspace.Template.Questions)
+                {
+                    question.Options.CollectionChanged += (s, e) =>
+                    {
+                        OnPropertyChanged(nameof(DisplayOverlays));
+                        OnPropertyChanged(nameof(CurrentOverlayCollection));
+                    };
+                }
             }
 
             // Commands
-            AddRectangleCommand = new RelayCommand(() => IsAddMode = !IsAddMode);
             DeleteSelectedCommand = new RelayCommand(OnDeleteSelected, () => SelectedOverlay != null);
             ClearAllCommand = new RelayCommand(OnClearAll, () => GetCurrentOverlayCollection()?.Count > 0);
             SaveTemplateCommand = new RelayCommand(OnSaveTemplate);
@@ -122,36 +132,6 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        public double DefaultRectWidth
-        {
-            get => _defaultRectWidth;
-            set
-            {
-                _defaultRectWidth = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public double DefaultRectHeight
-        {
-            get => _defaultRectHeight;
-            set
-            {
-                _defaultRectHeight = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public bool IsAddMode
-        {
-            get => _isAddMode;
-            set
-            {
-                _isAddMode = value;
-                OnPropertyChanged();
-            }
-        }
-
         public OverlayType CurrentOverlayType
         {
             get => _currentOverlayType;
@@ -160,8 +140,28 @@ namespace SimpleOverlayEditor.ViewModels
                 _currentOverlayType = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentOverlayCollection));
+                OnPropertyChanged(nameof(IsQuestionNumberVisible));
             }
         }
+
+        /// <summary>
+        /// 현재 선택된 문항 번호 (ScoringArea일 때만 사용, 1-4)
+        /// </summary>
+        public int? CurrentQuestionNumber
+        {
+            get => _currentQuestionNumber;
+            set
+            {
+                _currentQuestionNumber = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentOverlayCollection));
+            }
+        }
+
+        /// <summary>
+        /// 문항 번호 선택이 표시되어야 하는지 여부 (ScoringArea일 때만)
+        /// </summary>
+        public bool IsQuestionNumberVisible => CurrentOverlayType == OverlayType.ScoringArea;
 
         public Rect CurrentImageDisplayRect
         {
@@ -173,7 +173,6 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        public ICommand AddRectangleCommand { get; }
         public ICommand DeleteSelectedCommand { get; }
         public ICommand ClearAllCommand { get; }
         public ICommand SaveTemplateCommand { get; }
@@ -184,13 +183,16 @@ namespace SimpleOverlayEditor.ViewModels
 
         /// <summary>
         /// 현재 선택된 오버레이 타입의 컬렉션을 반환합니다.
+        /// ScoringArea일 때는 현재 선택된 문항의 Options를 반환합니다.
         /// </summary>
         private System.Collections.ObjectModel.ObservableCollection<RectangleOverlay>? GetCurrentOverlayCollection()
         {
             return CurrentOverlayType switch
             {
                 OverlayType.TimingMark => _workspace.Template.TimingMarks,
-                OverlayType.ScoringArea => _workspace.Template.ScoringAreas,
+                OverlayType.ScoringArea => CurrentQuestionNumber.HasValue
+                    ? _workspace.Template.Questions.FirstOrDefault(q => q.QuestionNumber == CurrentQuestionNumber.Value)?.Options
+                    : null,
                 OverlayType.BarcodeArea => _workspace.Template.BarcodeAreas,
                 _ => null
             };
@@ -216,26 +218,36 @@ namespace SimpleOverlayEditor.ViewModels
 
         /// <summary>
         /// 현재 선택된 오버레이 타입의 컬렉션을 반환합니다 (UI 바인딩용).
+        /// ScoringArea일 때는 현재 선택된 문항의 Options를 반환합니다.
         /// </summary>
-        public System.Collections.ObjectModel.ObservableCollection<RectangleOverlay> CurrentOverlayCollection
+        public System.Collections.ObjectModel.ObservableCollection<RectangleOverlay>? CurrentOverlayCollection
         {
             get
             {
                 return CurrentOverlayType switch
                 {
                     OverlayType.TimingMark => _workspace.Template.TimingMarks,
-                    OverlayType.ScoringArea => _workspace.Template.ScoringAreas,
+                    OverlayType.ScoringArea => CurrentQuestionNumber.HasValue
+                        ? _workspace.Template.Questions.FirstOrDefault(q => q.QuestionNumber == CurrentQuestionNumber.Value)?.Options
+                        : null,
                     OverlayType.BarcodeArea => _workspace.Template.BarcodeAreas,
-                    _ => _workspace.Template.ScoringAreas
+                    _ => null
                 };
             }
         }
 
         public void OnCanvasClick(Point screenPoint, Size canvasSize)
         {
-            if (!IsAddMode || SelectedDocument == null)
+            if (SelectedDocument == null)
             {
-                Logger.Instance.Debug($"OnCanvasClick 스킵. IsAddMode: {IsAddMode}, SelectedDocument: {(SelectedDocument != null ? "있음" : "null")}");
+                Logger.Instance.Debug($"OnCanvasClick 스킵. SelectedDocument: null");
+                return;
+            }
+
+            // ScoringArea일 때는 문항 번호가 선택되어 있어야 함
+            if (CurrentOverlayType == OverlayType.ScoringArea && !CurrentQuestionNumber.HasValue)
+            {
+                Logger.Instance.Debug($"OnCanvasClick 스킵. ScoringArea 선택되었지만 문항 번호가 없음");
                 return;
             }
 
@@ -254,12 +266,13 @@ namespace SimpleOverlayEditor.ViewModels
                 Logger.Instance.Debug($"픽셀 좌표 변환 완료: ({pixelPoint.X}, {pixelPoint.Y})");
 
                 // 기본 크기로 사각형 생성 (클릭 위치를 중심으로)
+                const double defaultSize = 30.0;
                 var overlay = new RectangleOverlay
                 {
-                    X = pixelPoint.X - DefaultRectWidth / 2,
-                    Y = pixelPoint.Y - DefaultRectHeight / 2,
-                    Width = DefaultRectWidth,
-                    Height = DefaultRectHeight
+                    X = pixelPoint.X - defaultSize / 2,
+                    Y = pixelPoint.Y - defaultSize / 2,
+                    Width = defaultSize,
+                    Height = defaultSize
                 };
 
                 // 경계 체크

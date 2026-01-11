@@ -280,6 +280,12 @@ namespace SimpleOverlayEditor.Views
                 Logger.Instance.Error("TemplateEditView - ImageCanvas_MouseLeftButtonDown 실패", ex);
             }
         }
+
+        private void DataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            // 행 번호를 1부터 시작하도록 설정
+            e.Row.Header = (e.Row.GetIndex() + 1).ToString();
+        }
     }
 }
 

@@ -48,6 +48,8 @@ namespace SimpleOverlayEditor.Services
                         kvp => kvp.Value.Select(mr => new
                         {
                             ScoringAreaId = mr.ScoringAreaId,
+                            QuestionNumber = mr.QuestionNumber,
+                            OptionNumber = mr.OptionNumber,
                             IsMarked = mr.IsMarked,
                             AverageBrightness = mr.AverageBrightness,
                             Threshold = mr.Threshold
@@ -183,6 +185,12 @@ namespace SimpleOverlayEditor.Services
                                 ScoringAreaId = resultElem.TryGetProperty("ScoringAreaId", out var areaId)
                                     ? areaId.GetString() ?? string.Empty
                                     : string.Empty,
+                                QuestionNumber = resultElem.TryGetProperty("QuestionNumber", out var qNum)
+                                    ? qNum.GetInt32()
+                                    : 0,
+                                OptionNumber = resultElem.TryGetProperty("OptionNumber", out var oNum)
+                                    ? oNum.GetInt32()
+                                    : 0,
                                 IsMarked = resultElem.TryGetProperty("IsMarked", out var isMarked)
                                     ? isMarked.GetBoolean()
                                     : false,

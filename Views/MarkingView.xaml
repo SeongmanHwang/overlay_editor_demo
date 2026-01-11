@@ -239,7 +239,20 @@
                                     </Style>
                                 </DataGrid.Style>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="영역" Binding="{Binding ScoringAreaId}" Width="50"/>
+                                    <DataGridTextColumn Header="문항" Binding="{Binding QuestionNumber}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="선택지" Binding="{Binding OptionNumber}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="마킹" Binding="{Binding IsMarked}" Width="60">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">

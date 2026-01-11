@@ -44,50 +44,58 @@ namespace SimpleOverlayEditor.Services
             // 마킹 결과 처리
             if (markingResults != null && markingResults.Count >= questionsCount * optionsPerQuestion)
             {
-                // 문항별로 그룹화 (각 문항당 12개 선택지)
-                for (int questionIndex = 0; questionIndex < questionsCount; questionIndex++)
+                // 문항별로 그룹화 (QuestionNumber 기반)
+                for (int questionNumber = 1; questionNumber <= questionsCount; questionNumber++)
                 {
-                    var questionStartIndex = questionIndex * optionsPerQuestion;
                     var questionMarkings = markingResults
-                        .Skip(questionStartIndex)
-                        .Take(optionsPerQuestion)
+                        .Where(mr => mr.QuestionNumber == questionNumber)
+                        .OrderBy(mr => mr.OptionNumber)
                         .ToList();
 
-                    var markedIndices = questionMarkings
-                        .Select((mr, idx) => new { Result = mr, Index = idx })
-                        .Where(x => x.Result.IsMarked)
-                        .Select(x => x.Index + 1) // 1-based index (1-12)
+                    if (questionMarkings.Count == 0)
+                    {
+                        result.HasErrors = true;
+                        result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                            ? $"문항{questionNumber}: 마킹 결과 없음"
+                            : result.ErrorMessage + $"; 문항{questionNumber}: 마킹 결과 없음";
+                        continue;
+                    }
+
+                    var markedOptions = questionMarkings
+                        .Where(mr => mr.IsMarked)
+                        .Select(mr => mr.OptionNumber)
+                        .OrderBy(n => n)
                         .ToList();
 
                     int? marking = null;
                     string? errorMessage = null;
 
-                    if (markedIndices.Count == 0)
+                    if (markedOptions.Count == 0)
                     {
-                        errorMessage = $"문항{questionIndex + 1}: 마킹 없음";
+                        errorMessage = $"문항{questionNumber}: 마킹 없음";
                     }
-                    else if (markedIndices.Count > 1)
+                    else if (markedOptions.Count > 1)
                     {
-                        errorMessage = $"문항{questionIndex + 1}: 다중 마킹 ({string.Join(", ", markedIndices)})";
+                        errorMessage = $"문항{questionNumber}: 다중 마킹 ({string.Join(", ", markedOptions)})";
                     }
                     else
                     {
-                        marking = markedIndices[0];
+                        marking = markedOptions[0];
                     }
 
                     // 결과 할당
-                    switch (questionIndex)
+                    switch (questionNumber)
                     {
-                        case 0:
+                        case 1:
                             result.Question1Marking = marking;
                             break;
-                        case 1:
+                        case 2:
                             result.Question2Marking = marking;
                             break;
-                        case 2:
+                        case 3:
                             result.Question3Marking = marking;
                             break;
-                        case 3:
+                        case 4:
                             result.Question4Marking = marking;
                             break;
                     }

@@ -58,12 +58,16 @@ namespace SimpleOverlayEditor.Services
                 var grayBitmap = new FormatConvertedBitmap(bitmap, PixelFormats.Gray8, null, 0);
                 grayBitmap.Freeze();
 
+                const int optionsPerQuestion = 12;
                 int areaIndex = 0;
                 foreach (var area in scoringAreas)
                 {
                     try
                     {
                         var result = DetectMarkingInArea(grayBitmap, area, actualThreshold, areaIndex);
+                        // 문항/선택지 번호 계산 (0-based -> 1-based)
+                        result.QuestionNumber = (areaIndex / optionsPerQuestion) + 1;
+                        result.OptionNumber = (areaIndex % optionsPerQuestion) + 1;
                         results.Add(result);
                         areaIndex++;
                     }
@@ -74,6 +78,8 @@ namespace SimpleOverlayEditor.Services
                         results.Add(new MarkingResult
                         {
                             ScoringAreaId = areaIndex.ToString(),
+                            QuestionNumber = (areaIndex / optionsPerQuestion) + 1,
+                            OptionNumber = (areaIndex % optionsPerQuestion) + 1,
                             IsMarked = false,
                             AverageBrightness = 0,
                             Threshold = actualThreshold
@@ -118,9 +124,12 @@ namespace SimpleOverlayEditor.Services
             if (width <= 0 || height <= 0)
             {
                 Logger.Instance.Warning($"ScoringArea {areaIndex}: 유효하지 않은 크기 ({width}x{height})");
+                const int optionsPerQuestion = 12;
                 return new MarkingResult
                 {
                     ScoringAreaId = areaIndex.ToString(),
+                    QuestionNumber = (areaIndex / optionsPerQuestion) + 1,
+                    OptionNumber = (areaIndex % optionsPerQuestion) + 1,
                     IsMarked = false,
                     AverageBrightness = 255,
                     Threshold = threshold
@@ -148,9 +157,12 @@ namespace SimpleOverlayEditor.Services
 
             Logger.Instance.Debug($"ScoringArea {areaIndex}: 평균 밝기={averageBrightness:F2}, 임계값={threshold}, 마킹={isMarked}");
 
+            const int opq = 12; // optionsPerQuestion
             return new MarkingResult
             {
                 ScoringAreaId = areaIndex.ToString(),
+                QuestionNumber = (areaIndex / opq) + 1,
+                OptionNumber = (areaIndex % opq) + 1,
                 IsMarked = isMarked,
                 AverageBrightness = averageBrightness,
                 Threshold = threshold

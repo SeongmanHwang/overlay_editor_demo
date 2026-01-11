@@ -22,8 +22,8 @@ namespace SimpleOverlayEditor.ViewModels
             _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
             _template = template ?? throw new ArgumentNullException(nameof(template));
 
-            SaveAsDefaultTemplateCommand = new RelayCommand(OnSaveAsDefaultTemplate);
-            LoadDefaultTemplateCommand = new RelayCommand(OnLoadDefaultTemplate);
+            ExportTemplateCommand = new RelayCommand(OnExportTemplate);
+            ImportTemplateCommand = new RelayCommand(OnImportTemplate);
         }
 
         public OmrTemplate Template
@@ -36,103 +36,136 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        public ICommand SaveAsDefaultTemplateCommand { get; }
-        public ICommand LoadDefaultTemplateCommand { get; }
+        public ICommand ExportTemplateCommand { get; }
+        public ICommand ImportTemplateCommand { get; }
 
         /// <summary>
-        /// 현재 템플릿을 기본 템플릿으로 저장합니다.
+        /// 현재 템플릿을 파일로 내보냅니다.
         /// </summary>
-        private void OnSaveAsDefaultTemplate()
+        private void OnExportTemplate()
         {
             try
             {
-                _stateStore.SaveDefaultTemplate(Template);
-                Logger.Instance.Info("기본 템플릿 저장 완료");
-                MessageBox.Show(
-                    "현재 템플릿이 기본 템플릿으로 저장되었습니다.\n다음에 프로그램을 시작할 때 이 템플릿이 자동으로 로드됩니다.",
-                    "기본 템플릿 저장 완료",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON 파일 (*.json)|*.json|모든 파일 (*.*)|*.*",
+                    FileName = $"template_{DateTime.Now:yyyyMMdd_HHmmss}.json",
+                    Title = "템플릿 내보내기"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    _stateStore.ExportTemplate(Template, dialog.FileName);
+                    Logger.Instance.Info($"템플릿 내보내기 완료: {dialog.FileName}");
+                    MessageBox.Show(
+                        "템플릿이 파일로 저장되었습니다.",
+                        "내보내기 완료",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error("기본 템플릿 저장 실패", ex);
-                MessageBox.Show($"기본 템플릿 저장 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Instance.Error("템플릿 내보내기 실패", ex);
+                MessageBox.Show($"템플릿 내보내기 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         /// <summary>
-        /// 기본 템플릿을 현재 템플릿으로 로드합니다.
+        /// 파일에서 템플릿을 가져옵니다.
         /// </summary>
-        private void OnLoadDefaultTemplate()
+        private void OnImportTemplate()
         {
             try
             {
-                var defaultTemplate = _stateStore.LoadDefaultTemplate();
-                if (defaultTemplate == null)
+                var dialog = new Microsoft.Win32.OpenFileDialog
                 {
-                    MessageBox.Show(
-                        "저장된 기본 템플릿이 없습니다.\n먼저 '기본 템플릿으로 저장' 기능을 사용하여 템플릿을 저장하세요.",
-                        "기본 템플릿 없음",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                    return;
-                }
+                    Filter = "JSON 파일 (*.json)|*.json|모든 파일 (*.*)|*.*",
+                    Title = "템플릿 가져오기"
+                };
 
-                var result = MessageBox.Show(
-                    "기본 템플릿을 로드하면 현재 템플릿이 덮어씌워집니다.\n계속하시겠습니까?",
-                    "확인",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
+                if (dialog.ShowDialog() == true)
                 {
-                    // 현재 템플릿 초기화
-                    Template.TimingMarks.Clear();
-                    Template.ScoringAreas.Clear();
-
-                    // 기본 템플릿 로드
-                    Template.ReferenceWidth = defaultTemplate.ReferenceWidth;
-                    Template.ReferenceHeight = defaultTemplate.ReferenceHeight;
-                    
-                    foreach (var overlay in defaultTemplate.TimingMarks)
+                    var importedTemplate = _stateStore.ImportTemplate(dialog.FileName);
+                    if (importedTemplate == null)
                     {
-                        Template.TimingMarks.Add(new RectangleOverlay
-                        {
-                            X = overlay.X,
-                            Y = overlay.Y,
-                            Width = overlay.Width,
-                            Height = overlay.Height,
-                            StrokeThickness = overlay.StrokeThickness,
-                            OverlayType = overlay.OverlayType
-                        });
-                    }
-                    
-                    foreach (var overlay in defaultTemplate.ScoringAreas)
-                    {
-                        Template.ScoringAreas.Add(new RectangleOverlay
-                        {
-                            X = overlay.X,
-                            Y = overlay.Y,
-                            Width = overlay.Width,
-                            Height = overlay.Height,
-                            StrokeThickness = overlay.StrokeThickness,
-                            OverlayType = overlay.OverlayType
-                        });
+                        MessageBox.Show(
+                            "템플릿 파일을 읽을 수 없거나 형식이 올바르지 않습니다.",
+                            "가져오기 실패",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                        return;
                     }
 
-                    Logger.Instance.Info("기본 템플릿 로드 완료");
-                    MessageBox.Show(
-                        "기본 템플릿이 로드되었습니다.",
-                        "로드 완료",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    var result = MessageBox.Show(
+                        "템플릿을 가져오면 현재 템플릿이 덮어씌워집니다.\n계속하시겠습니까?",
+                        "확인",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        // 현재 템플릿 초기화
+                        Template.TimingMarks.Clear();
+                        Template.ScoringAreas.Clear();
+                        Template.BarcodeAreas.Clear();
+
+                        // 가져온 템플릿 적용
+                        Template.ReferenceWidth = importedTemplate.ReferenceWidth;
+                        Template.ReferenceHeight = importedTemplate.ReferenceHeight;
+                        
+                        foreach (var overlay in importedTemplate.TimingMarks)
+                        {
+                            Template.TimingMarks.Add(new RectangleOverlay
+                            {
+                                X = overlay.X,
+                                Y = overlay.Y,
+                                Width = overlay.Width,
+                                Height = overlay.Height,
+                                StrokeThickness = overlay.StrokeThickness,
+                                OverlayType = overlay.OverlayType
+                            });
+                        }
+                        
+                        foreach (var overlay in importedTemplate.ScoringAreas)
+                        {
+                            Template.ScoringAreas.Add(new RectangleOverlay
+                            {
+                                X = overlay.X,
+                                Y = overlay.Y,
+                                Width = overlay.Width,
+                                Height = overlay.Height,
+                                StrokeThickness = overlay.StrokeThickness,
+                                OverlayType = overlay.OverlayType
+                            });
+                        }
+
+                        foreach (var overlay in importedTemplate.BarcodeAreas)
+                        {
+                            Template.BarcodeAreas.Add(new RectangleOverlay
+                            {
+                                X = overlay.X,
+                                Y = overlay.Y,
+                                Width = overlay.Width,
+                                Height = overlay.Height,
+                                StrokeThickness = overlay.StrokeThickness,
+                                OverlayType = overlay.OverlayType
+                            });
+                        }
+
+                        Logger.Instance.Info("템플릿 가져오기 완료");
+                        MessageBox.Show(
+                            "템플릿이 가져와졌습니다.",
+                            "가져오기 완료",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error("기본 템플릿 로드 실패", ex);
-                MessageBox.Show($"기본 템플릿 로드 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Instance.Error("템플릿 가져오기 실패", ex);
+                MessageBox.Show($"템플릿 가져오기 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

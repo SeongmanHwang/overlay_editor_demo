@@ -10,6 +10,8 @@ namespace SimpleOverlayEditor.Models
     public class MarkingResult : INotifyPropertyChanged
     {
         private string _scoringAreaId = string.Empty;
+        private int _questionNumber;
+        private int _optionNumber;
         private bool _isMarked;
         private double _averageBrightness;
         private double _threshold = 128.0; // 기본 임계값
@@ -21,6 +23,24 @@ namespace SimpleOverlayEditor.Models
         {
             get => _scoringAreaId;
             set { _scoringAreaId = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// 문항 번호 (1-4)
+        /// </summary>
+        public int QuestionNumber
+        {
+            get => _questionNumber;
+            set { _questionNumber = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// 선택지 번호 (1-12)
+        /// </summary>
+        public int OptionNumber
+        {
+            get => _optionNumber;
+            set { _optionNumber = value; OnPropertyChanged(); }
         }
 
         /// <summary>

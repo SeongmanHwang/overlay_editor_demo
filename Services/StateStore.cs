@@ -41,6 +41,19 @@ namespace SimpleOverlayEditor.Services
                             StrokeThickness = ov.StrokeThickness,
                             OverlayType = ov.OverlayType.ToString()
                         }).ToList(),
+                        Questions = workspace.Template.Questions.Select(q => new
+                        {
+                            QuestionNumber = q.QuestionNumber,
+                            Options = q.Options.Select(ov => new
+                            {
+                                X = ov.X,
+                                Y = ov.Y,
+                                Width = ov.Width,
+                                Height = ov.Height,
+                                StrokeThickness = ov.StrokeThickness,
+                                OverlayType = ov.OverlayType.ToString()
+                            }).ToList()
+                        }).ToList(),
                         BarcodeAreas = workspace.Template.BarcodeAreas.Select(ov => new
                         {
                             X = ov.X,
@@ -134,9 +147,55 @@ namespace SimpleOverlayEditor.Services
                         }
                     }
 
-                    // 채점 영역 로드
-                    if (templateElement.TryGetProperty("ScoringAreas", out var scoringAreasElement))
+                    // Questions 로드 (새 형식)
+                    if (templateElement.TryGetProperty("Questions", out var questionsElement))
                     {
+                        foreach (var qElem in questionsElement.EnumerateArray())
+                        {
+                            var questionNumber = qElem.TryGetProperty("QuestionNumber", out var qNum)
+                                ? qNum.GetInt32()
+                                : 1;
+
+                            var question = template.Questions.FirstOrDefault(q => q.QuestionNumber == questionNumber);
+                            if (question == null)
+                            {
+                                question = new Question { QuestionNumber = questionNumber };
+                                template.Questions.Add(question);
+                                // Questions.Add()를 호출하면 OmrTemplate의 CollectionChanged 이벤트 핸들러가 자동으로 이벤트 구독
+                            }
+
+                            if (qElem.TryGetProperty("Options", out var optionsElement))
+                            {
+                                foreach (var ovElem in optionsElement.EnumerateArray())
+                                {
+                                    var overlay = new RectangleOverlay
+                                    {
+                                        X = ovElem.GetProperty("X").GetDouble(),
+                                        Y = ovElem.GetProperty("Y").GetDouble(),
+                                        Width = ovElem.GetProperty("Width").GetDouble(),
+                                        Height = ovElem.GetProperty("Height").GetDouble(),
+                                        StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                            ? thickness.GetDouble()
+                                            : 2.0
+                                    };
+
+                                    if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                                    {
+                                        if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                        {
+                                            overlay.OverlayType = type;
+                                        }
+                                    }
+
+                                    question.Options.Add(overlay);
+                                }
+                            }
+                        }
+                    }
+                    // 하위 호환성: ScoringAreas만 있는 경우 Questions로 변환
+                    else if (templateElement.TryGetProperty("ScoringAreas", out var scoringAreasElement))
+                    {
+                        var scoringAreasList = new List<RectangleOverlay>();
                         foreach (var ovElem in scoringAreasElement.EnumerateArray())
                         {
                             var overlay = new RectangleOverlay
@@ -149,7 +208,7 @@ namespace SimpleOverlayEditor.Services
                                     ? thickness.GetDouble()
                                     : 2.0
                             };
-                            
+
                             if (ovElem.TryGetProperty("OverlayType", out var overlayType))
                             {
                                 if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
@@ -157,8 +216,27 @@ namespace SimpleOverlayEditor.Services
                                     overlay.OverlayType = type;
                                 }
                             }
-                            
-                            template.ScoringAreas.Add(overlay);
+
+                            scoringAreasList.Add(overlay);
+                        }
+
+                        // 48개를 4문항 × 12선택지로 분할
+                        const int questionsCount = 4;
+                        const int optionsPerQuestion = 12;
+                        for (int q = 0; q < questionsCount; q++)
+                        {
+                            var question = template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
+                            if (question == null)
+                            {
+                                question = new Question { QuestionNumber = q + 1 };
+                                template.Questions.Add(question);
+                            }
+
+                            int startIndex = q * optionsPerQuestion;
+                            for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
+                            {
+                                question.Options.Add(scoringAreasList[startIndex + o]);
+                            }
                         }
                     }
 
@@ -206,14 +284,12 @@ namespace SimpleOverlayEditor.Services
         }
 
         /// <summary>
-        /// 현재 템플릿을 기본 템플릿으로 저장합니다.
+        /// 템플릿을 JSON 파일로 내보냅니다.
         /// </summary>
-        public void SaveDefaultTemplate(OmrTemplate template)
+        public void ExportTemplate(OmrTemplate template, string filePath)
         {
             try
             {
-                PathService.EnsureDirectories();
-
                 var templateData = new
                 {
                     ReferenceWidth = template.ReferenceWidth,
@@ -236,6 +312,19 @@ namespace SimpleOverlayEditor.Services
                         StrokeThickness = ov.StrokeThickness,
                         OverlayType = ov.OverlayType.ToString()
                     }).ToList(),
+                    Questions = template.Questions.Select(q => new
+                    {
+                        QuestionNumber = q.QuestionNumber,
+                        Options = q.Options.Select(ov => new
+                        {
+                            X = ov.X,
+                            Y = ov.Y,
+                            Width = ov.Width,
+                            Height = ov.Height,
+                            StrokeThickness = ov.StrokeThickness,
+                            OverlayType = ov.OverlayType.ToString()
+                        }).ToList()
+                    }).ToList(),
                     BarcodeAreas = template.BarcodeAreas.Select(ov => new
                     {
                         X = ov.X,
@@ -253,27 +342,27 @@ namespace SimpleOverlayEditor.Services
                     Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
                 });
                 
-                File.WriteAllText(PathService.DefaultTemplateFilePath, json);
+                File.WriteAllText(filePath, json);
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"기본 템플릿 저장 실패: {ex.Message}", ex);
+                throw new InvalidOperationException($"템플릿 내보내기 실패: {ex.Message}", ex);
             }
         }
 
         /// <summary>
-        /// 기본 템플릿을 로드합니다. 파일이 없으면 null을 반환합니다.
+        /// JSON 파일에서 템플릿을 가져옵니다. 파일이 없거나 형식이 맞지 않으면 null을 반환합니다.
         /// </summary>
-        public OmrTemplate? LoadDefaultTemplate()
+        public OmrTemplate? ImportTemplate(string filePath)
         {
-            if (!File.Exists(PathService.DefaultTemplateFilePath))
+            if (!File.Exists(filePath))
             {
                 return null;
             }
 
             try
             {
-                var json = File.ReadAllText(PathService.DefaultTemplateFilePath);
+                var json = File.ReadAllText(filePath);
                 var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
@@ -317,9 +406,54 @@ namespace SimpleOverlayEditor.Services
                     }
                 }
 
-                // 채점 영역 로드
-                if (root.TryGetProperty("ScoringAreas", out var scoringAreasElement))
+                // Questions 로드 (새 형식)
+                if (root.TryGetProperty("Questions", out var questionsElement))
                 {
+                    foreach (var qElem in questionsElement.EnumerateArray())
+                    {
+                        var questionNumber = qElem.TryGetProperty("QuestionNumber", out var qNum)
+                            ? qNum.GetInt32()
+                            : 1;
+
+                        var question = template.Questions.FirstOrDefault(q => q.QuestionNumber == questionNumber);
+                        if (question == null)
+                        {
+                            question = new Question { QuestionNumber = questionNumber };
+                            template.Questions.Add(question);
+                        }
+
+                        if (qElem.TryGetProperty("Options", out var optionsElement))
+                        {
+                            foreach (var ovElem in optionsElement.EnumerateArray())
+                            {
+                                var overlay = new RectangleOverlay
+                                {
+                                    X = ovElem.GetProperty("X").GetDouble(),
+                                    Y = ovElem.GetProperty("Y").GetDouble(),
+                                    Width = ovElem.GetProperty("Width").GetDouble(),
+                                    Height = ovElem.GetProperty("Height").GetDouble(),
+                                    StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                        ? thickness.GetDouble()
+                                        : 2.0
+                                };
+
+                                if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                                {
+                                    if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                    {
+                                        overlay.OverlayType = type;
+                                    }
+                                }
+
+                                question.Options.Add(overlay);
+                            }
+                        }
+                    }
+                }
+                // 하위 호환성: ScoringAreas만 있는 경우 Questions로 변환
+                else if (root.TryGetProperty("ScoringAreas", out var scoringAreasElement))
+                {
+                    var scoringAreasList = new List<RectangleOverlay>();
                     foreach (var ovElem in scoringAreasElement.EnumerateArray())
                     {
                         var overlay = new RectangleOverlay
@@ -332,7 +466,7 @@ namespace SimpleOverlayEditor.Services
                                 ? thickness.GetDouble()
                                 : 2.0
                         };
-                        
+
                         if (ovElem.TryGetProperty("OverlayType", out var overlayType))
                         {
                             if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
@@ -340,8 +474,27 @@ namespace SimpleOverlayEditor.Services
                                 overlay.OverlayType = type;
                             }
                         }
-                        
-                        template.ScoringAreas.Add(overlay);
+
+                        scoringAreasList.Add(overlay);
+                    }
+
+                    // 48개를 4문항 × 12선택지로 분할
+                    const int questionsCount = 4;
+                    const int optionsPerQuestion = 12;
+                    for (int q = 0; q < questionsCount; q++)
+                    {
+                        var question = template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
+                        if (question == null)
+                        {
+                            question = new Question { QuestionNumber = q + 1 };
+                            template.Questions.Add(question);
+                        }
+
+                        int startIndex = q * optionsPerQuestion;
+                        for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
+                        {
+                            question.Options.Add(scoringAreasList[startIndex + o]);
+                        }
                     }
                 }
 
@@ -377,7 +530,7 @@ namespace SimpleOverlayEditor.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"기본 템플릿 로드 실패: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"템플릿 가져오기 실패: {ex.Message}");
                 return null;
             }
         }

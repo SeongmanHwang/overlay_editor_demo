@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SimpleOverlayEditor.ViewModels"
              xmlns:models="clr-namespace:SimpleOverlayEditor.Models"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1200">
     <Grid>
@@ -65,13 +66,6 @@
                        Background="#E8E8E8"
                        Margin="3"
                        Height="36">
-                <ToggleButton Content="사각형 추가 모드" 
-                             IsChecked="{Binding IsAddMode, Mode=TwoWay}"
-                             Margin="2"
-                             Padding="6,3"
-                             MinWidth="100"
-                             FontSize="11"/>
-                <Separator Margin="3,0"/>
                 <TextBlock Text="오버레이 타입:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
                 <ComboBox SelectedItem="{Binding CurrentOverlayType, Mode=TwoWay}"
                          Margin="3,0"
@@ -87,19 +81,26 @@
                     </ComboBox.ItemsSource>
                 </ComboBox>
                 <Separator Margin="3,0"/>
-                <TextBlock Text="기본 크기:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
-                <TextBlock Text="W:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
-                <TextBox Text="{Binding DefaultRectWidth, UpdateSourceTrigger=PropertyChanged}" 
-                         Width="50" 
-                         Margin="2,0"
+                <TextBlock Text="문항:" 
+                          VerticalAlignment="Center" 
+                          Margin="3,0" 
+                          FontSize="11"
+                          Visibility="{Binding IsQuestionNumberVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                <ComboBox SelectedItem="{Binding CurrentQuestionNumber, Mode=TwoWay}"
+                         Margin="3,0"
                          VerticalAlignment="Center"
-                         FontSize="11"/>
-                <TextBlock Text="H:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
-                <TextBox Text="{Binding DefaultRectHeight, UpdateSourceTrigger=PropertyChanged}" 
-                         Width="50" 
-                         Margin="2,0"
-                         VerticalAlignment="Center"
-                         FontSize="11"/>
+                         MinWidth="60"
+                         FontSize="11"
+                         Visibility="{Binding IsQuestionNumberVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <ComboBox.ItemsSource>
+                        <x:Array Type="{x:Type sys:Int32}">
+                            <sys:Int32>1</sys:Int32>
+                            <sys:Int32>2</sys:Int32>
+                            <sys:Int32>3</sys:Int32>
+                            <sys:Int32>4</sys:Int32>
+                        </x:Array>
+                    </ComboBox.ItemsSource>
+                </ComboBox>
                 <Separator Margin="5,0"/>
                 <Button Content="선택 삭제" 
                        Command="{Binding DeleteSelectedCommand}"
@@ -124,24 +125,24 @@
                        FontWeight="Bold"
                        FontSize="11"/>
                 <Separator Margin="5,0"/>
-                <Button Content="기본 템플릿 저장" 
-                       Command="{Binding TemplateViewModel.SaveAsDefaultTemplateCommand}"
+                <Button Content="템플릿 내보내기" 
+                       Command="{Binding TemplateViewModel.ExportTemplateCommand}"
                        Margin="2"
                        Padding="6,3"
                        MinWidth="100"
                        Background="#2196F3"
                        Foreground="White"
                        FontSize="11"
-                       ToolTip="현재 템플릿을 기본 템플릿으로 저장합니다. 프로그램 시작 시 자동으로 로드됩니다."/>
-                <Button Content="기본 템플릿 로드" 
-                       Command="{Binding TemplateViewModel.LoadDefaultTemplateCommand}"
+                       ToolTip="현재 템플릿을 JSON 파일로 내보냅니다."/>
+                <Button Content="템플릿 가져오기" 
+                       Command="{Binding TemplateViewModel.ImportTemplateCommand}"
                        Margin="2"
                        Padding="6,3"
                        MinWidth="100"
                        Background="#FF9800"
                        Foreground="White"
                        FontSize="11"
-                       ToolTip="저장된 기본 템플릿을 현재 템플릿으로 로드합니다."/>
+                       ToolTip="JSON 파일에서 템플릿을 가져옵니다."/>
             </StackPanel>
 
             <!-- 이미지 캔버스 -->
@@ -185,8 +186,10 @@
                                  CanUserDeleteRows="False"
                                  SelectionMode="Single"
                                  HeadersVisibility="Column"
+                                 LoadingRow="DataGrid_LoadingRow"
                                  MaxHeight="200">
                             <DataGrid.Columns>
+                                <DataGridTextColumn Header="번호" Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Header}" Width="50" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="타입" Binding="{Binding OverlayType}" Width="80"/>
                                 <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F1}" Width="50"/>
                                 <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F1}" Width="50"/>

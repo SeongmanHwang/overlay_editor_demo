@@ -783,6 +783,8 @@ dotnet build
 
 ## 기술 스택
 
+> **참고**: 이 기술 스택은 학습 및 프로젝트 견적 작성 시 참고용으로 정리되었습니다.
+
 ### 프레임워크 및 런타임
 - **.NET 8.0**: 최신 .NET 런타임
 - **WPF (Windows Presentation Foundation)**: 데스크톱 UI 프레임워크
@@ -792,19 +794,56 @@ dotnet build
 - **MVVM (Model-View-ViewModel)**: UI와 비즈니스 로직 분리
 - **서비스 패턴**: 비즈니스 로직을 서비스 클래스로 분리
 - **커맨드 패턴**: UI 액션 처리
+- **의존성 주입**: 생성자 주입을 통한 의존성 관리
 
 ### 라이브러리
 - **System.Text.Json 9.0.0**: 상태 저장 및 직렬화
 - **ZXing.Net 0.15.0**: 바코드 디코딩 라이브러리
   - 지원 포맷: CODE_128, CODE_39, EAN_13, EAN_8, CODABAR, ITF
   - 이미지 전처리 및 바코드 패턴 인식
+- **ClosedXML 0.102.2**: Excel 파일 생성 (CSV 내보내기)
+
+### 비동기 및 병렬 처리 기술
+- **async/await**: 비동기 프로그래밍 패턴
+  - UI 스레드 블로킹 방지
+  - 백그라운드 작업 처리
+- **Task.Run**: 백그라운드 스레드에서 CPU 집약적 작업 실행
+- **Parallel.ForEach**: 데이터 병렬 처리 (TPL)
+  - CPU 코어 수만큼 병렬 처리
+  - 이미지 로드, 마킹 리딩, 정렬 작업 병렬화
+- **CancellationToken**: 작업 취소 지원
+  - 협조적 취소 패턴
+  - 사용자 요청 시 작업 중단
+- **ConcurrentDictionary**: 스레드 안전 딕셔너리
+- **ConcurrentBag**: 스레드 안전 컬렉션
+- **lock**: 스레드 동기화 (진행률 업데이트 등)
+
+### 스레드 및 동기화
+- **Dispatcher.Invoke**: UI 스레드로 작업 마샬링
+  - 백그라운드 스레드에서 UI 업데이트
+  - 스레드 안전한 UI 접근
+- **Dispatcher.CheckAccess**: 현재 스레드가 UI 스레드인지 확인
+
+### 메모리 최적화
+- **BitmapDecoder**: 이미지 메타데이터만 읽기 (헤더만 로드)
+  - DelayCreation 옵션으로 픽셀 데이터 로드 지연
+  - 메모리 사용량 대폭 절감 (24MB → 1KB)
+- **using 문**: 리소스 자동 해제
+- **명시적 참조 해제**: 처리 후 즉시 null 할당으로 GC 가비지 수집 촉진
 
 ### 주요 기술
 - **데이터 바인딩**: 양방향/단방향 바인딩을 통한 UI 업데이트
 - **ObservableCollection**: 컬렉션 변경 시 자동 UI 업데이트
 - **INotifyPropertyChanged**: 속성 변경 알림
 - **이미지 처리**: WPF BitmapSource API
+  - BitmapImage: 이미지 로드
+  - FormatConvertedBitmap: 그레이스케일 변환
+  - RenderTargetBitmap: 이미지 렌더링
+  - DrawingVisual: 이미지 합성
 - **파일 시스템**: AppData 폴더 기반 데이터 저장
+- **로깅**: 파일 기반 로깅 시스템 (날짜별 로그 파일)
+  - 로그 레벨 관리 (Debug, Info, Warning, Error)
+  - 성능 최적화를 위한 최소 로그 레벨 설정
 
 ## 주의사항
 

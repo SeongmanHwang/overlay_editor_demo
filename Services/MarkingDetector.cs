@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SimpleOverlayEditor.Models;
@@ -41,13 +44,16 @@ namespace SimpleOverlayEditor.Services
             var results = new List<MarkingResult>();
             var actualThreshold = threshold ?? DefaultThreshold;
 
+            BitmapImage? bitmap = null;
+            FormatConvertedBitmap? grayBitmap = null;
+            
             try
             {
                 // 정렬된 이미지 경로 사용 (정렬 실패 시 원본 사용)
                 var imagePath = document.GetImagePathForUse();
                 
                 // 이미지 로드
-                var bitmap = new BitmapImage();
+                bitmap = new BitmapImage();
                 bitmap.BeginInit();
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
                 bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
@@ -55,7 +61,7 @@ namespace SimpleOverlayEditor.Services
                 bitmap.Freeze();
 
                 // FormatConvertedBitmap으로 그레이스케일 변환
-                var grayBitmap = new FormatConvertedBitmap(bitmap, PixelFormats.Gray8, null, 0);
+                grayBitmap = new FormatConvertedBitmap(bitmap, PixelFormats.Gray8, null, 0);
                 grayBitmap.Freeze();
 
                 const int optionsPerQuestion = 12;
@@ -95,6 +101,12 @@ namespace SimpleOverlayEditor.Services
             {
                 Logger.Instance.Error($"마킹 리딩 중 오류 발생: {document.SourcePath}", ex);
                 throw;
+            }
+            finally
+            {
+                // 메모리 최적화: 이미지 처리 후 즉시 참조 해제 (GC가 회수할 수 있도록)
+                grayBitmap = null;
+                bitmap = null;
             }
 
             return results;
@@ -170,35 +182,75 @@ namespace SimpleOverlayEditor.Services
         }
 
         /// <summary>
-        /// 모든 문서에 대해 마킹을 리딩합니다.
+        /// 모든 문서에 대해 마킹을 리딩합니다 (병렬 처리).
         /// </summary>
         public Dictionary<string, List<MarkingResult>> DetectAllMarkings(
             IEnumerable<ImageDocument> documents,
             OmrTemplate template,
-            double? threshold = null)
+            double? threshold = null,
+            Action<int, int, string>? progressCallback = null,
+            CancellationToken cancellationToken = default)
         {
             var documentsList = documents.ToList();
-            Logger.Instance.Info($"전체 문서 마킹 리딩 시작: {documentsList.Count}개 문서");
+            Logger.Instance.Info($"전체 문서 마킹 리딩 시작: {documentsList.Count}개 문서 (병렬 처리)");
 
-            var allResults = new Dictionary<string, List<MarkingResult>>();
+            var allResults = new ConcurrentDictionary<string, List<MarkingResult>>();
+            int completedCount = 0;
+            var lockObject = new object();
 
-            foreach (var document in documentsList)
+            progressCallback?.Invoke(0, documentsList.Count, "마킹 리딩 시작");
+
+            try
             {
-                try
+                Parallel.ForEach(documentsList, new ParallelOptions
                 {
-                    var results = DetectMarkings(document, template.ScoringAreas, threshold);
-                    allResults[document.ImageId] = results;
-                }
-                catch (Exception ex)
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                    CancellationToken = cancellationToken
+                }, document =>
                 {
-                    Logger.Instance.Error($"문서 마킹 리딩 실패: {document.SourcePath}", ex);
-                    // 실패한 문서는 빈 결과로 추가
-                    allResults[document.ImageId] = new List<MarkingResult>();
-                }
+                    if (cancellationToken.IsCancellationRequested) return;
+
+                    try
+                    {
+                        var results = DetectMarkings(document, template.ScoringAreas, threshold);
+                        allResults[document.ImageId] = results;
+
+                        int current;
+                        lock (lockObject)
+                        {
+                            completedCount++;
+                            current = completedCount;
+                        }
+
+                        var fileName = Path.GetFileName(document.SourcePath);
+                        progressCallback?.Invoke(current, documentsList.Count, $"마킹 리딩 중: {fileName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Error($"문서 마킹 리딩 실패: {document.SourcePath}", ex);
+                        // 실패한 문서는 빈 결과로 추가
+                        allResults[document.ImageId] = new List<MarkingResult>();
+                        
+                        int current;
+                        lock (lockObject)
+                        {
+                            completedCount++;
+                            current = completedCount;
+                        }
+                        progressCallback?.Invoke(current, documentsList.Count, $"마킹 리딩 실패: {Path.GetFileName(document.SourcePath)}");
+                    }
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.Instance.Info("마킹 리딩 작업이 취소되었습니다.");
+                throw;
             }
 
+            progressCallback?.Invoke(documentsList.Count, documentsList.Count, "마킹 리딩 완료");
             Logger.Instance.Info($"전체 문서 마킹 리딩 완료: {allResults.Count}개 문서 처리");
-            return allResults;
+            
+            return allResults.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
     }
 }

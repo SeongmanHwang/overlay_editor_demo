@@ -18,6 +18,12 @@ namespace SimpleOverlayEditor.Services
         private static readonly object _lock = new object();
         private readonly string _logFilePath;
         private readonly StringBuilder _logBuffer = new StringBuilder();
+        
+        /// <summary>
+        /// 최소 로그 레벨 (이 레벨 이상만 로깅)
+        /// 성능 최적화: Debug 로그를 건너뛰려면 Info로 설정
+        /// </summary>
+        public LogLevel MinLogLevel { get; set; } = LogLevel.Debug;
 
         private Logger()
         {
@@ -48,6 +54,12 @@ namespace SimpleOverlayEditor.Services
 
         public void Log(LogLevel level, string message, Exception? exception = null)
         {
+            // 성능 최적화: MinLogLevel보다 낮은 레벨의 로그는 건너뛰기
+            if (level < MinLogLevel)
+            {
+                return;
+            }
+            
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             var levelStr = level.ToString().ToUpper().PadRight(7);
             

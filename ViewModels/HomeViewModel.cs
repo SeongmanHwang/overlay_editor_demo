@@ -25,6 +25,11 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 _navigation.NavigateTo(Models.ApplicationMode.Marking);
             });
+
+            NavigateToRegistryCommand = new RelayCommand(() =>
+            {
+                _navigation.NavigateTo(Models.ApplicationMode.Registry);
+            });
         }
 
         /// <summary>
@@ -36,6 +41,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// 마킹 감지 모드로 이동
         /// </summary>
         public ICommand NavigateToMarkingCommand { get; }
+
+        /// <summary>
+        /// 수험생 명렬 관리 모드로 이동
+        /// </summary>
+        public ICommand NavigateToRegistryCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

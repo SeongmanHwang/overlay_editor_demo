@@ -19,6 +19,7 @@ namespace SimpleOverlayEditor.ViewModels
             NavigateToHomeCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Home));
             NavigateToTemplateEditCommand = new RelayCommand(() => NavigateTo(ApplicationMode.TemplateEdit));
             NavigateToMarkingCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Marking));
+            NavigateToRegistryCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Registry));
         }
 
         /// <summary>
@@ -71,6 +72,11 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand NavigateToMarkingCommand { get; }
 
         /// <summary>
+        /// 수험생 명렬 관리 모드로 이동
+        /// </summary>
+        public ICommand NavigateToRegistryCommand { get; }
+
+        /// <summary>
         /// 특정 모드로 이동합니다.
         /// </summary>
         public void NavigateTo(ApplicationMode mode)
@@ -96,6 +102,12 @@ namespace SimpleOverlayEditor.ViewModels
             else if (mode == ApplicationMode.Marking)
             {
                 // Marking 모드는 외부에서 ViewModel을 설정하도록 함
+                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
+                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
+            }
+            else if (mode == ApplicationMode.Registry)
+            {
+                // Registry 모드는 외부에서 ViewModel을 설정하도록 함
                 // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
                 CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
             }
@@ -155,6 +167,23 @@ namespace SimpleOverlayEditor.ViewModels
             else
             {
                 Services.Logger.Instance.Warning($"SetMarkingViewModel 실패: CurrentMode가 Marking이 아님 (CurrentMode: {CurrentMode})");
+            }
+        }
+
+        /// <summary>
+        /// 외부에서 RegistryViewModel을 설정할 수 있도록 합니다.
+        /// </summary>
+        public void SetRegistryViewModel(object viewModel)
+        {
+            Services.Logger.Instance.Info($"SetRegistryViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (CurrentMode == ApplicationMode.Registry)
+            {
+                CurrentViewModel = viewModel;
+                Services.Logger.Instance.Info($"SetRegistryViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
+            }
+            else
+            {
+                Services.Logger.Instance.Warning($"SetRegistryViewModel 실패: CurrentMode가 Registry가 아님 (CurrentMode: {CurrentMode})");
             }
         }
 

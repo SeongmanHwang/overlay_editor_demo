@@ -19,6 +19,9 @@
         <DataTemplate DataType="{x:Type vm:MarkingViewModel}">
             <views:MarkingView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RegistryViewModel}">
+            <views:RegistryView/>
+        </DataTemplate>
     </Window.Resources>
     <Grid>
         <!-- ContentControl: 현재 모드에 따라 View 전환 -->

@@ -66,6 +66,12 @@ namespace SimpleOverlayEditor.Views
                         
                         _navigation.SetMarkingViewModel(markingViewModel);
                     }
+                    else if (_navigation.CurrentMode == ApplicationMode.Registry && _navigation.CurrentViewModel == null)
+                    {
+                        // Registry 모드로 전환 시 ViewModel 생성
+                        var registryViewModel = new RegistryViewModel(_navigation);
+                        _navigation.SetRegistryViewModel(registryViewModel);
+                    }
                 }
             };
 
@@ -181,6 +187,13 @@ namespace SimpleOverlayEditor.Views
                             
                             _navigation.SetMarkingViewModel(markingViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: MarkingViewModel 생성 완료");
+                        }
+                        else if (_navigation.CurrentMode == ApplicationMode.Registry)
+                        {
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: RegistryViewModel 생성 시작");
+                            var registryViewModel = new RegistryViewModel(_navigation);
+                            _navigation.SetRegistryViewModel(registryViewModel);
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: RegistryViewModel 생성 완료");
                         }
                     }
                 }

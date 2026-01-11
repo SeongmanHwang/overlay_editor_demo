@@ -18,6 +18,11 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 마킹 감지 모드 (OMR 마킹 감지 및 분석)
         /// </summary>
-        Marking
+        Marking,
+
+        /// <summary>
+        /// 수험생 명렬 관리 모드
+        /// </summary>
+        Registry
     }
 }

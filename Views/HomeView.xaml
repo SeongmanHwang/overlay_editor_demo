@@ -42,6 +42,11 @@
             <Button Content="마킹 감지" 
                    Command="{Binding NavigateToMarkingCommand}"
                    Style="{StaticResource HomeModeButton}"/>
+
+            <!-- 수험생 명렬 관리 버튼 -->
+            <Button Content="수험생 명렬 관리" 
+                   Command="{Binding NavigateToRegistryCommand}"
+                   Style="{StaticResource HomeModeButton}"/>
         </StackPanel>
     </Grid>
 </UserControl>

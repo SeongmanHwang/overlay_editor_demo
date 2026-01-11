@@ -29,6 +29,14 @@ namespace SimpleOverlayEditor.ViewModels
         {
             _execute?.Invoke();
         }
+
+        /// <summary>
+        /// CanExecute 상태를 강제로 재평가하도록 요청합니다.
+        /// </summary>
+        public void RaiseCanExecuteChanged()
+        {
+            CommandManager.InvalidateRequerySuggested();
+        }
     }
 
     public class RelayCommand<T> : ICommand
@@ -56,6 +64,14 @@ namespace SimpleOverlayEditor.ViewModels
         public void Execute(object? parameter)
         {
             _execute((T?)parameter);
+        }
+
+        /// <summary>
+        /// CanExecute 상태를 강제로 재평가하도록 요청합니다.
+        /// </summary>
+        public void RaiseCanExecuteChanged()
+        {
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 }

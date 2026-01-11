@@ -29,10 +29,12 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly ImageLoader _imageLoader;
         private readonly ImageAlignmentService _alignmentService;
         private readonly Renderer _renderer;
+        private readonly MarkingAnalyzer _markingAnalyzer;
         private List<MarkingResult>? _currentMarkingResults;
         private List<BarcodeResult>? _currentBarcodeResults;
         private double _markingThreshold = 180.0;
         private BitmapSource? _displayImage;
+        private ObservableCollection<OmrSheetResult>? _sheetResults;
 
         public MarkingViewModel(MarkingDetector markingDetector, NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
@@ -46,6 +48,7 @@ namespace SimpleOverlayEditor.ViewModels
             _imageLoader = new ImageLoader();
             _alignmentService = new ImageAlignmentService();
             _renderer = new Renderer();
+            _markingAnalyzer = new MarkingAnalyzer();
 
             DetectMarkingsCommand = new RelayCommand(
                 OnDetectMarkings, 
@@ -54,6 +57,9 @@ namespace SimpleOverlayEditor.ViewModels
                 OnDetectAllMarkings, 
                 () => Documents != null && Documents.Count() > 0 && ScoringAreas != null && ScoringAreas.Count() > 0);
             LoadFolderCommand = new RelayCommand(OnLoadFolder);
+            ExportToCsvCommand = new RelayCommand(
+                OnExportToCsv, 
+                () => SheetResults != null && SheetResults.Count > 0);
 
             // Session.Documents가 이미 로드되어 있으면 정렬 수행
             InitializeDocumentsAlignment();
@@ -92,6 +98,12 @@ namespace SimpleOverlayEditor.ViewModels
             OnPropertyChanged(nameof(DocumentCount));
 
             Logger.Instance.Info($"Session.Documents 초기화 완료: {_session.Documents.Count}개 문서 처리됨");
+
+            // 기존 세션에 마킹 결과가 있으면 SheetResults 업데이트
+            if (_session.MarkingResults != null && _session.MarkingResults.Count > 0)
+            {
+                UpdateSheetResults();
+            }
         }
 
         public ImageDocument? SelectedDocument 
@@ -215,11 +227,30 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand DetectMarkingsCommand { get; }
         public ICommand DetectAllMarkingsCommand { get; }
         public ICommand LoadFolderCommand { get; }
+        public ICommand ExportToCsvCommand { get; }
         
         /// <summary>
         /// 네비게이션 ViewModel (홈으로 이동 등)
         /// </summary>
         public NavigationViewModel Navigation => _navigation;
+
+        /// <summary>
+        /// 모든 문서의 OMR 시트 결과 (문항별 마킹 정리)
+        /// </summary>
+        public ObservableCollection<OmrSheetResult>? SheetResults
+        {
+            get => _sheetResults;
+            set
+            {
+                _sheetResults = value;
+                OnPropertyChanged();
+                // Command의 CanExecute 상태 업데이트
+                if (ExportToCsvCommand is RelayCommand cmd)
+                {
+                    cmd.RaiseCanExecuteChanged();
+                }
+            }
+        }
 
         /// <summary>
         /// 현재 선택된 문서의 마킹을 감지합니다.
@@ -336,6 +367,9 @@ namespace SimpleOverlayEditor.ViewModels
 
                 Logger.Instance.Info($"마킹 감지 완료: {markedCount}/{results.Count}개 마킹 감지");
                 MessageBox.Show(message, "마킹 감지 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // OMR 결과 업데이트
+                UpdateSheetResults();
             }
             catch (Exception ex)
             {
@@ -456,6 +490,9 @@ namespace SimpleOverlayEditor.ViewModels
                     Logger.Instance.Error("전체 결과 이미지 파일 저장 실패", ex);
                     // 저장 실패해도 마킹 감지는 완료되었으므로 계속 진행
                 }
+
+                // OMR 결과 업데이트
+                UpdateSheetResults();
             }
             catch (Exception ex)
             {
@@ -823,6 +860,106 @@ namespace SimpleOverlayEditor.ViewModels
                 Logger.Instance.Error($"오버레이 이미지 생성 실패: {SelectedDocument.SourcePath}", ex);
                 DisplayImage = null;
             }
+        }
+
+        /// <summary>
+        /// 마킹 결과를 OMR 시트 구조에 맞게 분석하여 SheetResults를 업데이트합니다.
+        /// </summary>
+        private void UpdateSheetResults()
+        {
+            if (_session.Documents == null || _session.Documents.Count == 0)
+            {
+                SheetResults = null;
+                return;
+            }
+
+            try
+            {
+                var results = _markingAnalyzer.AnalyzeAllSheets(_session);
+                SheetResults = new ObservableCollection<OmrSheetResult>(results);
+                OnPropertyChanged(nameof(SheetResults));
+                Logger.Instance.Info($"OMR 결과 업데이트 완료: {results.Count}개 시트");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("OMR 결과 업데이트 실패", ex);
+                SheetResults = null;
+            }
+        }
+
+        /// <summary>
+        /// CSV 파일로 내보냅니다.
+        /// </summary>
+        private void OnExportToCsv()
+        {
+            if (SheetResults == null || SheetResults.Count == 0)
+            {
+                MessageBox.Show("내보낼 데이터가 없습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
+                    FileName = $"OMR_Results_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    ExportToCsv(dialog.FileName, SheetResults);
+                    MessageBox.Show("CSV 파일로 저장되었습니다.", "완료", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("CSV 내보내기 실패", ex);
+                MessageBox.Show($"CSV 내보내기 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// OMR 결과를 CSV 형식으로 저장합니다.
+        /// </summary>
+        private void ExportToCsv(string filePath, IEnumerable<OmrSheetResult> results)
+        {
+            using var writer = new StreamWriter(filePath, false, System.Text.Encoding.UTF8);
+            
+            // 헤더 작성 (UTF-8 BOM 추가)
+            writer.Write('\uFEFF'); // UTF-8 BOM
+            writer.WriteLine("파일명,수험번호,면접번호,문항1,문항2,문항3,문항4,오류,오류메시지");
+            
+            // 데이터 작성
+            foreach (var result in results)
+            {
+                writer.WriteLine($"{EscapeCsvField(result.ImageFileName)}," +
+                                $"{EscapeCsvField(result.StudentId ?? "")}," +
+                                $"{EscapeCsvField(result.InterviewId ?? "")}," +
+                                $"{(result.Question1Marking?.ToString() ?? "")}," +
+                                $"{(result.Question2Marking?.ToString() ?? "")}," +
+                                $"{(result.Question3Marking?.ToString() ?? "")}," +
+                                $"{(result.Question4Marking?.ToString() ?? "")}," +
+                                $"{(result.HasErrors ? "예" : "아니오")}," +
+                                $"{EscapeCsvField(result.ErrorMessage ?? "")}");
+            }
+        }
+
+        /// <summary>
+        /// CSV 필드를 이스케이프합니다 (쉼표, 따옴표, 개행 포함 시)
+        /// </summary>
+        private string EscapeCsvField(string field)
+        {
+            if (string.IsNullOrEmpty(field))
+                return "";
+
+            // 쉼표, 따옴표, 개행이 있으면 따옴표로 감싸고 따옴표는 두 개로 변환
+            if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
+            {
+                return "\"" + field.Replace("\"", "\"\"") + "\"";
+            }
+
+            return field;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

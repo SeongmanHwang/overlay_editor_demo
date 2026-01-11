@@ -8,14 +8,21 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1200">
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"/>  <!-- 왼쪽: 문서 목록 및 설정 -->
-            <ColumnDefinition Width="*"/>    <!-- 중앙: 결과 표시 -->
-            <ColumnDefinition Width="300"/>  <!-- 오른쪽: 마킹 결과 상세 -->
-        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>  <!-- 기존 3열 구조 -->
+            <RowDefinition Height="Auto"/> <!-- OMR 결과 테이블 -->
+        </Grid.RowDefinitions>
+        
+        <!-- 기존 3열 구조 -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>  <!-- 왼쪽: 문서 목록 및 설정 -->
+                <ColumnDefinition Width="*"/>    <!-- 중앙: 결과 표시 -->
+                <ColumnDefinition Width="300"/>  <!-- 오른쪽: 마킹 결과 상세 -->
+            </Grid.ColumnDefinitions>
 
-        <!-- 왼쪽: 문서 목록 및 설정 -->
-        <DockPanel Grid.Column="0" Background="#F5F5F5">
+            <!-- 왼쪽: 문서 목록 및 설정 -->
+            <DockPanel Grid.Column="0" Background="#F5F5F5">
             <StackPanel DockPanel.Dock="Top" Margin="10">
                 <TextBlock Text="마킹 감지" 
                           FontWeight="Bold" 
@@ -85,8 +92,8 @@
             </ScrollViewer>
         </DockPanel>
 
-        <!-- 중앙: 오버레이 이미지 표시 -->
-        <DockPanel Grid.Column="1" Background="#E0E0E0">
+            <!-- 중앙: 오버레이 이미지 표시 -->
+            <DockPanel Grid.Column="1" Background="#E0E0E0">
             <StackPanel DockPanel.Dock="Top" Margin="10">
                 <TextBlock Text="오버레이 이미지" 
                           FontWeight="Bold" 
@@ -133,8 +140,8 @@
             </ScrollViewer>
         </DockPanel>
 
-        <!-- 오른쪽: 마킹 감지 결과 및 상세 정보 -->
-        <DockPanel Grid.Column="2" Background="#F5F5F5">
+            <!-- 오른쪽: 마킹 감지 결과 및 상세 정보 -->
+            <DockPanel Grid.Column="2" Background="#F5F5F5">
             <TextBlock DockPanel.Dock="Top" 
                       Text="마킹 감지 결과" 
                       FontWeight="Bold" 
@@ -370,7 +377,127 @@
                     </GroupBox>
                 </StackPanel>
             </ScrollViewer>
-        </DockPanel>
+            </DockPanel>
+        </Grid>
+
+        <!-- OMR 결과 테이블 영역 -->
+        <GroupBox Grid.Row="1" Header="OMR 결과 요약" Margin="5" Padding="5" MinHeight="100">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- 상단 버튼 -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,5">
+                    <Button Content="CSV 내보내기" 
+                            Command="{Binding ExportToCsvCommand}" 
+                            Margin="5,0"
+                            Padding="10,5"
+                            Background="#4CAF50"
+                            Foreground="White"
+                            FontWeight="Bold"
+                            MinWidth="120"/>
+                </StackPanel>
+                
+                <!-- 안내 메시지 (데이터 없을 때) -->
+                <TextBlock Grid.Row="1"
+                          Text="마킹 감지를 실행하면 결과가 여기에 표시됩니다." 
+                          FontSize="12" 
+                          Foreground="#666"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          TextAlignment="Center"
+                          Margin="10">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SheetResults, Converter={StaticResource NullToBoolConverter}}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SheetResults.Count, FallbackValue=0}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                
+                <!-- DataGrid -->
+                <DataGrid Grid.Row="1" 
+                          ItemsSource="{Binding SheetResults}" 
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          SelectionMode="Extended"
+                          MaxHeight="300"
+                          GridLinesVisibility="All"
+                          HeadersVisibility="Column"
+                          AlternatingRowBackground="#F5F5F5">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SheetResults, Converter={StaticResource NullToBoolConverter}}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SheetResults.Count, FallbackValue=0}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="파일명" Binding="{Binding ImageFileName}" Width="150" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" Width="60" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="문항2" Binding="{Binding Question2Marking}" Width="60" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="문항3" Binding="{Binding Question3Marking}" Width="60" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="문항4" Binding="{Binding Question4Marking}" Width="60" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" Width="60" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="오류 메시지" Binding="{Binding ErrorMessage}" Width="*" IsReadOnly="True"/>
+                    </DataGrid.Columns>
+                    
+                    <!-- 오류가 있는 행은 빨간색 배경 -->
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasErrors}" Value="True">
+                                    <Setter Property="Background" Value="#FFCDD2"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                </DataGrid>
+            </Grid>
+        </GroupBox>
     </Grid>
 </UserControl>
 

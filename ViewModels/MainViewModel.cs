@@ -234,55 +234,6 @@ namespace SimpleOverlayEditor.ViewModels
                     Logger.Instance.Info($"기본 InputFolderPath 설정: {PathService.DefaultInputFolder}");
                 }
                 
-                // 템플릿이 비어있으면 기본 템플릿 로드 시도
-                if (Workspace.Template.TimingMarks.Count == 0 && 
-                    Workspace.Template.ScoringAreas.Count == 0 && 
-                    Workspace.Template.ReferenceWidth == 0 && 
-                    Workspace.Template.ReferenceHeight == 0)
-                {
-                    Logger.Instance.Info("템플릿이 비어있어 기본 템플릿 로드 시도");
-                    var defaultTemplate = _stateStore.LoadDefaultTemplate();
-                    if (defaultTemplate != null)
-                    {
-                        Logger.Instance.Info("기본 템플릿 로드 성공");
-                        Workspace.Template.ReferenceWidth = defaultTemplate.ReferenceWidth;
-                        Workspace.Template.ReferenceHeight = defaultTemplate.ReferenceHeight;
-                        
-                        foreach (var overlay in defaultTemplate.TimingMarks)
-                        {
-                            Workspace.Template.TimingMarks.Add(new RectangleOverlay
-                            {
-                                X = overlay.X,
-                                Y = overlay.Y,
-                                Width = overlay.Width,
-                                Height = overlay.Height,
-                                StrokeThickness = overlay.StrokeThickness,
-                                OverlayType = overlay.OverlayType
-                            });
-                        }
-                        
-                        foreach (var overlay in defaultTemplate.ScoringAreas)
-                        {
-                            Workspace.Template.ScoringAreas.Add(new RectangleOverlay
-                            {
-                                X = overlay.X,
-                                Y = overlay.Y,
-                                Width = overlay.Width,
-                                Height = overlay.Height,
-                                StrokeThickness = overlay.StrokeThickness,
-                                OverlayType = overlay.OverlayType
-                            });
-                        }
-                        
-                        OnPropertyChanged(nameof(DisplayOverlays));
-                        OnPropertyChanged(nameof(CurrentOverlayCollection));
-                    }
-                    else
-                    {
-                        Logger.Instance.Info("기본 템플릿이 없음");
-                    }
-                }
-                
                 // SelectedDocument는 Session에서 관리되므로 Workspace에서는 처리하지 않음
                 SelectedDocument = null;
                 Logger.Instance.Info($"SelectedDocument 초기화 완료: null (Session에서 관리)");

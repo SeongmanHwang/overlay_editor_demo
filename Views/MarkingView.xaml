@@ -401,20 +401,82 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 
-                <!-- 상단 버튼 -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,5">
-                    <Button Content="CSV 내보내기" 
+                <!-- 요약 통계, 필터 버튼 및 CSV 내보내기 -->
+                <Grid Grid.Row="0" Margin="0,0,0,10" 
+                      Visibility="{Binding SheetResults, Converter={StaticResource NullToBoolConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- 요약 통계 -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="총 " FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SheetResults.Count, FallbackValue=0}" 
+                                  FontWeight="Bold" 
+                                  Foreground="Blue"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="개 시트 중 " FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ErrorCount, FallbackValue=0}" 
+                                  FontWeight="Bold" 
+                                  Foreground="#D32F2F"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="개 오류" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text=", " FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                        <TextBlock Text="{Binding DuplicateCount, FallbackValue=0}" 
+                                  FontWeight="Bold" 
+                                  Foreground="#F57C00"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="개 중복" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text=", " FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                        <TextBlock Text="{Binding NullCombinedIdCount, FallbackValue=0}" 
+                                  FontWeight="Bold" 
+                                  Foreground="#E64A19"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="개 결합ID 없음" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- 필터 버튼 (중앙) -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="필터: " VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="SemiBold"/>
+                        <RadioButton Content="전체" 
+                                    IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=All}"
+                                    Command="{Binding SetFilterModeCommand}" 
+                                    CommandParameter="All"
+                                    Margin="5,0"
+                                    GroupName="FilterMode"
+                                    VerticalAlignment="Center"/>
+                        <RadioButton Content="오류만" 
+                                    IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Errors}"
+                                    Command="{Binding SetFilterModeCommand}" 
+                                    CommandParameter="Errors"
+                                    Margin="5,0"
+                                    GroupName="FilterMode"
+                                    VerticalAlignment="Center"/>
+                        <RadioButton Content="중복만" 
+                                    IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Duplicates}"
+                                    Command="{Binding SetFilterModeCommand}" 
+                                    CommandParameter="Duplicates"
+                                    Margin="5,0"
+                                    GroupName="FilterMode"
+                                    VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- CSV 내보내기 버튼 (오른쪽) -->
+                    <Button Grid.Column="2" 
+                            Content="CSV 내보내기" 
                             Command="{Binding ExportToCsvCommand}" 
-                            Margin="5,0"
                             Padding="10,5"
                             Background="#4CAF50"
                             Foreground="White"
                             FontWeight="Bold"
-                            MinWidth="120"/>
-                </StackPanel>
+                            MinWidth="120"
+                            VerticalAlignment="Center"/>
+                </Grid>
                 
                 <!-- 안내 메시지 (데이터 없을 때) -->
-                <TextBlock Grid.Row="1"
+                <TextBlock Grid.Row="2"
                           Text="마킹 리딩을 실행하면 결과가 여기에 표시됩니다." 
                           FontSize="12" 
                           Foreground="#666"
@@ -438,8 +500,8 @@
                 </TextBlock>
                 
                 <!-- DataGrid -->
-                <DataGrid Grid.Row="1" 
-                          ItemsSource="{Binding SheetResults}" 
+                <DataGrid Grid.Row="2"
+                          ItemsSource="{Binding FilteredSheetResults}" 
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
@@ -497,13 +559,40 @@
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                         <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" Width="60" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="오류 메시지" Binding="{Binding ErrorMessage}" Width="*" IsReadOnly="True"/>
+                        <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" Width="60" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="오류 메시지" Binding="{Binding ErrorMessage}" Width="*" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="ToolTip" Value="{Binding ErrorMessage}"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
                     </DataGrid.Columns>
                     
-                    <!-- 오류가 있는 행은 빨간색 배경 -->
+                    <!-- 오류 유형별 색상 구분 -->
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow">
                             <Style.Triggers>
+                                <!-- 중복 + 오류 (복합 오류 - 가장 심각) -->
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsDuplicate}" Value="True"/>
+                                        <Condition Binding="{Binding HasErrors}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Background" Value="#FFE082"/>
+                                </MultiDataTrigger>
+                                
+                                <!-- 중복만 있는 경우 (경고) -->
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsDuplicate}" Value="True"/>
+                                        <Condition Binding="{Binding HasErrors}" Value="False"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Background" Value="#FFF3CD"/>
+                                </MultiDataTrigger>
+                                
+                                <!-- 일반 오류 (중간) -->
                                 <DataTrigger Binding="{Binding HasErrors}" Value="True">
                                     <Setter Property="Background" Value="#FFCDD2"/>
                                 </DataTrigger>

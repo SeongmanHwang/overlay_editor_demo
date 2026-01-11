@@ -10,11 +10,11 @@ none
 false
 TRACE;DEBUG;NET;NET8_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
 C:\Users\Seongman Hwang\overlay_editor\App.xaml
-4103961173
+61527883642
 
-34128831657
-2091052549725
-Views\HomeView.xaml;Views\MainWindow.xaml;Views\MarkingView.xaml;Views\TemplateEditView.xaml;
+431791089727
+215-2111140439
+Views\HomeView.xaml;Views\MainWindow.xaml;Views\MarkingView.xaml;Views\ProgressWindow.xaml;Views\RegistryView.xaml;Views\TemplateEditView.xaml;
 
 False
 

@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.ViewModels;
 using SimpleOverlayEditor.Utils;
 using SimpleOverlayEditor.Services;
@@ -123,6 +124,17 @@ namespace SimpleOverlayEditor.Views
             catch (Exception ex)
             {
                 Logger.Instance.Error("MarkingView - UpdateImageDisplay 실패", ex);
+            }
+        }
+
+        private void DataGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is DataGrid dataGrid && dataGrid.SelectedItem is OmrSheetResult sheetResult)
+            {
+                if (DataContext is MarkingViewModel viewModel)
+                {
+                    viewModel.SelectDocumentByImageId(sheetResult.ImageId);
+                }
             }
         }
     }

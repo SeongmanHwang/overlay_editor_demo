@@ -127,6 +127,23 @@ namespace SimpleOverlayEditor.Utils
             return false;
         }
     }
+
+    public class StringEqualsConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return value?.ToString() == parameter?.ToString();
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is bool boolValue && boolValue)
+            {
+                return parameter?.ToString();
+            }
+            return Binding.DoNothing;
+        }
+    }
 }
 
 

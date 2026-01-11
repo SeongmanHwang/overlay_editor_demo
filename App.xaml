@@ -11,6 +11,7 @@
         <utils:BarcodeSuccessCountConverter x:Key="BarcodeSuccessCountConverter"/>
         <utils:BarcodeFailureCountConverter x:Key="BarcodeFailureCountConverter"/>
         <utils:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <utils:StringEqualsConverter x:Key="StringEqualsConverter"/>
         
         <!-- 홈 화면 모드 버튼 스타일 -->
         <Style x:Key="HomeModeButton" TargetType="Button">

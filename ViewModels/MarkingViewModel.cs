@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -39,6 +40,8 @@ namespace SimpleOverlayEditor.ViewModels
         private double _markingThreshold = 215.0;
         private BitmapSource? _displayImage;
         private ObservableCollection<OmrSheetResult>? _sheetResults;
+        private ICollectionView? _filteredSheetResults;
+        private string _filterMode = "All";
 
         public MarkingViewModel(MarkingDetector markingDetector, NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
@@ -64,6 +67,7 @@ namespace SimpleOverlayEditor.ViewModels
             ExportToCsvCommand = new RelayCommand(
                 OnExportToCsv, 
                 () => SheetResults != null && SheetResults.Count > 0);
+            SetFilterModeCommand = new RelayCommand<string>(OnSetFilterMode);
 
             // Session.Documents가 이미 로드되어 있으면 정렬 수행
             InitializeDocumentsAlignment();
@@ -232,6 +236,7 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand DetectAllMarkingsCommand { get; }
         public ICommand LoadFolderCommand { get; }
         public ICommand ExportToCsvCommand { get; }
+        public ICommand SetFilterModeCommand { get; }
         
         /// <summary>
         /// 네비게이션 ViewModel (홈으로 이동 등)
@@ -248,12 +253,94 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 _sheetResults = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ErrorCount));
+                OnPropertyChanged(nameof(DuplicateCount));
+                OnPropertyChanged(nameof(NullCombinedIdCount));
                 // Command의 CanExecute 상태 업데이트
                 if (ExportToCsvCommand is RelayCommand cmd)
                 {
                     cmd.RaiseCanExecuteChanged();
                 }
             }
+        }
+
+        /// <summary>
+        /// 오류가 있는 시트 수
+        /// </summary>
+        public int ErrorCount => SheetResults?.Count(r => r.HasErrors) ?? 0;
+
+        /// <summary>
+        /// 중복 결합ID를 가진 시트 수
+        /// </summary>
+        public int DuplicateCount => SheetResults?.Count(r => r.IsDuplicate) ?? 0;
+
+        /// <summary>
+        /// 결합ID가 없는 시트 수
+        /// </summary>
+        public int NullCombinedIdCount => SheetResults?.Count(r => string.IsNullOrEmpty(r.CombinedId)) ?? 0;
+
+        /// <summary>
+        /// 필터링된 SheetResults (ICollectionView)
+        /// </summary>
+        public ICollectionView? FilteredSheetResults
+        {
+            get => _filteredSheetResults;
+            private set
+            {
+                _filteredSheetResults = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 현재 필터 모드 ("All", "Errors", "Duplicates")
+        /// </summary>
+        public string FilterMode
+        {
+            get => _filterMode;
+            set
+            {
+                if (_filterMode != value)
+                {
+                    _filterMode = value;
+                    OnPropertyChanged();
+                    ApplyFilter();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 필터 모드를 설정합니다.
+        /// </summary>
+        private void OnSetFilterMode(string? filterMode)
+        {
+            if (!string.IsNullOrEmpty(filterMode))
+            {
+                FilterMode = filterMode;
+            }
+        }
+
+        /// <summary>
+        /// 필터를 적용합니다.
+        /// </summary>
+        private void ApplyFilter()
+        {
+            if (FilteredSheetResults == null) return;
+
+            FilteredSheetResults.Filter = item =>
+            {
+                if (item is not OmrSheetResult result) return false;
+
+                return _filterMode switch
+                {
+                    "Errors" => result.HasErrors && !result.IsDuplicate, // 중복 제외한 오류만
+                    "Duplicates" => result.IsDuplicate, // 중복만
+                    "All" => true,
+                    _ => true
+                };
+            };
+
+            FilteredSheetResults.Refresh();
         }
 
         /// <summary>
@@ -604,10 +691,29 @@ namespace SimpleOverlayEditor.ViewModels
                             }
 
                             progressWindow.Close();
-                            MessageBox.Show(message, "전체 마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
 
                             // OMR 결과 업데이트
                             UpdateSheetResults();
+
+                            // 통계 수집 (UpdateSheetResults 이후에 SheetResults가 설정됨)
+                            if (SheetResults != null && SheetResults.Count > 0)
+                            {
+                                message += $"\n\n결과 분석:\n" +
+                                          $"총 시트: {SheetResults.Count}개\n" +
+                                          $"오류 있는 시트: {ErrorCount}개";
+                                
+                                if (DuplicateCount > 0)
+                                {
+                                    message += $"\n중복 결합ID: {DuplicateCount}개";
+                                }
+                                
+                                if (NullCombinedIdCount > 0)
+                                {
+                                    message += $"\n결합ID 없음: {NullCombinedIdCount}개";
+                                }
+                            }
+
+                            MessageBox.Show(message, "전체 마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
                     });
 
@@ -1132,20 +1238,74 @@ namespace SimpleOverlayEditor.ViewModels
             if (_session.Documents == null || _session.Documents.Count == 0)
             {
                 SheetResults = null;
+                FilteredSheetResults = null;
+                OnPropertyChanged(nameof(FilteredSheetResults));
+                OnPropertyChanged(nameof(ErrorCount));
+                OnPropertyChanged(nameof(DuplicateCount));
+                OnPropertyChanged(nameof(NullCombinedIdCount));
                 return;
             }
 
             try
             {
                 var results = _markingAnalyzer.AnalyzeAllSheets(_session);
+                
+                // 결합ID 기준으로 중복 검출
+                var groupedByCombinedId = results
+                    .Where(r => !string.IsNullOrEmpty(r.CombinedId))
+                    .GroupBy(r => r.CombinedId)
+                    .Where(g => g.Count() > 1)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+                
+                // 중복 여부 설정 및 ErrorMessage에 추가
+                foreach (var result in results)
+                {
+                    if (!string.IsNullOrEmpty(result.CombinedId) && 
+                        groupedByCombinedId.ContainsKey(result.CombinedId))
+                    {
+                        result.IsDuplicate = true;
+                        result.HasErrors = true;
+                        var duplicateCount = groupedByCombinedId[result.CombinedId].Count;
+                        var duplicateMessage = $"결합ID 중복 ({duplicateCount}개)";
+                        result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                            ? duplicateMessage
+                            : result.ErrorMessage + "; " + duplicateMessage;
+                    }
+                }
+                
                 SheetResults = new ObservableCollection<OmrSheetResult>(results);
+                
+                // CollectionViewSource 생성 및 필터 설정
+                FilteredSheetResults = CollectionViewSource.GetDefaultView(SheetResults);
+                ApplyFilter();
+                
                 OnPropertyChanged(nameof(SheetResults));
+                OnPropertyChanged(nameof(FilteredSheetResults));
+                OnPropertyChanged(nameof(ErrorCount));
+                OnPropertyChanged(nameof(DuplicateCount));
+                OnPropertyChanged(nameof(NullCombinedIdCount));
+                
+                var duplicateRowCount = groupedByCombinedId.Values.SelectMany(g => g).Count();
+                if (duplicateRowCount > 0)
+                {
+                    Logger.Instance.Warning($"중복 결합ID 검출: {duplicateRowCount}개 행");
+                }
+                else
+                {
+                    Logger.Instance.Info($"중복 결합ID 없음");
+                }
+                
                 Logger.Instance.Info($"OMR 결과 업데이트 완료: {results.Count}개 시트");
             }
             catch (Exception ex)
             {
                 Logger.Instance.Error("OMR 결과 업데이트 실패", ex);
                 SheetResults = null;
+                FilteredSheetResults = null;
+                OnPropertyChanged(nameof(FilteredSheetResults));
+                OnPropertyChanged(nameof(ErrorCount));
+                OnPropertyChanged(nameof(DuplicateCount));
+                OnPropertyChanged(nameof(NullCombinedIdCount));
             }
         }
 

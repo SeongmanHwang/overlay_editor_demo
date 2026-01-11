@@ -35,9 +35,27 @@ namespace SimpleOverlayEditor.Services
             {
                 result.StudentId = barcodeResults[0].Success ? barcodeResults[0].DecodedText : null;
                 
+                // 수험번호 바코드 디코딩 성공했지만 값이 null이거나 빈 문자열인 경우
+                if (barcodeResults[0].Success && string.IsNullOrWhiteSpace(result.StudentId))
+                {
+                    result.HasErrors = true;
+                    result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                        ? "수험번호 바코드 값 없음"
+                        : result.ErrorMessage + "; 수험번호 바코드 값 없음";
+                }
+                
                 if (barcodeResults.Count >= 2)
                 {
                     result.InterviewId = barcodeResults[1].Success ? barcodeResults[1].DecodedText : null;
+                    
+                    // 면접번호 바코드 디코딩 성공했지만 값이 null이거나 빈 문자열인 경우
+                    if (barcodeResults[1].Success && string.IsNullOrWhiteSpace(result.InterviewId))
+                    {
+                        result.HasErrors = true;
+                        result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                            ? "면접번호 바코드 값 없음"
+                            : result.ErrorMessage + "; 면접번호 바코드 값 없음";
+                    }
                 }
             }
 
@@ -132,6 +150,15 @@ namespace SimpleOverlayEditor.Services
                         ? "면접번호 바코드 디코딩 실패"
                         : result.ErrorMessage + "; 면접번호 바코드 디코딩 실패";
                 }
+            }
+
+            // CombinedId가 null인 경우 체크
+            if (string.IsNullOrEmpty(result.CombinedId))
+            {
+                result.HasErrors = true;
+                result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                    ? "결합ID 없음 (수험번호 또는 면접번호 누락)"
+                    : result.ErrorMessage + "; 결합ID 없음 (수험번호 또는 면접번호 누락)";
             }
 
             return result;

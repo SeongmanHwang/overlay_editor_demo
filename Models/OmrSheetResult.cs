@@ -18,6 +18,7 @@ namespace SimpleOverlayEditor.Models
         private int? _question4Marking;
         private bool _hasErrors; // 오류 여부 (바코드 실패, 다중마킹 등)
         private string? _errorMessage;
+        private bool _isDuplicate; // 결합ID 기준 중복 여부
 
         public string ImageId
         {
@@ -97,6 +98,15 @@ namespace SimpleOverlayEditor.Models
         {
             get => _errorMessage;
             set { _errorMessage = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// 결합ID 기준으로 중복된 데이터인지 여부
+        /// </summary>
+        public bool IsDuplicate
+        {
+            get => _isDuplicate;
+            set { _isDuplicate = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

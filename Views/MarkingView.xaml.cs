@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.ViewModels;
 using SimpleOverlayEditor.Utils;
@@ -127,7 +128,7 @@ namespace SimpleOverlayEditor.Views
             }
         }
 
-        private void DataGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (sender is DataGrid dataGrid && dataGrid.SelectedItem is OmrSheetResult sheetResult)
             {
@@ -136,6 +137,53 @@ namespace SimpleOverlayEditor.Views
                     viewModel.SelectDocumentByImageId(sheetResult.ImageId);
                 }
             }
+        }
+
+        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is string imageId)
+            {
+                if (DataContext is MarkingViewModel viewModel)
+                {
+                    viewModel.DeleteSingleItem(imageId);
+                }
+            }
+        }
+
+        private void OmrDataGrid_Sorting(object sender, DataGridSortingEventArgs e)
+        {
+            if (ViewModel?.FilteredSheetResults == null) return;
+
+            var grid = (DataGrid)sender;
+            var view = ViewModel.FilteredSheetResults;
+
+            e.Handled = true; // 기본 정렬 막기
+
+            var key = e.Column.SortMemberPath;
+            if (string.IsNullOrWhiteSpace(key)) return;
+
+            // 방향 토글: 해당 key가 기존에 있으면 반대로, 없으면 Asc로 시작
+            var existing = view.SortDescriptions.FirstOrDefault(sd => sd.PropertyName == key);
+            var newDir = (!string.IsNullOrEmpty(existing.PropertyName) && existing.Direction == ListSortDirection.Ascending)
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+
+            // 기존 정렬 중 클릭한 열은 제거하고 나머지는 보관
+            var rest = view.SortDescriptions.Where(sd => sd.PropertyName != key).ToList();
+
+            // 엑셀식: 클릭한 열을 1순위로 올리고, 기존은 2순위로 유지
+            view.SortDescriptions.Clear();
+            view.SortDescriptions.Add(new SortDescription(key, newDir));
+            foreach (var sd in rest)
+                view.SortDescriptions.Add(sd);
+
+            view.Refresh();
+
+            // 아이콘 정리: 1순위만 표시
+            foreach (var col in grid.Columns)
+                col.SortDirection = null;
+
+            e.Column.SortDirection = newDir;
         }
     }
 }

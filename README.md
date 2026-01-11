@@ -669,6 +669,89 @@ MainWindow
 - **로그 파일**: `%AppData%/SimpleOverlayEditor/logs/overlay_editor_YYYYMMDD.log`
 - **기본 입력 폴더**: `%Documents%/OverlayEditorInput/`
 
+## 데이터 저장 방식
+
+### 상태 보존 메커니즘
+
+애플리케이션은 사용자 작업 상태를 보존하기 위해 다음과 같은 메커니즘을 사용합니다:
+
+#### 1. OMR 결과 테이블의 데이터 업데이트 및 View 레벨 정렬
+
+**동작 방식:**
+- 마킹 리딩 완료 후 `UpdateSheetResults()` 메서드가 호출될 때마다 `MarkingAnalyzer.AnalyzeAllSheets()`를 통해 새로운 `OmrSheetResult` 객체들이 생성됨
+- 컬렉션은 정렬되지 않은 상태로 생성되며, 정렬은 View 레벨(`ICollectionView.SortDescriptions`)에서 처리됨
+- 이는 데이터 분석 결과를 최신 상태로 유지하면서도 View와 데이터를 분리하는 MVVM 패턴을 따르는 구조입니다
+
+**구현 위치:**
+- `ViewModels/MarkingViewModel.cs`의 `UpdateSheetResults()` 메서드
+- `ViewModels/MarkingViewModel.cs`의 `ApplySort()` 메서드
+- `Services/MarkingAnalyzer.cs`의 `AnalyzeAllSheets()` 메서드
+- `Models/OmrSheetResult.cs`의 `IsErrorOnly` 계산된 속성
+- 키워드: `UpdateSheetResults`, `ApplySort`, `AnalyzeAllSheets`, `SortDescriptions`, `IsErrorOnly`
+
+**동작 흐름:**
+```
+1. MarkingAnalyzer.AnalyzeAllSheets()로 새로운 OmrSheetResult 객체들 생성
+   - Session의 Documents, MarkingResults, BarcodeResults를 분석
+   - 각 문서에 대해 OmrSheetResult 객체 생성 (모든 속성 설정)
+
+2. 중복 검출 및 속성 설정
+   - 결합ID 기준으로 중복 항목 검출
+   - IsDuplicate, HasErrors, IsErrorOnly 속성 설정
+
+3. ObservableCollection 생성 (정렬되지 않은 상태)
+   - 정렬되지 않은 결과로 새로운 ObservableCollection<OmrSheetResult> 생성
+   - FilteredSheetResults (ICollectionView) 생성
+
+4. View 레벨에서 정렬 및 필터 적용
+   - ApplySort(): ICollectionView.SortDescriptions를 사용하여 정렬 설정
+     * IsDuplicate (내림차순) - 중복이 먼저
+     * IsErrorOnly (내림차순) - 단순 오류가 그 다음
+     * StudentId (오름차순) - 수험번호 순
+     * CombinedId (오름차순) - 결합ID 순
+     * ImageFileName (오름차순) - 파일명 순
+   - ApplyFilter(): 필터 모드에 따라 필터 적용
+```
+
+**참고:**
+- **View만 변경 패턴**: 컬렉션 자체를 재정렬하는 대신 `ICollectionView.SortDescriptions`를 사용하여 View 레벨에서만 정렬을 처리합니다
+- 이 방식은 MVVM 패턴을 준수하며, 데이터 컬렉션의 순서는 유지한 채 View만 정렬된 순서로 표시합니다
+- 각 행에 삭제 버튼이 있어 선택 상태를 보존할 필요가 없습니다
+- 삭제 작업은 즉시 실행되므로 선택 상태를 영속화할 필요가 없습니다
+
+#### 2. 삭제 작업의 즉시 반영
+
+**동작 방식:**
+- 사용자가 각 행의 삭제 버튼을 클릭하면 `DeleteSingleItem()` 메서드가 호출됨
+- 삭제 작업은 즉시 Session에서 항목을 제거하고 `session.json` 파일에 저장됨
+- 삭제된 항목은 애플리케이션 재시작 후에도 복구되지 않습니다
+
+**구현 위치:**
+- `ViewModels/MarkingViewModel.cs`의 `DeleteSingleItem()` 메서드
+- 키워드: `DeleteSingleItem`, `DeleteDocumentsFromSession`, `SessionStore.Save`
+
+**주의사항:**
+- 삭제는 즉시 반영되어야 하므로, 재시작 후 선택 상태가 남아있으면 오히려 위험할 수 있습니다
+- 따라서 사용자 선택 상태는 메모리에만 존재하며 영속화하지 않습니다
+
+### 영속성 저장
+
+#### Workspace (state.json)
+- **템플릿 정보**: 타이밍 마크, 채점 영역, 바코드 영역 (Questions 구조로 저장)
+- **입력 폴더 경로**: 마지막으로 로드한 이미지 폴더 경로
+- **선택된 문서 ID**: 현재 선택된 문서의 ImageId
+
+#### Session (session.json)
+- **문서 목록**: 로드된 모든 이미지 문서 정보 (ImageDocument 컬렉션)
+- **정렬 정보**: 각 문서의 AlignmentInfo (정렬된 이미지 경로 포함)
+- **마킹 결과**: 문서별 마킹 리딩 결과 (ImageId → MarkingResult 리스트)
+- **바코드 결과**: 문서별 바코드 디코딩 결과 (ImageId → BarcodeResult 리스트)
+
+**저장 시점:**
+- 삭제 작업 시 즉시 저장: `SessionStore.Save()` 호출
+- 마킹 리딩 완료 시 저장: `SessionStore.Save()` 호출
+- 애플리케이션 종료 시 저장: `MainWindow.OnClosed()`에서 `StateStore.Save()` 호출
+
 ## 로그 파일
 
 애플리케이션은 모든 주요 작업과 오류를 로그 파일에 기록합니다.

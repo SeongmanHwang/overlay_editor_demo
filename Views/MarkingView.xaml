@@ -476,7 +476,7 @@
                 </Grid>
                 
                 <!-- 안내 메시지 (데이터 없을 때) -->
-                <TextBlock Grid.Row="2"
+                <TextBlock Grid.Row="1"
                           Text="마킹 리딩을 실행하면 결과가 여기에 표시됩니다." 
                           FontSize="12" 
                           Foreground="#666"
@@ -500,18 +500,19 @@
                 </TextBlock>
                 
                 <!-- DataGrid -->
-                <DataGrid Grid.Row="2"
+                <DataGrid Grid.Row="1"
                           ItemsSource="{Binding FilteredSheetResults}" 
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
-                          IsReadOnly="True"
+                          IsReadOnly="False"
                           SelectionMode="Extended"
                           MaxHeight="300"
                           GridLinesVisibility="All"
                           HeadersVisibility="Column"
                           AlternatingRowBackground="#F5F5F5"
-                          MouseDoubleClick="DataGrid_MouseDoubleClick">
+                          SelectionChanged="DataGrid_SelectionChanged"
+                          Sorting="OmrDataGrid_Sorting">
                     <DataGrid.Style>
                         <Style TargetType="DataGrid">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -526,41 +527,41 @@
                         </Style>
                     </DataGrid.Style>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="파일명" Binding="{Binding ImageFileName}" Width="150" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" Width="100" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" Width="100" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="결합ID" Binding="{Binding CombinedId}" Width="120" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" Width="60" IsReadOnly="True">
+                        <DataGridTextColumn Header="파일명" Binding="{Binding ImageFileName}" SortMemberPath="ImageFileName" Width="150" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" SortMemberPath="StudentId" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" SortMemberPath="InterviewId" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="결합ID" Binding="{Binding CombinedId}" SortMemberPath="CombinedId" Width="120" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" SortMemberPath="Question1Marking" Width="60" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Center"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="문항2" Binding="{Binding Question2Marking}" Width="60" IsReadOnly="True">
+                        <DataGridTextColumn Header="문항2" Binding="{Binding Question2Marking}" SortMemberPath="Question2Marking" Width="60" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Center"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="문항3" Binding="{Binding Question3Marking}" Width="60" IsReadOnly="True">
+                        <DataGridTextColumn Header="문항3" Binding="{Binding Question3Marking}" SortMemberPath="Question3Marking" Width="60" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Center"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="문항4" Binding="{Binding Question4Marking}" Width="60" IsReadOnly="True">
+                        <DataGridTextColumn Header="문항4" Binding="{Binding Question4Marking}" SortMemberPath="Question4Marking" Width="60" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Center"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" Width="60" IsReadOnly="True"/>
-                        <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" Width="60" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="오류 메시지" Binding="{Binding ErrorMessage}" Width="*" IsReadOnly="True">
+                        <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" SortMemberPath="HasErrors" Width="60" IsReadOnly="True"/>
+                        <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" SortMemberPath="IsDuplicate" Width="60" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="오류 메시지" Binding="{Binding ErrorMessage}" SortMemberPath="ErrorMessage" Width="*" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="ToolTip" Value="{Binding ErrorMessage}"/>
@@ -568,6 +569,30 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
+                        <!-- 삭제 버튼 (오른쪽 끝) -->
+                        <DataGridTemplateColumn Header="삭제" Width="60">
+                            <DataGridTemplateColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTemplateColumn.HeaderStyle>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="삭제"
+                                            Click="DeleteButton_Click"
+                                            Tag="{Binding ImageId}"
+                                            Padding="5,2"
+                                            FontSize="11"
+                                            Background="#D32F2F"
+                                            Foreground="White"
+                                            BorderThickness="0"
+                                            Cursor="Hand"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            ToolTip="이 항목을 삭제합니다"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                     
                     <!-- 오류 유형별 색상 구분 -->

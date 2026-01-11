@@ -19,6 +19,7 @@ namespace SimpleOverlayEditor.Models
         private bool _hasErrors; // 오류 여부 (바코드 실패, 다중마킹 등)
         private string? _errorMessage;
         private bool _isDuplicate; // 결합ID 기준 중복 여부
+        private bool _isSelectedForDeletion; // 삭제를 위해 선택되었는지 여부
 
         public string ImageId
         {
@@ -91,7 +92,7 @@ namespace SimpleOverlayEditor.Models
         public bool HasErrors
         {
             get => _hasErrors;
-            set { _hasErrors = value; OnPropertyChanged(); }
+            set { _hasErrors = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsErrorOnly)); }
         }
 
         public string? ErrorMessage
@@ -106,7 +107,22 @@ namespace SimpleOverlayEditor.Models
         public bool IsDuplicate
         {
             get => _isDuplicate;
-            set { _isDuplicate = value; OnPropertyChanged(); }
+            set { _isDuplicate = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsErrorOnly)); }
+        }
+
+        /// <summary>
+        /// 중복이 아닌 단순 오류 여부 (HasErrors && !IsDuplicate)
+        /// 정렬 시 사용: 중복 -> 단순 오류 -> 정상 순서
+        /// </summary>
+        public bool IsErrorOnly => HasErrors && !IsDuplicate;
+
+        /// <summary>
+        /// 삭제를 위해 선택되었는지 여부
+        /// </summary>
+        public bool IsSelectedForDeletion
+        {
+            get => _isSelectedForDeletion;
+            set { _isSelectedForDeletion = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

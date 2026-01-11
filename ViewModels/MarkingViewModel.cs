@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -42,6 +43,70 @@ namespace SimpleOverlayEditor.ViewModels
         private ObservableCollection<OmrSheetResult>? _sheetResults;
         private ICollectionView? _filteredSheetResults;
         private string _filterMode = "All";
+
+        /// <summary>
+        /// SheetResults 항목의 PropertyChanged 이벤트를 처리합니다.
+        /// </summary>
+        private void OnSheetResultPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // 단일 삭제 버튼 방식으로 변경되어 이벤트 핸들러가 필요 없어짐
+            // 하지만 다른 속성 변경 시 필요할 수 있으므로 메서드는 유지
+        }
+
+        /// <summary>
+        /// SheetResults 컬렉션 변경 이벤트를 처리합니다.
+        /// </summary>
+        private void OnSheetResultsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+            {
+                foreach (OmrSheetResult item in e.NewItems)
+                {
+                    item.PropertyChanged += OnSheetResultPropertyChanged;
+                }
+            }
+            if (e.OldItems != null)
+            {
+                foreach (OmrSheetResult item in e.OldItems)
+                {
+                    item.PropertyChanged -= OnSheetResultPropertyChanged;
+                }
+            }
+        }
+
+        /// <summary>
+        /// SheetResults 컬렉션의 항목들에 PropertyChanged 이벤트 핸들러를 연결/해제합니다.
+        /// </summary>
+        private void SubscribeToSheetResults(ObservableCollection<OmrSheetResult>? collection)
+        {
+            if (collection == null) return;
+
+            // CollectionChanged 이벤트 구독 (항목 추가/제거 시 자동으로 PropertyChanged 구독/해제)
+            collection.CollectionChanged += OnSheetResultsCollectionChanged;
+
+            // 기존 항목들에 PropertyChanged 이벤트 구독
+            foreach (var item in collection)
+            {
+                item.PropertyChanged += OnSheetResultPropertyChanged;
+            }
+        }
+
+        /// <summary>
+        /// SheetResults 컬렉션의 항목들에서 PropertyChanged 이벤트 핸들러를 해제합니다.
+        /// </summary>
+        private void UnsubscribeFromSheetResults(ObservableCollection<OmrSheetResult>? collection)
+        {
+            if (collection == null) return;
+
+            // CollectionChanged 이벤트 구독 해제
+            collection.CollectionChanged -= OnSheetResultsCollectionChanged;
+
+            // 모든 항목에서 PropertyChanged 이벤트 구독 해제
+            foreach (var item in collection)
+            {
+                item.PropertyChanged -= OnSheetResultPropertyChanged;
+            }
+        }
 
         public MarkingViewModel(MarkingDetector markingDetector, NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
@@ -251,11 +316,19 @@ namespace SimpleOverlayEditor.ViewModels
             get => _sheetResults;
             set
             {
+                // 기존 컬렉션의 이벤트 구독 해제
+                UnsubscribeFromSheetResults(_sheetResults);
+
                 _sheetResults = value;
+
+                // 새 컬렉션의 이벤트 구독
+                SubscribeToSheetResults(_sheetResults);
+
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
                 OnPropertyChanged(nameof(NullCombinedIdCount));
+                
                 // Command의 CanExecute 상태 업데이트
                 if (ExportToCsvCommand is RelayCommand cmd)
                 {
@@ -317,6 +390,48 @@ namespace SimpleOverlayEditor.ViewModels
             if (!string.IsNullOrEmpty(filterMode))
             {
                 FilterMode = filterMode;
+            }
+        }
+
+        /// <summary>
+        /// 초기 정렬을 적용합니다 (View 레벨에서 정렬).
+        /// 정렬 순서: 중복 데이터 -> 단순 오류 -> 정상 데이터 순서
+        /// 각 그룹 내에서는 수험번호 -> 결합ID -> 파일명 순으로 정렬
+        /// 
+        /// 주의: 이 메서드는 초기 정렬만 설정합니다. 이후 사용자가 열 헤더를 클릭하면
+        /// DataGrid가 자동으로 SortDescriptions를 관리하므로, 사용자의 정렬 변경이 누적됩니다.
+        /// </summary>
+        private void ApplyInitialSort()
+        {
+            if (FilteredSheetResults == null) return;
+
+            // 기존 정렬이 없을 때만 초기 정렬 설정
+            if (FilteredSheetResults.SortDescriptions.Count == 0)
+            {
+                // 1. IsDuplicate 내림차순 (중복이 먼저)
+                FilteredSheetResults.SortDescriptions.Add(
+                    new System.ComponentModel.SortDescription(nameof(OmrSheetResult.IsDuplicate), 
+                    System.ComponentModel.ListSortDirection.Descending));
+                
+                // 2. IsErrorOnly 내림차순 (단순 오류가 그 다음)
+                FilteredSheetResults.SortDescriptions.Add(
+                    new System.ComponentModel.SortDescription(nameof(OmrSheetResult.IsErrorOnly), 
+                    System.ComponentModel.ListSortDirection.Descending));
+                
+                // 3. StudentId 오름차순 (수험번호 순)
+                FilteredSheetResults.SortDescriptions.Add(
+                    new System.ComponentModel.SortDescription(nameof(OmrSheetResult.StudentId), 
+                    System.ComponentModel.ListSortDirection.Ascending));
+                
+                // 4. CombinedId 오름차순 (결합ID 순)
+                FilteredSheetResults.SortDescriptions.Add(
+                    new System.ComponentModel.SortDescription(nameof(OmrSheetResult.CombinedId), 
+                    System.ComponentModel.ListSortDirection.Ascending));
+                
+                // 5. ImageFileName 오름차순 (파일명 순)
+                FilteredSheetResults.SortDescriptions.Add(
+                    new System.ComponentModel.SortDescription(nameof(OmrSheetResult.ImageFileName), 
+                    System.ComponentModel.ListSortDirection.Ascending));
             }
         }
 
@@ -1237,8 +1352,16 @@ namespace SimpleOverlayEditor.ViewModels
         {
             if (_session.Documents == null || _session.Documents.Count == 0)
             {
-                SheetResults = null;
-                FilteredSheetResults = null;
+                // SheetResults가 있으면 Clear만, 없으면 null로 설정
+                if (SheetResults != null)
+                {
+                    SheetResults.Clear();
+                }
+                else
+                {
+                    SheetResults = null;
+                    FilteredSheetResults = null;
+                }
                 OnPropertyChanged(nameof(FilteredSheetResults));
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
@@ -1252,10 +1375,11 @@ namespace SimpleOverlayEditor.ViewModels
                 
                 // 결합ID 기준으로 중복 검출
                 var groupedByCombinedId = results
-                    .Where(r => !string.IsNullOrEmpty(r.CombinedId))
-                    .GroupBy(r => r.CombinedId)
+                    .Where(r => !string.IsNullOrEmpty(r.CombinedId) && r.CombinedId != null)
+                    .GroupBy(r => r.CombinedId!)
                     .Where(g => g.Count() > 1)
-                    .ToDictionary(g => g.Key, g => g.ToList());
+                    .Select(g => new { Key = (string)g.Key!, Value = g.ToList() })
+                    .ToDictionary(x => x.Key, x => x.Value);
                 
                 // 중복 여부 설정 및 ErrorMessage에 추가
                 foreach (var result in results)
@@ -1273,11 +1397,34 @@ namespace SimpleOverlayEditor.ViewModels
                     }
                 }
                 
-                SheetResults = new ObservableCollection<OmrSheetResult>(results);
-                
-                // CollectionViewSource 생성 및 필터 설정
-                FilteredSheetResults = CollectionViewSource.GetDefaultView(SheetResults);
-                ApplyFilter();
+                // 컬렉션 인스턴스 유지: 기존 SheetResults가 있으면 Clear 후 다시 채우기
+                // 이렇게 하면 FilteredSheetResults도 유지되어 사용자 정렬 상태가 보존됨
+                if (SheetResults == null)
+                {
+                    // 처음 생성하는 경우만 새로운 ObservableCollection 생성
+                    SheetResults = new ObservableCollection<OmrSheetResult>(results);
+                    
+                    // CollectionViewSource 생성 및 정렬/필터 설정
+                    FilteredSheetResults = CollectionViewSource.GetDefaultView(SheetResults);
+                    ApplyInitialSort();  // 초기 정렬 적용 (기존 정렬이 없을 때만)
+                    ApplyFilter();  // 필터 적용
+                }
+                else
+                {
+                    // 기존 컬렉션 인스턴스 유지: 사용자 정렬 상태 보존을 위해
+                    // CollectionViewSource.GetDefaultView는 같은 ObservableCollection에 대해 같은 ICollectionView를 반환하므로
+                    // FilteredSheetResults도 유지됨
+                    
+                    SheetResults.Clear();
+                    foreach (var item in results)
+                    {
+                        SheetResults.Add(item);
+                    }
+                    
+                    // FilteredSheetResults는 재할당할 필요 없음 (같은 인스턴스이므로)
+                    // 다만, 필터는 재적용 필요
+                    ApplyFilter();
+                }
                 
                 OnPropertyChanged(nameof(SheetResults));
                 OnPropertyChanged(nameof(FilteredSheetResults));
@@ -1306,6 +1453,94 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
                 OnPropertyChanged(nameof(NullCombinedIdCount));
+            }
+        }
+
+        /// <summary>
+        /// 단일 항목을 삭제합니다.
+        /// </summary>
+        public void DeleteSingleItem(string imageId)
+        {
+            if (SheetResults == null || string.IsNullOrEmpty(imageId)) return;
+            
+            var itemToDelete = SheetResults.FirstOrDefault(r => r.ImageId == imageId);
+            if (itemToDelete == null) return;
+            
+            // 확인 다이얼로그
+            var message = $"'{itemToDelete.ImageFileName}' 항목을 삭제하시겠습니까?\n\n" +
+                         "이 작업은 되돌릴 수 없습니다.";
+            
+            var result = MessageBox.Show(message, "삭제 확인", 
+                MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            
+            if (result != MessageBoxResult.Yes) return;
+            
+            // 중복 그룹 검증 (단일 삭제이므로 단순화)
+            if (itemToDelete.IsDuplicate && !string.IsNullOrEmpty(itemToDelete.CombinedId))
+            {
+                var allInGroup = SheetResults
+                    .Where(r => r.CombinedId == itemToDelete.CombinedId)
+                    .ToList();
+                
+                if (allInGroup.Count > 1)
+                {
+                    // 같은 그룹에 다른 항목이 있으면 삭제 가능 (단일 항목만 삭제)
+                    // 경고 없이 진행 (사용자가 명시적으로 선택했으므로)
+                }
+            }
+            
+            // Session에서 삭제
+            DeleteDocumentsFromSession(new[] { imageId });
+            
+            // Session 저장
+            _sessionStore.Save(_session);
+            
+            // SheetResults 재생성
+            UpdateSheetResults();
+            
+            Logger.Instance.Info($"단일 항목 삭제 완료: {imageId}");
+        }
+
+        /// <summary>
+        /// Session에서 지정된 ImageId들을 삭제합니다.
+        /// </summary>
+        private void DeleteDocumentsFromSession(IEnumerable<string> imageIdsToDelete)
+        {
+            var imageIdSet = imageIdsToDelete.ToHashSet();
+            
+            // 1. Documents에서 제거
+            var documentsToRemove = _session.Documents
+                .Where(d => imageIdSet.Contains(d.ImageId))
+                .ToList();
+            
+            foreach (var doc in documentsToRemove)
+            {
+                _session.Documents.Remove(doc);
+                Logger.Instance.Info($"Document 삭제: {doc.SourcePath} (ImageId: {doc.ImageId})");
+            }
+            
+            // 2. MarkingResults에서 제거
+            if (_session.MarkingResults != null)
+            {
+                foreach (var imageId in imageIdSet)
+                {
+                    if (_session.MarkingResults.Remove(imageId))
+                    {
+                        Logger.Instance.Info($"MarkingResults 삭제: ImageId={imageId}");
+                    }
+                }
+            }
+            
+            // 3. BarcodeResults에서 제거
+            if (_session.BarcodeResults != null)
+            {
+                foreach (var imageId in imageIdSet)
+                {
+                    if (_session.BarcodeResults.Remove(imageId))
+                    {
+                        Logger.Instance.Info($"BarcodeResults 삭제: ImageId={imageId}");
+                    }
+                }
             }
         }
 

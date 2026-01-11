@@ -448,7 +448,8 @@
                           MaxHeight="300"
                           GridLinesVisibility="All"
                           HeadersVisibility="Column"
-                          AlternatingRowBackground="#F5F5F5">
+                          AlternatingRowBackground="#F5F5F5"
+                          MouseDoubleClick="DataGrid_MouseDoubleClick">
                     <DataGrid.Style>
                         <Style TargetType="DataGrid">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -466,6 +467,7 @@
                         <DataGridTextColumn Header="파일명" Binding="{Binding ImageFileName}" Width="150" IsReadOnly="True"/>
                         <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" Width="100" IsReadOnly="True"/>
                         <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="결합ID" Binding="{Binding CombinedId}" Width="120" IsReadOnly="True"/>
                         <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" Width="60" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">

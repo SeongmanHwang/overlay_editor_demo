@@ -19,7 +19,7 @@ namespace SimpleOverlayEditor.Services
         /// <summary>
         /// 기본 마킹 리딩 임계값 (0-255, 이 값보다 어두우면 마킹으로 판단)
         /// </summary>
-        public double DefaultThreshold { get; set; } = 200.0;
+        public double DefaultThreshold { get; set; } = 215.0;
 
         /// <summary>
         /// 단일 이미지 문서의 모든 ScoringArea에서 마킹을 리딩합니다.

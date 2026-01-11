@@ -36,7 +36,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly MarkingAnalyzer _markingAnalyzer;
         private List<MarkingResult>? _currentMarkingResults;
         private List<BarcodeResult>? _currentBarcodeResults;
-        private double _markingThreshold = 200.0;
+        private double _markingThreshold = 215.0;
         private BitmapSource? _displayImage;
         private ObservableCollection<OmrSheetResult>? _sheetResults;
 
@@ -1190,7 +1190,7 @@ namespace SimpleOverlayEditor.ViewModels
             
             // 헤더 작성 (UTF-8 BOM 추가)
             writer.Write('\uFEFF'); // UTF-8 BOM
-            writer.WriteLine("파일명,수험번호,면접번호,문항1,문항2,문항3,문항4,오류,오류메시지");
+            writer.WriteLine("파일명,수험번호,면접번호,결합ID,문항1,문항2,문항3,문항4,오류,오류메시지");
             
             // 데이터 작성
             foreach (var result in results)
@@ -1198,6 +1198,7 @@ namespace SimpleOverlayEditor.ViewModels
                 writer.WriteLine($"{EscapeCsvField(result.ImageFileName)}," +
                                 $"{EscapeCsvField(result.StudentId ?? "")}," +
                                 $"{EscapeCsvField(result.InterviewId ?? "")}," +
+                                $"{EscapeCsvField(result.CombinedId ?? "")}," +
                                 $"{(result.Question1Marking?.ToString() ?? "")}," +
                                 $"{(result.Question2Marking?.ToString() ?? "")}," +
                                 $"{(result.Question3Marking?.ToString() ?? "")}," +

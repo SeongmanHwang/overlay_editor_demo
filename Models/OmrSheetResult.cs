@@ -34,13 +34,33 @@ namespace SimpleOverlayEditor.Models
         public string? StudentId
         {
             get => _studentId;
-            set { _studentId = value; OnPropertyChanged(); }
+            set { _studentId = value; OnPropertyChanged(); OnPropertyChanged(nameof(CombinedId)); }
         }
 
         public string? InterviewId
         {
             get => _interviewId;
-            set { _interviewId = value; OnPropertyChanged(); }
+            set { _interviewId = value; OnPropertyChanged(); OnPropertyChanged(nameof(CombinedId)); }
+        }
+
+        /// <summary>
+        /// 수험번호와 면접번호를 결합한 ID (하이픈/언더스코어 없이 연결)
+        /// </summary>
+        public string? CombinedId
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_studentId) && string.IsNullOrEmpty(_interviewId))
+                    return null;
+                
+                if (string.IsNullOrEmpty(_studentId))
+                    return _interviewId;
+                
+                if (string.IsNullOrEmpty(_interviewId))
+                    return _studentId;
+                
+                return $"{_studentId}{_interviewId}";
+            }
         }
 
         public int? Question1Marking

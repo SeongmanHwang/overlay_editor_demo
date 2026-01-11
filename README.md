@@ -39,9 +39,10 @@ overlay_editor/
 │   ├── ImageDocument.cs           # 이미지 문서 (이미지 정보)
 │   ├── Workspace.cs               # 프로그램 전반 상태 (템플릿, 입력 폴더 경로)
 │   ├── Session.cs                 # 이미지 로드 및 리딩 작업 세션 (문서 목록, 마킹/바코드 결과)
-│   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역, 바코드 영역)
+│   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역, 바코드 영역, 문항)
+│   ├── Question.cs                # 문항 모델 (4개 문항, 각 12개 선택지)
 │   ├── OverlayType.cs             # 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
-│   ├── MarkingResult.cs           # 마킹 감지 결과 모델
+│   ├── MarkingResult.cs           # 마킹 감지 결과 모델 (문항/선택지 번호 포함)
 │   ├── BarcodeResult.cs           # 바코드 디코딩 결과 모델
 │   └── AlignmentInfo.cs           # 이미지 정렬 정보 모델
 │
@@ -64,6 +65,7 @@ overlay_editor/
 │   ├── ImageAlignmentService.cs   # 타이밍 마크 기반 이미지 정렬 서비스
 │   ├── Renderer.cs                # 오버레이 + 이미지 합성 → output/
 │   ├── MarkingDetector.cs         # 마킹 감지 서비스 (ROI 분석)
+│   ├── MarkingAnalyzer.cs         # 마킹 결과 분석 서비스 (OmrSheetResult 생성)
 │   ├── BarcodeReaderService.cs    # 바코드 디코딩 서비스 (ZXing.Net 사용)
 │   └── Logger.cs                  # 로깅 서비스 (파일 로그)
 │
@@ -86,9 +88,13 @@ overlay_editor/
   - `BarcodeResults`: 문서별 바코드 디코딩 결과 (ImageId -> BarcodeResult 리스트)
 - **OmrTemplate.cs**: OMR 템플릿 정의
   - `TimingMarks`: 이미지 정렬용 타이밍 마크 오버레이
-  - `ScoringAreas`: 마킹 감지용 채점 영역 오버레이
+  - `Questions`: 문항 목록 (4개 문항, 각 12개 선택지) - 구조화된 데이터
+  - `ScoringAreas`: 마킹 감지용 채점 영역 오버레이 (Questions에서 자동 동기화, 읽기 전용)
   - `BarcodeAreas`: 바코드 디코딩용 바코드 영역 오버레이
   - `ReferenceWidth/Height`: 템플릿 기준 이미지 크기
+- **Question.cs**: 문항 모델 (4개 문항, 각 12개 선택지)
+  - `QuestionNumber`: 문항 번호 (1-4)
+  - `Options`: 선택지 목록 (12개 RectangleOverlay)
 - **ImageDocument.cs**: 개별 이미지 문서 정보
   - `ImageId`: 고유 식별자
   - `SourcePath`: 원본 이미지 경로
@@ -96,8 +102,20 @@ overlay_editor/
   - `AlignmentInfo`: 정렬 정보 (정렬된 이미지 경로 포함)
 - **RectangleOverlay.cs**: 직사각형 오버레이 데이터 (X, Y, Width, Height)
 - **OverlayType.cs**: 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
-- **MarkingResult.cs**: 마킹 감지 결과 (영역별 마킹 여부, 평균 밝기)
+- **MarkingResult.cs**: 마킹 감지 결과 (영역별 마킹 여부, 평균 밝기, 문항/선택지 번호)
+  - `QuestionNumber`: 문항 번호 (1-4)
+  - `OptionNumber`: 선택지 번호 (1-12)
+  - `ScoringAreaId`: 채점 영역 식별자
+  - `IsMarked`: 마킹 여부
+  - `AverageBrightness`: 평균 밝기
+  - `Threshold`: 마킹 감지 임계값
 - **BarcodeResult.cs**: 바코드 디코딩 결과 (디코딩된 텍스트, 바코드 포맷, 성공 여부)
+- **OmrSheetResult.cs**: OMR 시트 결과 (문항별 마킹 결과, 바코드 결과)
+  - `StudentId`: 수험번호 (바코드 1)
+  - `InterviewId`: 면접번호 (바코드 2)
+  - `Question1Marking` ~ `Question4Marking`: 문항별 마킹 결과 (1-12, null = 미마킹/다중마킹)
+  - `HasErrors`: 오류 여부
+  - `ErrorMessage`: 오류 메시지
 - **AlignmentInfo.cs**: 이미지 정렬 정보 (회전, 스케일, 이동, 신뢰도)
 
 #### ViewModels/ - 프레젠테이션 로직 계층 (MVVM)
@@ -108,11 +126,13 @@ overlay_editor/
 - **HomeViewModel.cs**: 홈 화면 로직 (모드 선택)
 - **TemplateEditViewModel.cs**: 템플릿 편집 화면 로직
   - 오버레이 추가/편집/삭제
-  - 기본 템플릿 저장/로드
+  - 문항별 채점 영역 관리 (ScoringArea일 때 문항 선택)
+  - 템플릿 내보내기/가져오기
 - **TemplateViewModel.cs**: 템플릿 데이터 관리
 - **MarkingViewModel.cs**: 마킹 감지 화면 로직
   - 단일/전체 이미지 마킹 감지
-  - 감지 결과 표시
+  - 감지 결과 표시 (문항/선택지별)
+  - OMR 결과 요약 및 CSV 내보내기
 - **RelayCommand.cs**: ICommand 구현 (커맨드 패턴)
 
 #### Views/ - UI 계층
@@ -125,12 +145,12 @@ overlay_editor/
 
 #### Services/ - 비즈니스 로직 계층
 - **StateStore.cs**: 프로그램 상태 영속성 관리
-  - `Save()`: Workspace를 JSON으로 저장 (state.json)
-  - `Load()`: 저장된 상태 복구
-  - `SaveDefaultTemplate()` / `LoadDefaultTemplate()`: 기본 템플릿 관리
+  - `Save()`: Workspace를 JSON으로 저장 (state.json) - Questions 구조로 저장
+  - `Load()`: 저장된 상태 복구 (Questions 우선, 없으면 ScoringAreas에서 변환)
+  - `ExportTemplate()` / `ImportTemplate()`: 템플릿 내보내기/가져오기
 - **SessionStore.cs**: 이미지 로드 및 리딩 작업 세션 영속성 관리
-  - `Save()`: Session을 JSON으로 저장 (session.json)
-  - `Load()`: 저장된 세션 복구
+  - `Save()`: Session을 JSON으로 저장 (session.json) - MarkingResult의 QuestionNumber, OptionNumber 포함
+  - `Load()`: 저장된 세션 복구 - MarkingResult의 QuestionNumber, OptionNumber 복원
 - **ImageLoader.cs**: 이미지 파일 로드
   - 폴더에서 이미지 파일 검색 및 로드
   - 지원 형식: JPG, JPEG, PNG, BMP, GIF, TIFF
@@ -141,6 +161,10 @@ overlay_editor/
 - **MarkingDetector.cs**: 마킹 감지 서비스
   - 채점 영역 ROI에서 평균 밝기 분석
   - 임계값 기반 마킹 판단
+  - areaIndex 기반으로 QuestionNumber, OptionNumber 계산
+- **MarkingAnalyzer.cs**: 마킹 결과 분석 서비스
+  - MarkingResults를 QuestionNumber, OptionNumber 기반으로 문항별 그룹화
+  - OmrSheetResult 생성 (문항별 마킹 결과)
 - **BarcodeReaderService.cs**: 바코드 디코딩 서비스
   - 바코드 영역 ROI에서 바코드 자동 디코딩
   - ZXing.Net 라이브러리 사용
@@ -268,13 +292,15 @@ TemplateEditViewModel 초기화
   ↓
 사용자 오버레이 추가/편집/삭제
   ↓
-  - 오버레이 타입 선택 (TimingMark / ScoringArea)
-  - "사각형 추가 모드" 활성화
-  - 캔버스 클릭 → 오버레이 추가
+  - 오버레이 타입 선택 (TimingMark / ScoringArea / BarcodeArea)
+  - ScoringArea일 때: 문항 선택 (1-4)
+  - 캔버스 클릭 → 오버레이 추가 (선택된 문항에 추가)
   - 오버레이 선택 → 속성 편집
   - 오버레이 삭제
   ↓
-Workspace.Template 업데이트
+Workspace.Template.Questions 업데이트
+  ↓
+Workspace.Template.ScoringAreas 자동 동기화 (Questions에서)
   ↓
 PropertyChanged 이벤트로 UI 자동 업데이트
 ```
@@ -514,7 +540,8 @@ MainViewModel
 Workspace
   ├── OmrTemplate
   │     ├── TimingMarks (RectangleOverlay[])
-  │     ├── ScoringAreas (RectangleOverlay[])
+  │     ├── Questions (Question[]) - 4개 문항, 각 12개 선택지
+  │     ├── ScoringAreas (RectangleOverlay[]) - Questions에서 자동 동기화
   │     └── BarcodeAreas (RectangleOverlay[])
   ├── MarkingResults (Dictionary<string, List<MarkingResult>>)
   ├── BarcodeResults (Dictionary<string, List<BarcodeResult>>)
@@ -577,21 +604,28 @@ MainWindow
      - 변환 범위 제한 (회전 ±5도, 스케일 90~110%)
      - 정렬 실패 시 원본 이미지 사용 (투명한 fallback)
    - **채점 영역**: 우측에 위치한 마킹 감지용 오버레이
+     - 문항별 구조화된 관리 (4개 문항, 각 12개 선택지)
+     - 문항 선택 후 선택지 위치를 클릭하여 추가
+     - Questions 구조로 저장/로드
+     - ScoringAreas는 Questions에서 자동 동기화 (읽기 전용)
    - **바코드 영역**: 좌측에 위치한 바코드 디코딩용 오버레이
      - 수험번호, 면접위원 번호 등 바코드 영역 지정
      - CODE_128, CODE_39, EAN_13, EAN_8, CODABAR, ITF 포맷 지원
-   - **직사각형 오버레이 추가**: 클릭 위치에 기본 크기의 직사각형 추가
+   - **직사각형 오버레이 추가**: 캔버스 클릭으로 오버레이 추가 (ScoringArea일 때는 문항 선택 필수)
    - **오버레이 편집**: 선택한 오버레이의 X, Y, Width, Height 직접 편집
    - **오버레이 삭제**: 선택한 오버레이 또는 전체 삭제
-   - 기본 템플릿 저장/로드 기능
+   - **템플릿 내보내기/가져오기**: 템플릿을 JSON 파일로 저장/로드
 
 3. **마킹 감지 (리딩)**
    - 채점 영역(ScoringArea)에서 마킹 여부 자동 감지
    - 정렬된 이미지에서 정확한 위치의 픽셀 읽기
    - 그레이스케일 변환 후 평균 밝기 분석
    - 임계값 기반 마킹 판단 (기본값: 180)
+   - areaIndex 기반으로 QuestionNumber, OptionNumber 자동 계산
    - 단일 이미지 또는 전체 이미지 일괄 감지
-   - 감지 결과를 표로 표시 (영역별 마킹 여부, 평균 밝기)
+   - 감지 결과를 표로 표시 (문항/선택지별 마킹 여부, 평균 밝기)
+   - OMR 결과 요약 (문항별 마킹 결과, 바코드 결과, 오류 정보)
+   - CSV 내보내기 기능 (OMR 결과 요약)
 
 4. **바코드 디코딩**
    - 바코드 영역(BarcodeArea)에서 자동으로 바코드 텍스트 추출
@@ -701,30 +735,29 @@ dotnet build
 2. **OMR 템플릿 설정**
    - **타이밍 마크 추가** (정렬용):
      - 오버레이 타입을 "TimingMark"로 선택
-     - "사각형 추가 모드" 토글 버튼을 활성화
-     - 기본 크기(기본값: 30×30 픽셀)를 상단 도구바에서 조정 가능
-     - 이미지 위의 타이밍 마크 위치를 클릭하여 사각형 추가
+     - 이미지 위의 타이밍 마크 위치를 클릭하여 사각형 추가 (기본 크기: 30×30 픽셀)
      - 최소 2개 이상의 타이밍 마크를 추가하는 것이 권장됩니다
    
    - **채점 영역 추가** (리딩용):
      - 오버레이 타입을 "ScoringArea"로 선택
-     - "사각형 추가 모드" 토글 버튼을 활성화
-     - 각 채점 영역 위치를 클릭하여 사각형 추가
+     - 문항 선택 (1-4) - 문항별로 선택지 추가
+     - 각 선택지 위치를 클릭하여 사각형 추가 (기본 크기: 30×30 픽셀)
+     - 4개 문항, 각 12개 선택지 구조로 관리
    
    - **바코드 영역 추가** (바코드 디코딩용):
      - 오버레이 타입을 "BarcodeArea"로 선택
-     - "사각형 추가 모드" 토글 버튼을 활성화
      - 각 바코드 영역 위치를 클릭하여 사각형 추가
      - 바코드가 포함된 영역을 정확하게 지정 (좌우 여백 포함 권장)
 
 3. **오버레이 편집**
-   - 오버레이 목록에서 사각형을 선택
+   - 오버레이 목록에서 사각형을 선택 (번호 열로 순서 확인)
    - 오른쪽 패널에서 X, Y, Width, Height 값을 직접 수정
    - 선택한 오버레이 삭제 또는 전체 삭제 가능
 
-4. **기본 템플릿 저장** (선택사항)
-   - 템플릿 설정 완료 후 "기본 템플릿 저장" 버튼 클릭
-   - 다음 실행 시 자동으로 템플릿이 로드됩니다
+4. **템플릿 내보내기/가져오기** (선택사항)
+   - 템플릿 설정 완료 후 "템플릿 내보내기" 버튼 클릭하여 JSON 파일로 저장
+   - "템플릿 가져오기" 버튼으로 저장된 템플릿 파일 로드
+   - state.json에도 자동으로 저장되어 재실행 시 복구됩니다
 
 5. **마킹 감지 및 바코드 디코딩 (리딩)**
    - 채점 영역(ScoringArea)이 설정되어 있어야 합니다
@@ -732,9 +765,12 @@ dotnet build
    - "마킹 감지" 버튼: 현재 선택된 이미지에 대해 마킹 감지 및 바코드 디코딩 수행
    - "전체 감지" 버튼: 로드된 모든 이미지에 대해 일괄 마킹 감지 및 바코드 디코딩 수행
    - 오른쪽 패널에서 다음 결과 확인:
-     - **마킹 감지 결과**: 각 영역별 마킹 여부와 평균 밝기
+     - **마킹 감지 결과**: 문항/선택지별 마킹 여부와 평균 밝기 (디버깅용)
      - **바코드 디코딩 결과**: 각 바코드 영역별 디코딩 성공/실패, 디코딩된 텍스트, 바코드 포맷
      - **바코드 요약**: 전체 바코드 디코딩 성공/실패 개수
+   - 하단 패널에서 OMR 결과 요약 확인:
+     - **OMR 결과 요약**: 파일명, 수험번호, 면접번호, 문항별 마킹 결과, 오류 정보
+     - CSV 내보내기 버튼으로 결과를 CSV 파일로 저장
    - 중앙 이미지에 바코드 영역(주황색) 및 디코딩된 텍스트가 표시됩니다
 
 6. **저장**

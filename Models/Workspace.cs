@@ -1,18 +1,18 @@
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace SimpleOverlayEditor.Models
 {
+    /// <summary>
+    /// 프로그램의 전반적인 상태 및 진행 상황을 나타냅니다.
+    /// 이미지 로드 및 리딩 작업은 Session에 저장됩니다.
+    /// </summary>
     public class Workspace : INotifyPropertyChanged
     {
         private string _inputFolderPath = string.Empty;
         private string? _selectedDocumentId;
         private OmrTemplate _template = new OmrTemplate();
-        private Dictionary<string, List<MarkingResult>> _markingResults = new();
-        private Dictionary<string, List<BarcodeResult>> _barcodeResults = new();
 
         public string InputFolderPath
         {
@@ -20,16 +20,14 @@ namespace SimpleOverlayEditor.Models
             set { _inputFolderPath = value; OnPropertyChanged(); }
         }
 
-        public ObservableCollection<ImageDocument> Documents { get; set; } = new();
-
+        /// <summary>
+        /// 현재 선택된 문서 ID (Session.Documents에서 찾을 수 있음)
+        /// </summary>
         public string? SelectedDocumentId
         {
             get => _selectedDocumentId;
-            set { _selectedDocumentId = value; OnPropertyChanged(); OnPropertyChanged(nameof(SelectedDocument)); }
+            set { _selectedDocumentId = value; OnPropertyChanged(); }
         }
-
-        public ImageDocument? SelectedDocument =>
-            Documents.FirstOrDefault(d => d.ImageId == SelectedDocumentId);
 
         /// <summary>
         /// OMR 템플릿 (모든 이미지에 공통으로 적용)
@@ -44,31 +42,7 @@ namespace SimpleOverlayEditor.Models
             }
         }
 
-        /// <summary>
-        /// 문서별 마킹 감지 결과 (ImageId -> MarkingResult 리스트)
-        /// </summary>
-        public Dictionary<string, List<MarkingResult>> MarkingResults
-        {
-            get => _markingResults;
-            set
-            {
-                _markingResults = value ?? new Dictionary<string, List<MarkingResult>>();
-                OnPropertyChanged();
-            }
-        }
-
-        /// <summary>
-        /// 문서별 바코드 디코딩 결과 (ImageId -> BarcodeResult 리스트)
-        /// </summary>
-        public Dictionary<string, List<BarcodeResult>> BarcodeResults
-        {
-            get => _barcodeResults;
-            set
-            {
-                _barcodeResults = value ?? new Dictionary<string, List<BarcodeResult>>();
-                OnPropertyChanged();
-            }
-        }
+        // Documents, MarkingResults, BarcodeResults는 Session으로 분리됨
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -161,18 +161,20 @@ namespace SimpleOverlayEditor.Services
         /// 모든 문서에 대해 마킹을 감지합니다.
         /// </summary>
         public Dictionary<string, List<MarkingResult>> DetectAllMarkings(
-            Workspace workspace, 
+            IEnumerable<ImageDocument> documents,
+            OmrTemplate template,
             double? threshold = null)
         {
-            Logger.Instance.Info($"전체 문서 마킹 감지 시작: {workspace.Documents.Count}개 문서");
+            var documentsList = documents.ToList();
+            Logger.Instance.Info($"전체 문서 마킹 감지 시작: {documentsList.Count}개 문서");
 
             var allResults = new Dictionary<string, List<MarkingResult>>();
 
-            foreach (var document in workspace.Documents)
+            foreach (var document in documentsList)
             {
                 try
                 {
-                    var results = DetectMarkings(document, workspace.Template.ScoringAreas, threshold);
+                    var results = DetectMarkings(document, template.ScoringAreas, threshold);
                     allResults[document.ImageId] = results;
                 }
                 catch (Exception ex)

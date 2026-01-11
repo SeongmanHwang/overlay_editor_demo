@@ -75,8 +75,7 @@ namespace SimpleOverlayEditor.ViewModels
                 _workspace = value ?? throw new ArgumentNullException(nameof(value));
                 OnPropertyChanged();
                 
-                // Workspace 변경 시 SelectedDocument 동기화
-                SelectedDocument = value?.SelectedDocument;
+                // Workspace 변경 시 SelectedDocument는 Session에서 관리되므로 여기서는 처리하지 않음
                 
                 // 템플릿 변경 감지
                 if (value?.Template != null)
@@ -101,28 +100,7 @@ namespace SimpleOverlayEditor.ViewModels
                     };
                 }
                 
-                // Documents 컬렉션 변경 감지
-                if (value != null)
-                {
-                    Logger.Instance.Debug($"Workspace.Documents 컬렉션 변경 감지 등록. 현재 문서 수: {value.Documents.Count}");
-                    
-                    value.Documents.CollectionChanged += (s, e) =>
-                    {
-                        Logger.Instance.Debug($"Documents.CollectionChanged 이벤트 발생. Action: {e.Action}, NewItems: {e.NewItems?.Count ?? 0}, OldItems: {e.OldItems?.Count ?? 0}");
-                        Logger.Instance.Debug($"현재 SelectedDocument: {(SelectedDocument != null ? SelectedDocument.SourcePath : "null")}");
-                        if (SelectedDocument != null)
-                        {
-                            Logger.Instance.Debug($"Documents.Contains(SelectedDocument): {value.Documents.Contains(SelectedDocument)}");
-                        }
-                        
-                        // Documents가 변경되면 SelectedDocument 유효성 검사
-                        if (SelectedDocument != null && !value.Documents.Contains(SelectedDocument))
-                        {
-                            Logger.Instance.Warning($"SelectedDocument가 Documents 컬렉션에 없어서 null로 설정");
-                            SelectedDocument = null;
-                        }
-                    };
-                }
+                // Documents는 Session에서 관리되므로 Workspace에서는 처리하지 않음
                 
                 Logger.Instance.Debug($"Workspace 변경 완료");
             }
@@ -248,7 +226,7 @@ namespace SimpleOverlayEditor.ViewModels
             try
             {
                 Workspace = _stateStore.Load();
-                Logger.Instance.Info($"Workspace 로드 완료. Documents 수: {Workspace.Documents.Count}, SelectedDocumentId: {Workspace.SelectedDocumentId ?? "null"}");
+                Logger.Instance.Info($"Workspace 로드 완료. SelectedDocumentId: {Workspace.SelectedDocumentId ?? "null"}");
                 
                 if (string.IsNullOrEmpty(Workspace.InputFolderPath))
                 {
@@ -305,9 +283,9 @@ namespace SimpleOverlayEditor.ViewModels
                     }
                 }
                 
-                // Workspace 로드 후 SelectedDocument 초기화
-                SelectedDocument = Workspace?.SelectedDocument;
-                Logger.Instance.Info($"SelectedDocument 초기화 완료: {(SelectedDocument != null ? SelectedDocument.SourcePath : "null")}");
+                // SelectedDocument는 Session에서 관리되므로 Workspace에서는 처리하지 않음
+                SelectedDocument = null;
+                Logger.Instance.Info($"SelectedDocument 초기화 완료: null (Session에서 관리)");
 
                 // 분리된 ViewModel 초기화 (Workspace 로드 후)
                 if (Workspace != null && Workspace.Template != null)
@@ -522,13 +500,11 @@ namespace SimpleOverlayEditor.ViewModels
             Logger.Instance.Info("저장 시작");
             try
             {
-                Logger.Instance.Debug($"저장할 Workspace. Documents 수: {Workspace.Documents.Count}");
                 _stateStore.Save(Workspace);
                 Logger.Instance.Info("상태 저장 완료");
                 
-                Logger.Instance.Debug("렌더링 시작");
-                _renderer.RenderAll(Workspace);
-                Logger.Instance.Info("렌더링 완료");
+                // 렌더링은 Session에서 관리되므로 여기서는 처리하지 않음
+                // MainViewModel은 템플릿 편집 모드이므로 렌더링이 필요 없음
                 
                 Logger.Instance.Info($"저장 완료. 출력 폴더: {PathService.OutputFolder}");
                 MessageBox.Show(
@@ -579,40 +555,13 @@ namespace SimpleOverlayEditor.ViewModels
                     Workspace.InputFolderPath = folderPath;
                     Logger.Instance.Debug($"Workspace.InputFolderPath 설정: {folderPath}");
                     
-                    Logger.Instance.Debug("Workspace.Documents.Clear() 호출");
-                    Workspace.Documents.Clear();
-                    
-                    Logger.Instance.Debug($"문서 {documents.Count}개 추가 및 정렬 적용 시작");
-                    foreach (var doc in documents)
-                    {
-                        // 이미지 정렬 적용
-                        ApplyAlignmentToDocument(doc);
-                        
-                        Workspace.Documents.Add(doc);
-                        Logger.Instance.Debug($"문서 추가: {doc.SourcePath} (ID: {doc.ImageId}, 크기: {doc.ImageWidth}x{doc.ImageHeight})");
-                    }
-                    Logger.Instance.Debug("모든 문서 추가 완료");
-
-                    // 첫 번째 문서 선택 및 ViewModel 동기화
+                    // MainViewModel의 OnLoadFolder는 템플릿 편집 모드에서 샘플 이미지 로드용
+                    // 실제 문서 로드는 MarkingViewModel에서 처리됨
                     if (documents.Count > 0)
                     {
-                        var firstDoc = documents[0];
-                        Logger.Instance.Debug($"첫 번째 문서 선택. ImageId: {firstDoc.ImageId}, SourcePath: {firstDoc.SourcePath}");
-                        
-                        Workspace.SelectedDocumentId = firstDoc.ImageId;
-                        Logger.Instance.Debug($"Workspace.SelectedDocumentId 설정: {firstDoc.ImageId}");
-                        
-                        SelectedDocument = firstDoc;  // ViewModel에도 직접 설정
-                        Logger.Instance.Debug($"SelectedDocument 설정 완료: {firstDoc.SourcePath}");
+                        SelectedDocument = documents[0];
+                        Logger.Instance.Info($"샘플 이미지 로드: {documents[0].SourcePath}");
                     }
-                    else
-                    {
-                        Logger.Instance.Debug("문서가 없어서 SelectedDocument를 null로 설정");
-                        SelectedDocument = null;
-                    }
-
-                    // MarkingViewModel 업데이트
-                    UpdateMarkingViewModel();
 
                     Logger.Instance.Info($"폴더 로드 완료. 총 {documents.Count}개 이미지 로드됨");
                     MessageBox.Show($"{documents.Count}개의 이미지를 로드했습니다.", "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);

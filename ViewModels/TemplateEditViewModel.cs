@@ -83,7 +83,8 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 _workspace = value ?? throw new ArgumentNullException(nameof(value));
                 OnPropertyChanged();
-                SelectedDocument = value?.SelectedDocument;
+                // SelectedDocument는 Session에서 관리되므로 Workspace에서는 처리하지 않음
+                SelectedDocument = null;
             }
         }
 
@@ -420,10 +421,9 @@ namespace SimpleOverlayEditor.ViewModels
                     };
 
                     SelectedDocument = document;
-
-                    // Workspace.Documents에 추가 (단일 샘플 이미지만 유지)
-                    _workspace.Documents.Clear();
-                    _workspace.Documents.Add(document);
+                    
+                    // Documents는 Session에서 관리되므로 Workspace에서는 처리하지 않음
+                    // 템플릿 편집 모드에서는 SelectedDocument만 사용
 
                     Logger.Instance.Info($"샘플 이미지 로드 완료: {imagePath}");
                     MessageBox.Show(

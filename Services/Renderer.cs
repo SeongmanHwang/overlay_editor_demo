@@ -11,7 +11,7 @@ namespace SimpleOverlayEditor.Services
 {
     public class Renderer
     {
-        public void RenderAll(Workspace workspace)
+        public void RenderAll(Session session, Workspace workspace)
         {
             try
             {
@@ -25,9 +25,9 @@ namespace SimpleOverlayEditor.Services
                 }
                 Directory.CreateDirectory(outputFolder);
 
-                foreach (var doc in workspace.Documents)
+                foreach (var doc in session.Documents)
                 {
-                    RenderDocument(doc, workspace);
+                    RenderDocument(doc, session, workspace);
                 }
             }
             catch (Exception ex)
@@ -39,13 +39,13 @@ namespace SimpleOverlayEditor.Services
         /// <summary>
         /// 단일 문서의 오버레이 이미지를 저장합니다.
         /// </summary>
-        public void RenderSingleDocument(ImageDocument doc, Workspace workspace)
+        public void RenderSingleDocument(ImageDocument doc, Session session, Workspace workspace)
         {
             PathService.EnsureDirectories();
-            RenderDocument(doc, workspace);
+            RenderDocument(doc, session, workspace);
         }
 
-        private void RenderDocument(ImageDocument doc, Workspace workspace)
+        private void RenderDocument(ImageDocument doc, Session session, Workspace workspace)
         {
             if (!File.Exists(doc.SourcePath))
             {
@@ -95,8 +95,8 @@ namespace SimpleOverlayEditor.Services
                         Brush? fillBrush = null;
                         Pen? pen = null;
                         
-                        if (workspace.MarkingResults != null && 
-                            workspace.MarkingResults.TryGetValue(doc.ImageId, out var results) &&
+                        if (session.MarkingResults != null && 
+                            session.MarkingResults.TryGetValue(doc.ImageId, out var results) &&
                             i < results.Count)
                         {
                             var result = results[i];
@@ -133,8 +133,8 @@ namespace SimpleOverlayEditor.Services
                         Brush? fillBrush = null;
                         Pen? pen = null;
                         
-                        if (workspace.BarcodeResults != null && 
-                            workspace.BarcodeResults.TryGetValue(doc.ImageId, out var barcodeResults) &&
+                        if (session.BarcodeResults != null && 
+                            session.BarcodeResults.TryGetValue(doc.ImageId, out var barcodeResults) &&
                             i < barcodeResults.Count)
                         {
                             var result = barcodeResults[i];
@@ -160,8 +160,8 @@ namespace SimpleOverlayEditor.Services
                         drawingContext.DrawRectangle(fillBrush, pen, rect);
 
                         // 바코드 디코딩 성공 시 텍스트 표시
-                        if (workspace.BarcodeResults != null && 
-                            workspace.BarcodeResults.TryGetValue(doc.ImageId, out var barcodeResults2) &&
+                        if (session.BarcodeResults != null && 
+                            session.BarcodeResults.TryGetValue(doc.ImageId, out var barcodeResults2) &&
                             i < barcodeResults2.Count)
                         {
                             var result = barcodeResults2[i];

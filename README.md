@@ -37,7 +37,8 @@ overlay_editor/
 ├── Models/                        # 데이터 모델
 │   ├── RectangleOverlay.cs        # 직사각형 오버레이 데이터
 │   ├── ImageDocument.cs           # 이미지 문서 (이미지 정보)
-│   ├── Workspace.cs               # 전체 세션 상태
+│   ├── Workspace.cs               # 프로그램 전반 상태 (템플릿, 입력 폴더 경로)
+│   ├── Session.cs                 # 이미지 로드 및 리딩 작업 세션 (문서 목록, 마킹/바코드 결과)
 │   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역, 바코드 영역)
 │   ├── OverlayType.cs             # 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
 │   ├── MarkingResult.cs           # 마킹 감지 결과 모델
@@ -57,7 +58,8 @@ overlay_editor/
 │
 ├── Services/                      # 비즈니스 로직 서비스
 │   ├── PathService.cs             # 경로 관리 (AppData, InputFolder)
-│   ├── StateStore.cs              # state.json 저장/로드
+│   ├── StateStore.cs              # state.json 저장/로드 (프로그램 상태)
+│   ├── SessionStore.cs            # session.json 저장/로드 (이미지 로드 및 리딩 세션)
 │   ├── ImageLoader.cs             # 이미지 파일 로드
 │   ├── ImageAlignmentService.cs   # 타이밍 마크 기반 이미지 정렬 서비스
 │   ├── Renderer.cs                # 오버레이 + 이미지 합성 → output/
@@ -74,11 +76,14 @@ overlay_editor/
 ### 디렉토리 구조 상세 설명
 
 #### Models/ - 데이터 모델 계층
-- **Workspace.cs**: 전체 애플리케이션 상태를 관리하는 루트 모델
+- **Workspace.cs**: 프로그램의 전반적인 상태 및 진행 상황
   - `InputFolderPath`: 입력 이미지 폴더 경로
-  - `Documents`: 로드된 이미지 문서 컬렉션
-  - `SelectedDocumentId`: 현재 선택된 문서 ID
+  - `SelectedDocumentId`: 현재 선택된 문서 ID (Session.Documents에서 찾을 수 있음)
   - `Template`: OMR 템플릿 (모든 이미지에 공통 적용)
+- **Session.cs**: 이미지 로드 및 리딩 작업 세션
+  - `Documents`: 로드된 이미지 문서 컬렉션 (ImageDocument 목록)
+  - `MarkingResults`: 문서별 마킹 감지 결과 (ImageId -> MarkingResult 리스트)
+  - `BarcodeResults`: 문서별 바코드 디코딩 결과 (ImageId -> BarcodeResult 리스트)
 - **OmrTemplate.cs**: OMR 템플릿 정의
   - `TimingMarks`: 이미지 정렬용 타이밍 마크 오버레이
   - `ScoringAreas`: 마킹 감지용 채점 영역 오버레이
@@ -119,10 +124,13 @@ overlay_editor/
 - **MarkingView.xaml/cs**: 마킹 감지 화면
 
 #### Services/ - 비즈니스 로직 계층
-- **StateStore.cs**: 상태 영속성 관리
-  - `Save()`: Workspace를 JSON으로 저장
+- **StateStore.cs**: 프로그램 상태 영속성 관리
+  - `Save()`: Workspace를 JSON으로 저장 (state.json)
   - `Load()`: 저장된 상태 복구
   - `SaveDefaultTemplate()` / `LoadDefaultTemplate()`: 기본 템플릿 관리
+- **SessionStore.cs**: 이미지 로드 및 리딩 작업 세션 영속성 관리
+  - `Save()`: Session을 JSON으로 저장 (session.json)
+  - `Load()`: 저장된 세션 복구
 - **ImageLoader.cs**: 이미지 파일 로드
   - 폴더에서 이미지 파일 검색 및 로드
   - 지원 형식: JPG, JPEG, PNG, BMP, GIF, TIFF
@@ -144,7 +152,7 @@ overlay_editor/
   - PNG 형식으로 출력 폴더에 저장
 - **PathService.cs**: 경로 관리
   - AppData 폴더 경로
-  - 상태 파일, 출력 폴더, 캐시 폴더 경로
+  - 상태 파일(state.json), 세션 파일(session.json), 출력 폴더, 캐시 폴더 경로
 - **Logger.cs**: 로깅 서비스
   - 파일 기반 로깅 (날짜별 로그 파일)
   - Debug, Info, Warning, Error 레벨
@@ -172,10 +180,14 @@ App.xaml.cs OnStartup()
 MainWindow.xaml.cs 생성자
   ↓
   - StateStore 생성
+  - SessionStore 생성
   - Workspace 로드 (state.json에서 복구)
     - 템플릿 정보 복구
+    - 입력 폴더 경로 복구
+  - Session 로드 (session.json에서 복구)
     - 문서 목록 복구
     - 정렬 정보 복구
+    - 마킹/바코드 결과 복구
   - NavigationViewModel 생성
   - 초기 모드: Home
   - HomeViewModel 생성 및 설정
@@ -241,7 +253,7 @@ MainViewModel.ApplyAlignmentToDocument()
   - 정렬된 이미지를 캐시 폴더에 저장
   - AlignmentInfo를 ImageDocument에 저장
   ↓
-Workspace.Documents에 추가
+Session.Documents에 추가
   ↓
 첫 번째 문서 자동 선택
 ```
@@ -302,9 +314,13 @@ MainViewModel.OnSave()
   ↓
   - StateStore.Save(Workspace)
     - Workspace를 JSON으로 직렬화
-    - state.json에 저장
+    - state.json에 저장 (템플릿, 입력 폴더 경로)
   ↓
-  - Renderer.RenderAll(Workspace)
+  - SessionStore.Save(Session)
+    - Session을 JSON으로 직렬화
+    - session.json에 저장 (문서 목록, 마킹/바코드 결과)
+  ↓
+  - Renderer.RenderAll(Session, Workspace)
     - 각 문서에 대해:
       - 정렬된 이미지 로드
       - 오버레이 그리기 (타이밍 마크: 녹색, 채점 영역: 빨간색)
@@ -429,12 +445,12 @@ UI 표시 (바코드 영역, 디코딩된 텍스트)
 ```
 
 #### 5. 상태 관리 기능 그룹
-**위치**: `StateStore`, `Workspace`, `PathService`
+**위치**: `StateStore`, `SessionStore`, `Workspace`, `Session`, `PathService`
 
 **기능들**:
-- Workspace 상태 저장/로드
+- Workspace 상태 저장/로드 (state.json: 템플릿, 입력 폴더 경로)
+- Session 상태 저장/로드 (session.json: 문서 목록, 마킹/바코드 결과)
 - 기본 템플릿 저장/로드
-- 정렬 정보 영속성
 
 **데이터 흐름**:
 ```
@@ -442,13 +458,16 @@ UI 표시 (바코드 영역, 디코딩된 텍스트)
   ↓
 StateStore.Load()
   ↓
-Workspace 복구
+Workspace 복구 (템플릿, 입력 폴더 경로)
+  ↓
+SessionStore.Load()
+  ↓
+Session 복구 (문서 목록, 마킹/바코드 결과)
   ↓
 작업 수행
   ↓
-StateStore.Save(Workspace)
-  ↓
-JSON 파일에 저장
+StateStore.Save(Workspace) → state.json
+SessionStore.Save(Session) → session.json
 ```
 
 #### 6. 렌더링 기능 그룹
@@ -607,7 +626,10 @@ MainWindow
 
 ## 저장 위치
 
-- **상태 파일**: `%AppData%/SimpleOverlayEditor/state.json`
+- **상태 파일 (state.json)**: `%AppData%/SimpleOverlayEditor/state.json`
+  - 프로그램 전반 상태: 템플릿 정보, 입력 폴더 경로, 선택된 문서 ID
+- **세션 파일 (session.json)**: `%AppData%/SimpleOverlayEditor/session.json`
+  - 이미지 로드 및 리딩 작업 세션: 문서 목록, 정렬 정보, 마킹 결과, 바코드 결과
 - **출력 이미지**: `%AppData%/SimpleOverlayEditor/output/`
 - **정렬된 이미지 캐시**: `%AppData%/SimpleOverlayEditor/aligned_cache/`
 - **로그 파일**: `%AppData%/SimpleOverlayEditor/logs/overlay_editor_YYYYMMDD.log`
@@ -717,8 +739,9 @@ dotnet build
 
 6. **저장**
    - "저장" 버튼을 클릭하여 상태와 결과 이미지 저장
-   - 상태 파일: 템플릿 정보, 정렬 정보, 문서 목록, 마킹 결과, 바코드 결과가 저장됩니다
-   - 출력 이미지: 정렬된 이미지에 오버레이가 적용된 이미지가 output 폴더에 저장됩니다
+   - **state.json**: 프로그램 전반 상태 (템플릿 정보, 입력 폴더 경로)가 저장됩니다
+   - **session.json**: 이미지 로드 및 리딩 작업 세션 (문서 목록, 정렬 정보, 마킹 결과, 바코드 결과)가 저장됩니다
+   - **출력 이미지**: 정렬된 이미지에 오버레이가 적용된 이미지가 output 폴더에 저장됩니다
      - 타이밍 마크(녹색), 채점 영역(빨간색), 바코드 영역(주황색) 표시
      - 디코딩된 바코드 텍스트 표시
 
@@ -765,7 +788,8 @@ dotnet build
 
 - **저장**:
   - 저장 시 output 폴더가 삭제 후 재생성됩니다
-  - 정렬 정보는 상태 파일에 저장되며, 재실행 시 정렬된 이미지 캐시를 재사용합니다
+  - 프로그램 상태(state.json)와 작업 세션(session.json)이 분리되어 저장됩니다
+  - 정렬 정보는 session.json에 저장되며, 재실행 시 정렬된 이미지 캐시를 재사용합니다
 
 - **마킹 감지**:
   - 정렬된 이미지에서 채점 영역의 평균 밝기를 분석하여 판단합니다

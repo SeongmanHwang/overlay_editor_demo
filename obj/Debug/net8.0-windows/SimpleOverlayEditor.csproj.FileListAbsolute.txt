@@ -6,11 +6,13 @@ C:\Users\Seongman Hwang\overlay_editor\bin\Debug\net8.0-windows\SimpleOverlayEdi
 C:\Users\Seongman Hwang\overlay_editor\bin\Debug\net8.0-windows\System.IO.Pipelines.dll
 C:\Users\Seongman Hwang\overlay_editor\bin\Debug\net8.0-windows\System.Text.Encodings.Web.dll
 C:\Users\Seongman Hwang\overlay_editor\bin\Debug\net8.0-windows\System.Text.Json.dll
+C:\Users\Seongman Hwang\overlay_editor\bin\Debug\net8.0-windows\zxing.dll
 C:\Users\Seongman Hwang\overlay_editor\bin\Debug\net8.0-windows\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\SimpleOverlayEditor.csproj.AssemblyReference.cache
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\HomeView.baml
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\HomeView.g.cs
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\MainWindow.g.cs
+C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\MarkingView.g.cs
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\TemplateEditView.g.cs
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\App.g.cs
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\GeneratedInternalTypeHelper.g.cs
@@ -18,6 +20,7 @@ C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\SimpleOverlayEdi
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\SimpleOverlayEditor_MarkupCompile.lref
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\App.baml
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\MainWindow.baml
+C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\MarkingView.baml
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\TemplateEditView.baml
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\SimpleOverlayEditor.g.resources
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\SimpleOverlayEditor.GeneratedMSBuildEditorConfig.editorconfig
@@ -31,5 +34,3 @@ C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\refint\SimpleOve
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\SimpleOverlayEditor.pdb
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\SimpleOverlayEditor.genruntimeconfig.cache
 C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\ref\SimpleOverlayEditor.dll
-C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\MarkingView.g.cs
-C:\Users\Seongman Hwang\overlay_editor\obj\Debug\net8.0-windows\Views\MarkingView.baml

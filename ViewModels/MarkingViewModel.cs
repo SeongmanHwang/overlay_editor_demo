@@ -24,6 +24,8 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly NavigationViewModel _navigation;
         private readonly Workspace _workspace;
         private readonly StateStore _stateStore;
+        private readonly SessionStore _sessionStore;
+        private readonly Session _session;
         private readonly ImageLoader _imageLoader;
         private readonly ImageAlignmentService _alignmentService;
         private readonly Renderer _renderer;
@@ -39,6 +41,8 @@ namespace SimpleOverlayEditor.ViewModels
             _navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
             _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
             _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
+            _sessionStore = new SessionStore();
+            _session = _sessionStore.Load(); // session.json에서 세션 로드
             _imageLoader = new ImageLoader();
             _alignmentService = new ImageAlignmentService();
             _renderer = new Renderer();
@@ -51,25 +55,25 @@ namespace SimpleOverlayEditor.ViewModels
                 () => Documents != null && Documents.Count() > 0 && ScoringAreas != null && ScoringAreas.Count() > 0);
             LoadFolderCommand = new RelayCommand(OnLoadFolder);
 
-            // Workspace.Documents가 이미 로드되어 있으면 정렬 수행
+            // Session.Documents가 이미 로드되어 있으면 정렬 수행
             InitializeDocumentsAlignment();
         }
 
         /// <summary>
-        /// Workspace.Documents가 로드되어 있을 때 정렬을 수행합니다.
+        /// Session.Documents가 로드되어 있을 때 정렬을 수행합니다.
         /// </summary>
         private void InitializeDocumentsAlignment()
         {
-            if (_workspace.Documents == null || _workspace.Documents.Count == 0)
+            if (_session.Documents == null || _session.Documents.Count == 0)
             {
-                Documents = _workspace.Documents;
+                Documents = _session.Documents;
                 return;
             }
 
-            Logger.Instance.Info($"Workspace.Documents 초기화: {_workspace.Documents.Count}개 문서 발견, 정렬 적용 시작");
+            Logger.Instance.Info($"Session.Documents 초기화: {_session.Documents.Count}개 문서 발견, 정렬 적용 시작");
 
             // 정렬이 수행되지 않은 문서들에 대해 정렬 수행
-            foreach (var doc in _workspace.Documents)
+            foreach (var doc in _session.Documents)
             {
                 // 정렬이 이미 성공적으로 수행되었거나, 정렬 정보가 있으면 건너뜀
                 if (doc.AlignmentInfo?.Success == true)
@@ -83,11 +87,11 @@ namespace SimpleOverlayEditor.ViewModels
             }
 
             // Documents 컬렉션 설정
-            Documents = _workspace.Documents;
+            Documents = _session.Documents;
             OnPropertyChanged(nameof(Documents));
             OnPropertyChanged(nameof(DocumentCount));
 
-            Logger.Instance.Info($"Workspace.Documents 초기화 완료: {_workspace.Documents.Count}개 문서 처리됨");
+            Logger.Instance.Info($"Session.Documents 초기화 완료: {_session.Documents.Count}개 문서 처리됨");
         }
 
         public ImageDocument? SelectedDocument 
@@ -111,9 +115,9 @@ namespace SimpleOverlayEditor.ViewModels
                     }
                     else
                     {
-                        // Workspace.MarkingResults에서 해당 문서의 마킹 결과 복원
-                        if (_workspace.MarkingResults != null && 
-                            _workspace.MarkingResults.TryGetValue(_selectedDocument.ImageId, out var results))
+                        // Session.MarkingResults에서 해당 문서의 마킹 결과 복원
+                        if (_session.MarkingResults != null && 
+                            _session.MarkingResults.TryGetValue(_selectedDocument.ImageId, out var results))
                         {
                             CurrentMarkingResults = results;
                         }
@@ -123,9 +127,9 @@ namespace SimpleOverlayEditor.ViewModels
                             CurrentMarkingResults = null;
                         }
 
-                        // Workspace.BarcodeResults에서 해당 문서의 바코드 결과 복원
-                        if (_workspace.BarcodeResults != null && 
-                            _workspace.BarcodeResults.TryGetValue(_selectedDocument.ImageId, out var barcodeResults))
+                        // Session.BarcodeResults에서 해당 문서의 바코드 결과 복원
+                        if (_session.BarcodeResults != null && 
+                            _session.BarcodeResults.TryGetValue(_selectedDocument.ImageId, out var barcodeResults))
                         {
                             CurrentBarcodeResults = barcodeResults;
                         }
@@ -246,14 +250,15 @@ namespace SimpleOverlayEditor.ViewModels
 
                 CurrentMarkingResults = results;
 
-                // Workspace에 마킹 결과 저장
+                // Session에 마킹 결과 저장
                 if (SelectedDocument != null)
                 {
-                    if (_workspace.MarkingResults == null)
+                    if (_session.MarkingResults == null)
                     {
-                        _workspace.MarkingResults = new Dictionary<string, List<MarkingResult>>();
+                        _session.MarkingResults = new Dictionary<string, List<MarkingResult>>();
                     }
-                    _workspace.MarkingResults[SelectedDocument.ImageId] = results;
+                    _session.MarkingResults[SelectedDocument.ImageId] = results;
+                    _sessionStore.Save(_session); // 세션 저장
                 }
 
                 // 바코드 디코딩 (바코드 영역이 있는 경우)
@@ -271,12 +276,13 @@ namespace SimpleOverlayEditor.ViewModels
 
                         CurrentBarcodeResults = barcodeResults;
 
-                        // Workspace에 바코드 결과 저장
-                        if (_workspace.BarcodeResults == null)
+                        // Session에 바코드 결과 저장
+                        if (_session.BarcodeResults == null)
                         {
-                            _workspace.BarcodeResults = new Dictionary<string, List<BarcodeResult>>();
+                            _session.BarcodeResults = new Dictionary<string, List<BarcodeResult>>();
                         }
-                        _workspace.BarcodeResults[SelectedDocument.ImageId] = barcodeResults;
+                        _session.BarcodeResults[SelectedDocument.ImageId] = barcodeResults;
+                        _sessionStore.Save(_session); // 세션 저장
 
                         if (barcodeResults != null)
                         {
@@ -299,7 +305,7 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     try
                     {
-                        _renderer.RenderSingleDocument(SelectedDocument, _workspace);
+                        _renderer.RenderSingleDocument(SelectedDocument, _session, _workspace);
                         Logger.Instance.Info($"결과 이미지 파일 저장 완료: {SelectedDocument.SourcePath}");
                     }
                     catch (Exception ex)
@@ -357,23 +363,13 @@ namespace SimpleOverlayEditor.ViewModels
 
             try
             {
-                // Workspace를 임시로 생성하여 DetectAllMarkings 호출
-                var workspace = new Workspace
-                {
-                    Documents = new System.Collections.ObjectModel.ObservableCollection<ImageDocument>(Documents)
-                };
-                foreach (var area in ScoringAreas)
-                {
-                    workspace.Template.ScoringAreas.Add(area);
-                }
-
                 Logger.Instance.Info($"전체 문서 마킹 감지 시작: {Documents.Count()}개 문서");
                 
                 // 마킹 감지
-                var allResults = _markingDetector.DetectAllMarkings(workspace, MarkingThreshold);
+                var allResults = _markingDetector.DetectAllMarkings(Documents, _workspace.Template, MarkingThreshold);
 
-                // Workspace에 마킹 결과 저장
-                _workspace.MarkingResults = allResults;
+                // Session에 마킹 결과 저장
+                _session.MarkingResults = allResults;
 
                 // 바코드 디코딩 (바코드 영역이 있는 경우)
                 Dictionary<string, List<BarcodeResult>>? allBarcodeResults = null;
@@ -382,8 +378,8 @@ namespace SimpleOverlayEditor.ViewModels
                     try
                     {
                         Logger.Instance.Info($"전체 문서 바코드 디코딩 시작");
-                        allBarcodeResults = _barcodeReaderService.DecodeAllBarcodes(_workspace);
-                        _workspace.BarcodeResults = allBarcodeResults;
+                        allBarcodeResults = _barcodeReaderService.DecodeAllBarcodes(Documents, _workspace.Template);
+                        _session.BarcodeResults = allBarcodeResults;
                         Logger.Instance.Info($"전체 문서 바코드 디코딩 완료");
                     }
                     catch (Exception ex)
@@ -392,6 +388,9 @@ namespace SimpleOverlayEditor.ViewModels
                         // 바코드 디코딩 실패해도 마킹 감지는 완료되었으므로 계속 진행
                     }
                 }
+                
+                // Session 저장
+                _sessionStore.Save(_session);
 
                 int totalDocuments = allResults.Count;
                 int totalAreas = 0;
@@ -449,7 +448,7 @@ namespace SimpleOverlayEditor.ViewModels
                 // 모든 문서의 결과 이미지 파일 저장
                 try
                 {
-                    _renderer.RenderAll(_workspace);
+                    _renderer.RenderAll(_session, _workspace);
                     Logger.Instance.Info($"전체 결과 이미지 파일 저장 완료");
                 }
                 catch (Exception ex)
@@ -500,11 +499,13 @@ namespace SimpleOverlayEditor.ViewModels
                     Logger.Instance.Debug("SelectedDocument를 null로 설정 (Clear 전)");
                     SelectedDocument = null;
                     
+                    // Session 초기화 (새 폴더 로드 시 기존 세션 데이터 제거)
+                    _session.Documents.Clear();
+                    _session.MarkingResults.Clear();
+                    _session.BarcodeResults.Clear();
+                    
                     _workspace.InputFolderPath = folderPath;
                     Logger.Instance.Debug($"Workspace.InputFolderPath 설정: {folderPath}");
-                    
-                    Logger.Instance.Debug("Workspace.Documents.Clear() 호출");
-                    _workspace.Documents.Clear();
                     
                     Logger.Instance.Debug($"문서 {documents.Count}개 추가 및 정렬 적용 시작");
                     foreach (var doc in documents)
@@ -512,7 +513,7 @@ namespace SimpleOverlayEditor.ViewModels
                         // 이미지 정렬 적용
                         ApplyAlignmentToDocument(doc);
                         
-                        _workspace.Documents.Add(doc);
+                        _session.Documents.Add(doc);
                         Logger.Instance.Debug($"문서 추가: {doc.SourcePath} (ID: {doc.ImageId}, 크기: {doc.ImageWidth}x{doc.ImageHeight})");
                     }
                     Logger.Instance.Debug("모든 문서 추가 완료");
@@ -524,13 +525,14 @@ namespace SimpleOverlayEditor.ViewModels
                     CurrentBarcodeResults = null;
                     DisplayImage = null;
 
-                    // Documents 컬렉션 업데이트 (Workspace의 ObservableCollection을 직접 사용)
-                    Documents = _workspace.Documents;
+                    // Documents 컬렉션 업데이트 (Session의 ObservableCollection을 직접 사용)
+                    Documents = _session.Documents;
                     OnPropertyChanged(nameof(Documents));
                     OnPropertyChanged(nameof(DocumentCount));
 
-                    // Workspace 저장
+                    // Workspace와 Session 저장
                     _stateStore.Save(_workspace);
+                    _sessionStore.Save(_session);
 
                     Logger.Instance.Info($"폴더 로드 완료. 총 {documents.Count}개 이미지 로드됨");
                     MessageBox.Show($"{documents.Count}개의 이미지를 로드했습니다.", "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);

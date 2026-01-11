@@ -234,17 +234,19 @@ namespace SimpleOverlayEditor.Services
         /// 모든 문서에 대해 바코드를 디코딩합니다.
         /// </summary>
         public Dictionary<string, List<BarcodeResult>> DecodeAllBarcodes(
-            Workspace workspace)
+            IEnumerable<ImageDocument> documents,
+            OmrTemplate template)
         {
-            Logger.Instance.Info($"전체 문서 바코드 디코딩 시작: {workspace.Documents.Count}개 문서");
+            var documentsList = documents.ToList();
+            Logger.Instance.Info($"전체 문서 바코드 디코딩 시작: {documentsList.Count}개 문서");
 
             var allResults = new Dictionary<string, List<BarcodeResult>>();
 
-            foreach (var document in workspace.Documents)
+            foreach (var document in documentsList)
             {
                 try
                 {
-                    var results = DecodeBarcodes(document, workspace.Template.BarcodeAreas);
+                    var results = DecodeBarcodes(document, template.BarcodeAreas);
                     allResults[document.ImageId] = results;
                 }
                 catch (Exception ex)

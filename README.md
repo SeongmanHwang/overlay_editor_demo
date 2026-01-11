@@ -1,6 +1,6 @@
 # Simple Overlay Editor
 
-OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 감지하는 WPF 애플리케이션입니다.
+OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 리딩하는 WPF 애플리케이션입니다.
 
 ## 목차
 
@@ -18,11 +18,11 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
 
 ## 프로젝트 개요
 
-이 애플리케이션은 OMR 시트의 템플릿을 제작하고, 스캔된 이미지에서 마킹을 자동으로 감지하며, 바코드를 읽는 도구입니다. 주요 기능은 다음과 같습니다:
+이 애플리케이션은 OMR 시트의 템플릿을 제작하고, 스캔된 이미지에서 마킹을 자동으로 리딩하며, 바코드를 읽는 도구입니다. 주요 기능은 다음과 같습니다:
 
 - **템플릿 편집**: 타이밍 마크, 채점 영역, 바코드 영역을 시각적으로 편집
 - **이미지 정렬**: 타이밍 마크를 기반으로 스캔 이미지 자동 정렬
-- **마킹 감지**: 채점 영역에서 마킹 여부 자동 판단
+- **마킹 리딩**: 채점 영역에서 마킹 여부 자동 판단
 - **바코드 디코딩**: 바코드 영역에서 자동으로 바코드 텍스트 추출
 - **상태 관리**: 작업 상태를 자동 저장하여 재실행 시 복구
 
@@ -42,7 +42,7 @@ overlay_editor/
 │   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역, 바코드 영역, 문항)
 │   ├── Question.cs                # 문항 모델 (4개 문항, 각 12개 선택지)
 │   ├── OverlayType.cs             # 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
-│   ├── MarkingResult.cs           # 마킹 감지 결과 모델 (문항/선택지 번호 포함)
+│   ├── MarkingResult.cs           # 마킹 리딩 결과 모델 (문항/선택지 번호 포함)
 │   ├── BarcodeResult.cs           # 바코드 디코딩 결과 모델
 │   └── AlignmentInfo.cs           # 이미지 정렬 정보 모델
 │
@@ -51,7 +51,7 @@ overlay_editor/
 │   ├── HomeViewModel.cs           # 홈 화면 뷰모델
 │   ├── TemplateEditViewModel.cs   # 템플릿 편집 뷰모델
 │   ├── TemplateViewModel.cs       # 템플릿 관리 뷰모델
-│   ├── MarkingViewModel.cs        # 마킹 감지 뷰모델
+│   ├── MarkingViewModel.cs        # 마킹 리딩 뷰모델
 │   └── RelayCommand.cs            # 커맨드 패턴 구현
 │
 ├── Views/                         # UI 뷰
@@ -64,7 +64,7 @@ overlay_editor/
 │   ├── ImageLoader.cs             # 이미지 파일 로드
 │   ├── ImageAlignmentService.cs   # 타이밍 마크 기반 이미지 정렬 서비스
 │   ├── Renderer.cs                # 오버레이 + 이미지 합성 → output/
-│   ├── MarkingDetector.cs         # 마킹 감지 서비스 (ROI 분석)
+│   ├── MarkingDetector.cs         # 마킹 리딩 서비스 (ROI 분석)
 │   ├── MarkingAnalyzer.cs         # 마킹 결과 분석 서비스 (OmrSheetResult 생성)
 │   ├── BarcodeReaderService.cs    # 바코드 디코딩 서비스 (ZXing.Net 사용)
 │   └── Logger.cs                  # 로깅 서비스 (파일 로그)
@@ -84,12 +84,12 @@ overlay_editor/
   - `Template`: OMR 템플릿 (모든 이미지에 공통 적용)
 - **Session.cs**: 이미지 로드 및 리딩 작업 세션
   - `Documents`: 로드된 이미지 문서 컬렉션 (ImageDocument 목록)
-  - `MarkingResults`: 문서별 마킹 감지 결과 (ImageId -> MarkingResult 리스트)
+  - `MarkingResults`: 문서별 마킹 리딩 결과 (ImageId -> MarkingResult 리스트)
   - `BarcodeResults`: 문서별 바코드 디코딩 결과 (ImageId -> BarcodeResult 리스트)
 - **OmrTemplate.cs**: OMR 템플릿 정의
   - `TimingMarks`: 이미지 정렬용 타이밍 마크 오버레이
   - `Questions`: 문항 목록 (4개 문항, 각 12개 선택지) - 구조화된 데이터
-  - `ScoringAreas`: 마킹 감지용 채점 영역 오버레이 (Questions에서 자동 동기화, 읽기 전용)
+  - `ScoringAreas`: 마킹 리딩용 채점 영역 오버레이 (Questions에서 자동 동기화, 읽기 전용)
   - `BarcodeAreas`: 바코드 디코딩용 바코드 영역 오버레이
   - `ReferenceWidth/Height`: 템플릿 기준 이미지 크기
 - **Question.cs**: 문항 모델 (4개 문항, 각 12개 선택지)
@@ -102,13 +102,13 @@ overlay_editor/
   - `AlignmentInfo`: 정렬 정보 (정렬된 이미지 경로 포함)
 - **RectangleOverlay.cs**: 직사각형 오버레이 데이터 (X, Y, Width, Height)
 - **OverlayType.cs**: 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
-- **MarkingResult.cs**: 마킹 감지 결과 (영역별 마킹 여부, 평균 밝기, 문항/선택지 번호)
+- **MarkingResult.cs**: 마킹 리딩 결과 (영역별 마킹 여부, 평균 밝기, 문항/선택지 번호)
   - `QuestionNumber`: 문항 번호 (1-4)
   - `OptionNumber`: 선택지 번호 (1-12)
   - `ScoringAreaId`: 채점 영역 식별자
   - `IsMarked`: 마킹 여부
   - `AverageBrightness`: 평균 밝기
-  - `Threshold`: 마킹 감지 임계값
+  - `Threshold`: 마킹 리딩 임계값
 - **BarcodeResult.cs**: 바코드 디코딩 결과 (디코딩된 텍스트, 바코드 포맷, 성공 여부)
 - **OmrSheetResult.cs**: OMR 시트 결과 (문항별 마킹 결과, 바코드 결과)
   - `StudentId`: 수험번호 (바코드 1)
@@ -129,9 +129,9 @@ overlay_editor/
   - 문항별 채점 영역 관리 (ScoringArea일 때 문항 선택)
   - 템플릿 내보내기/가져오기
 - **TemplateViewModel.cs**: 템플릿 데이터 관리
-- **MarkingViewModel.cs**: 마킹 감지 화면 로직
-  - 단일/전체 이미지 마킹 감지
-  - 감지 결과 표시 (문항/선택지별)
+- **MarkingViewModel.cs**: 마킹 리딩 화면 로직
+  - 단일/전체 이미지 마킹 리딩
+  - 리딩 결과 표시 (문항/선택지별)
   - OMR 결과 요약 및 CSV 내보내기
 - **RelayCommand.cs**: ICommand 구현 (커맨드 패턴)
 
@@ -141,7 +141,7 @@ overlay_editor/
   - `DataTemplate`을 사용한 View 자동 선택
 - **HomeView.xaml/cs**: 홈 화면 (모드 선택)
 - **TemplateEditView.xaml/cs**: 템플릿 편집 화면
-- **MarkingView.xaml/cs**: 마킹 감지 화면
+- **MarkingView.xaml/cs**: 마킹 리딩 화면
 
 #### Services/ - 비즈니스 로직 계층
 - **StateStore.cs**: 프로그램 상태 영속성 관리
@@ -158,7 +158,7 @@ overlay_editor/
   - 타이밍 마크 감지
   - 변환 행렬 계산 (회전, 스케일, 이동)
   - 정렬된 이미지 생성 및 캐시 저장
-- **MarkingDetector.cs**: 마킹 감지 서비스
+- **MarkingDetector.cs**: 마킹 리딩 서비스
   - 채점 영역 ROI에서 평균 밝기 분석
   - 임계값 기반 마킹 판단
   - areaIndex 기반으로 QuestionNumber, OptionNumber 계산
@@ -225,7 +225,7 @@ MainWindow 표시
 
 - **Home 모드**: 모드 선택 화면
 - **TemplateEdit 모드**: 템플릿 편집 화면
-- **Marking 모드**: 마킹 감지 화면
+- **Marking 모드**: 마킹 리딩 화면
 
 모드 전환 흐름:
 
@@ -305,7 +305,7 @@ Workspace.Template.ScoringAreas 자동 동기화 (Questions에서)
 PropertyChanged 이벤트로 UI 자동 업데이트
 ```
 
-### 5. 마킹 감지
+### 5. 마킹 리딩
 
 ```
 Marking 모드 진입
@@ -314,7 +314,7 @@ MarkingViewModel 초기화
   - Workspace.Documents 바인딩
   - Workspace.Template.ScoringAreas 바인딩
   ↓
-사용자 "마킹 감지" 또는 "전체 감지" 버튼 클릭
+사용자 "마킹 리딩" 또는 "전체 감지" 버튼 클릭
   ↓
 MarkingViewModel.DetectMarkings() 또는 DetectAllMarkings()
   ↓
@@ -379,7 +379,7 @@ MainWindow.OnClosed()
 
 **기능들**:
 - 타이밍 마크 편집 (이미지 정렬용)
-- 채점 영역 편집 (마킹 감지용)
+- 채점 영역 편집 (마킹 리딩용)
 - 오버레이 추가/편집/삭제
 - 기본 템플릿 저장/로드
 
@@ -417,17 +417,17 @@ ImageAlignmentService.AlignImage()
 ImageDocument.AlignmentInfo 업데이트
 ```
 
-#### 3. 마킹 감지 기능 그룹
+#### 3. 마킹 리딩 기능 그룹
 **위치**: `MarkingDetector`, `MarkingViewModel`, `MarkingView`
 
 **기능들**:
-- 단일 이미지 마킹 감지
-- 전체 이미지 일괄 마킹 감지
-- 감지 결과 표시
+- 단일 이미지 마킹 리딩
+- 전체 이미지 일괄 마킹 리딩
+- 리딩 결과 표시
 
 **데이터 흐름**:
 ```
-사용자 "마킹 감지" 클릭
+사용자 "마킹 리딩" 클릭
   ↓
 MarkingViewModel.DetectMarkings()
   ↓
@@ -453,7 +453,7 @@ UI 표시
 
 **데이터 흐름**:
 ```
-마킹 감지와 동시에 실행
+마킹 리딩와 동시에 실행
   ↓
 MarkingViewModel.OnDetectMarkings()
   ↓
@@ -603,7 +603,7 @@ MainWindow
      - 정렬 신뢰도 검증 (최소 70% 이상)
      - 변환 범위 제한 (회전 ±5도, 스케일 90~110%)
      - 정렬 실패 시 원본 이미지 사용 (투명한 fallback)
-   - **채점 영역**: 우측에 위치한 마킹 감지용 오버레이
+   - **채점 영역**: 우측에 위치한 마킹 리딩용 오버레이
      - 문항별 구조화된 관리 (4개 문항, 각 12개 선택지)
      - 문항 선택 후 선택지 위치를 클릭하여 추가
      - Questions 구조로 저장/로드
@@ -616,20 +616,20 @@ MainWindow
    - **오버레이 삭제**: 선택한 오버레이 또는 전체 삭제
    - **템플릿 내보내기/가져오기**: 템플릿을 JSON 파일로 저장/로드
 
-3. **마킹 감지 (리딩)**
-   - 채점 영역(ScoringArea)에서 마킹 여부 자동 감지
+3. **마킹 리딩 (리딩)**
+   - 채점 영역(ScoringArea)에서 마킹 여부 자동 리딩
    - 정렬된 이미지에서 정확한 위치의 픽셀 읽기
    - 그레이스케일 변환 후 평균 밝기 분석
    - 임계값 기반 마킹 판단 (기본값: 180)
    - areaIndex 기반으로 QuestionNumber, OptionNumber 자동 계산
-   - 단일 이미지 또는 전체 이미지 일괄 감지
-   - 감지 결과를 표로 표시 (문항/선택지별 마킹 여부, 평균 밝기)
+   - 단일 이미지 또는 전체 이미지 일괄 리딩
+   - 리딩 결과를 표로 표시 (문항/선택지별 마킹 여부, 평균 밝기)
    - OMR 결과 요약 (문항별 마킹 결과, 바코드 결과, 오류 정보)
    - CSV 내보내기 기능 (OMR 결과 요약)
 
 4. **바코드 디코딩**
    - 바코드 영역(BarcodeArea)에서 자동으로 바코드 텍스트 추출
-   - 마킹 감지와 동시에 자동 실행
+   - 마킹 리딩와 동시에 자동 실행
    - 정렬된 이미지에서 정확한 위치의 바코드 읽기
    - 이미지 전처리: 그레이스케일 변환, 대비 강화, 이진화
    - Stride-aware 픽셀 변환 및 BGR→RGB 변환으로 정확도 향상
@@ -683,7 +683,7 @@ MainWindow
   - 이미지 정렬 성공/실패 (신뢰도, 변환 정보)
   - SelectedDocument 변경
   - Documents 컬렉션 변경
-  - 마킹 감지 결과
+  - 마킹 리딩 결과
   - 예외 및 오류 정보 (스택 트레이스 포함)
 
 ### 로그 파일 확인 방법
@@ -759,13 +759,13 @@ dotnet build
    - "템플릿 가져오기" 버튼으로 저장된 템플릿 파일 로드
    - state.json에도 자동으로 저장되어 재실행 시 복구됩니다
 
-5. **마킹 감지 및 바코드 디코딩 (리딩)**
+5. **마킹 리딩 및 바코드 디코딩 (리딩)**
    - 채점 영역(ScoringArea)이 설정되어 있어야 합니다
    - 임계값을 조정 (기본값: 180, 0-255 범위)
-   - "마킹 감지" 버튼: 현재 선택된 이미지에 대해 마킹 감지 및 바코드 디코딩 수행
-   - "전체 감지" 버튼: 로드된 모든 이미지에 대해 일괄 마킹 감지 및 바코드 디코딩 수행
+   - "마킹 리딩" 버튼: 현재 선택된 이미지에 대해 마킹 리딩 및 바코드 디코딩 수행
+   - "전체 감지" 버튼: 로드된 모든 이미지에 대해 일괄 마킹 리딩 및 바코드 디코딩 수행
    - 오른쪽 패널에서 다음 결과 확인:
-     - **마킹 감지 결과**: 문항/선택지별 마킹 여부와 평균 밝기 (디버깅용)
+     - **마킹 리딩 결과**: 문항/선택지별 마킹 여부와 평균 밝기 (디버깅용)
      - **바코드 디코딩 결과**: 각 바코드 영역별 디코딩 성공/실패, 디코딩된 텍스트, 바코드 포맷
      - **바코드 요약**: 전체 바코드 디코딩 성공/실패 개수
    - 하단 패널에서 OMR 결과 요약 확인:
@@ -827,13 +827,13 @@ dotnet build
   - 프로그램 상태(state.json)와 작업 세션(session.json)이 분리되어 저장됩니다
   - 정렬 정보는 session.json에 저장되며, 재실행 시 정렬된 이미지 캐시를 재사용합니다
 
-- **마킹 감지**:
+- **마킹 리딩**:
   - 정렬된 이미지에서 채점 영역의 평균 밝기를 분석하여 판단합니다
   - 임계값보다 어두우면 마킹으로 판단 (기본값: 180)
   - 이미지 품질과 조명 조건에 따라 임계값 조정이 필요할 수 있습니다
 
 - **바코드 디코딩**:
-  - 마킹 감지와 동시에 자동으로 실행됩니다
+  - 마킹 리딩와 동시에 자동으로 실행됩니다
   - 바코드 영역이 정확하게 지정되어 있어야 합니다 (바코드 주변 여백 포함 권장)
   - 이미지 전처리(그레이스케일 변환, 대비 강화, 이진화)가 자동으로 수행됩니다
   - Stride-aware 픽셀 변환 및 BGR→RGB 변환을 통해 정확한 바코드 인식을 보장합니다

@@ -38,7 +38,7 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand NavigateToTemplateEditCommand { get; }
 
         /// <summary>
-        /// 마킹 감지 모드로 이동
+        /// 마킹 리딩 모드로 이동
         /// </summary>
         public ICommand NavigateToMarkingCommand { get; }
 

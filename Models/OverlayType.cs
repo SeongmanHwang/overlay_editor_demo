@@ -11,7 +11,7 @@ namespace SimpleOverlayEditor.Models
         TimingMark,
         
         /// <summary>
-        /// 채점 영역 (우측에 위치, 마킹 감지용)
+        /// 채점 영역 (우측에 위치, 마킹 리딩용)
         /// </summary>
         ScoringArea,
         

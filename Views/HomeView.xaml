@@ -38,8 +38,8 @@
                    Command="{Binding NavigateToTemplateEditCommand}"
                    Style="{StaticResource HomeModeButton}"/>
 
-            <!-- 마킹 감지 버튼 -->
-            <Button Content="마킹 감지" 
+            <!-- 마킹 리딩 버튼 -->
+            <Button Content="마킹 리딩" 
                    Command="{Binding NavigateToMarkingCommand}"
                    Style="{StaticResource HomeModeButton}"/>
 

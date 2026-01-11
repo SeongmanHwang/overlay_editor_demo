@@ -56,7 +56,7 @@ namespace SimpleOverlayEditor.Models
         }
 
         /// <summary>
-        /// 채점 영역 오버레이 목록 (우측에 위치, 마킹 감지용)
+        /// 채점 영역 오버레이 목록 (우측에 위치, 마킹 리딩용)
         /// Questions에서 자동으로 동기화됩니다. 직접 수정하지 마세요.
         /// </summary>
         public ObservableCollection<RectangleOverlay> ScoringAreas

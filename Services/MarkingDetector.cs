@@ -9,28 +9,28 @@ using SimpleOverlayEditor.Models;
 namespace SimpleOverlayEditor.Services
 {
     /// <summary>
-    /// 이미지의 ScoringArea ROI에서 마킹을 감지하는 서비스입니다.
+    /// 이미지의 ScoringArea ROI에서 마킹을 리딩하는 서비스입니다.
     /// </summary>
     public class MarkingDetector
     {
         /// <summary>
-        /// 기본 마킹 감지 임계값 (0-255, 이 값보다 어두우면 마킹으로 판단)
+        /// 기본 마킹 리딩 임계값 (0-255, 이 값보다 어두우면 마킹으로 판단)
         /// </summary>
         public double DefaultThreshold { get; set; } = 128.0;
 
         /// <summary>
-        /// 단일 이미지 문서의 모든 ScoringArea에서 마킹을 감지합니다.
+        /// 단일 이미지 문서의 모든 ScoringArea에서 마킹을 리딩합니다.
         /// </summary>
         /// <param name="document">이미지 문서</param>
         /// <param name="scoringAreas">채점 영역 목록</param>
-        /// <param name="threshold">마킹 감지 임계값 (기본값 사용 시 null)</param>
-        /// <returns>각 ScoringArea에 대한 마킹 감지 결과</returns>
+        /// <param name="threshold">마킹 리딩 임계값 (기본값 사용 시 null)</param>
+        /// <returns>각 ScoringArea에 대한 마킹 리딩 결과</returns>
         public List<MarkingResult> DetectMarkings(
             ImageDocument document, 
             IEnumerable<RectangleOverlay> scoringAreas, 
             double? threshold = null)
         {
-            Logger.Instance.Info($"마킹 감지 시작: {document.SourcePath}");
+            Logger.Instance.Info($"마킹 리딩 시작: {document.SourcePath}");
 
             if (!File.Exists(document.SourcePath))
             {
@@ -73,7 +73,7 @@ namespace SimpleOverlayEditor.Services
                     }
                     catch (Exception ex)
                     {
-                        Logger.Instance.Warning($"ScoringArea {areaIndex} 마킹 감지 실패: {ex.Message}");
+                        Logger.Instance.Warning($"ScoringArea {areaIndex} 마킹 리딩 실패: {ex.Message}");
                         // 실패한 영역도 결과에 추가 (IsMarked = false)
                         results.Add(new MarkingResult
                         {
@@ -89,11 +89,11 @@ namespace SimpleOverlayEditor.Services
                 }
 
                 var markedCount = results.Count(r => r.IsMarked);
-                Logger.Instance.Info($"마킹 감지 완료: 총 {results.Count}개 영역 중 {markedCount}개 마킹 감지");
+                Logger.Instance.Info($"마킹 리딩 완료: 총 {results.Count}개 영역 중 {markedCount}개 마킹 리딩");
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error($"마킹 감지 중 오류 발생: {document.SourcePath}", ex);
+                Logger.Instance.Error($"마킹 리딩 중 오류 발생: {document.SourcePath}", ex);
                 throw;
             }
 
@@ -101,7 +101,7 @@ namespace SimpleOverlayEditor.Services
         }
 
         /// <summary>
-        /// 단일 ROI 영역에서 마킹을 감지합니다.
+        /// 단일 ROI 영역에서 마킹을 리딩합니다.
         /// </summary>
         private MarkingResult DetectMarkingInArea(
             FormatConvertedBitmap grayBitmap, 
@@ -170,7 +170,7 @@ namespace SimpleOverlayEditor.Services
         }
 
         /// <summary>
-        /// 모든 문서에 대해 마킹을 감지합니다.
+        /// 모든 문서에 대해 마킹을 리딩합니다.
         /// </summary>
         public Dictionary<string, List<MarkingResult>> DetectAllMarkings(
             IEnumerable<ImageDocument> documents,
@@ -178,7 +178,7 @@ namespace SimpleOverlayEditor.Services
             double? threshold = null)
         {
             var documentsList = documents.ToList();
-            Logger.Instance.Info($"전체 문서 마킹 감지 시작: {documentsList.Count}개 문서");
+            Logger.Instance.Info($"전체 문서 마킹 리딩 시작: {documentsList.Count}개 문서");
 
             var allResults = new Dictionary<string, List<MarkingResult>>();
 
@@ -191,13 +191,13 @@ namespace SimpleOverlayEditor.Services
                 }
                 catch (Exception ex)
                 {
-                    Logger.Instance.Error($"문서 마킹 감지 실패: {document.SourcePath}", ex);
+                    Logger.Instance.Error($"문서 마킹 리딩 실패: {document.SourcePath}", ex);
                     // 실패한 문서는 빈 결과로 추가
                     allResults[document.ImageId] = new List<MarkingResult>();
                 }
             }
 
-            Logger.Instance.Info($"전체 문서 마킹 감지 완료: {allResults.Count}개 문서 처리");
+            Logger.Instance.Info($"전체 문서 마킹 리딩 완료: {allResults.Count}개 문서 처리");
             return allResults;
         }
     }

@@ -1,6 +1,7 @@
 namespace SimpleOverlayEditor.Models
 {
     /// <summary>
+    /// 
     /// 애플리케이션의 모드를 정의합니다.
     /// </summary>
     public enum ApplicationMode
@@ -16,7 +17,7 @@ namespace SimpleOverlayEditor.Models
         TemplateEdit,
 
         /// <summary>
-        /// 마킹 감지 모드 (OMR 마킹 감지 및 분석)
+        /// 마킹 리딩 모드 (OMR 마킹 리딩 및 분석)
         /// </summary>
         Marking,
 

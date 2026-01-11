@@ -29,7 +29,7 @@ namespace SimpleOverlayEditor.Models
         }
 
         /// <summary>
-        /// 문서별 마킹 감지 결과 (ImageId -> MarkingResult 리스트)
+        /// 문서별 마킹 리딩 결과 (ImageId -> MarkingResult 리스트)
         /// 리딩 작업 시 생성
         /// </summary>
         public Dictionary<string, List<MarkingResult>> MarkingResults

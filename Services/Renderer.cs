@@ -84,14 +84,14 @@ namespace SimpleOverlayEditor.Services
                     }
                     
                     // 템플릿의 채점 영역 그리기
-                    // 마킹 감지 결과가 있으면 결과에 따라 색상 변경
+                    // 마킹 리딩 결과가 있으면 결과에 따라 색상 변경
                     var scoringAreas = template.ScoringAreas.ToList();
                     for (int i = 0; i < scoringAreas.Count; i++)
                     {
                         var overlay = scoringAreas[i];
                         var rect = new Rect(overlay.X, overlay.Y, overlay.Width, overlay.Height);
                         
-                        // 마킹 감지 결과 확인
+                        // 마킹 리딩 결과 확인
                         Brush? fillBrush = null;
                         Pen? pen = null;
                         
@@ -102,7 +102,7 @@ namespace SimpleOverlayEditor.Services
                             var result = results[i];
                             if (result.IsMarked)
                             {
-                                // 마킹 감지: 파란색 반투명 채우기 + 파란색 테두리
+                                // 마킹 리딩: 파란색 반투명 채우기 + 파란색 테두리
                                 fillBrush = new SolidColorBrush(Color.FromArgb(128, 0, 0, 255));
                                 pen = new Pen(Brushes.Blue, 2.0);
                             }
@@ -115,7 +115,7 @@ namespace SimpleOverlayEditor.Services
                         }
                         else
                         {
-                            // 마킹 감지 결과 없음: 빨간색 테두리만
+                            // 마킹 리딩 결과 없음: 빨간색 테두리만
                             pen = new Pen(Brushes.Red, 2.0);
                         }
                         

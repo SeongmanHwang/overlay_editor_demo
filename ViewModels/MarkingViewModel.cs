@@ -15,7 +15,7 @@ using SimpleOverlayEditor.Services;
 namespace SimpleOverlayEditor.ViewModels
 {
     /// <summary>
-    /// 마킹 감지 전용 ViewModel입니다.
+    /// 마킹 리딩 전용 ViewModel입니다.
     /// </summary>
     public class MarkingViewModel : INotifyPropertyChanged
     {
@@ -135,7 +135,7 @@ namespace SimpleOverlayEditor.ViewModels
                         }
                         else
                         {
-                            // 마킹 결과가 없으면 null로 설정 (마킹 감지 전까지)
+                            // 마킹 결과가 없으면 null로 설정 (마킹 리딩 전까지)
                             CurrentMarkingResults = null;
                         }
 
@@ -253,7 +253,7 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// 현재 선택된 문서의 마킹을 감지합니다.
+        /// 현재 선택된 문서의 마킹을 리딩합니다.
         /// </summary>
         private void OnDetectMarkings()
         {
@@ -271,9 +271,9 @@ namespace SimpleOverlayEditor.ViewModels
 
             try
             {
-                Logger.Instance.Info($"마킹 감지 시작: {SelectedDocument.SourcePath}");
+                Logger.Instance.Info($"마킹 리딩 시작: {SelectedDocument.SourcePath}");
                 
-                // 마킹 감지
+                // 마킹 리딩
                 var results = _markingDetector.DetectMarkings(
                     SelectedDocument, 
                     ScoringAreas, 
@@ -324,7 +324,7 @@ namespace SimpleOverlayEditor.ViewModels
                     catch (Exception ex)
                     {
                         Logger.Instance.Error("바코드 디코딩 실패", ex);
-                        // 바코드 디코딩 실패해도 마킹 감지는 완료되었으므로 계속 진행
+                        // 바코드 디코딩 실패해도 마킹 리딩은 완료되었으므로 계속 진행
                     }
                 }
 
@@ -342,14 +342,14 @@ namespace SimpleOverlayEditor.ViewModels
                     catch (Exception ex)
                     {
                         Logger.Instance.Error("결과 이미지 파일 저장 실패", ex);
-                        // 저장 실패해도 마킹 감지는 완료되었으므로 계속 진행
+                        // 저장 실패해도 마킹 리딩은 완료되었으므로 계속 진행
                     }
                 }
 
                 var markedCount = results.Count(r => r.IsMarked);
-                var message = $"마킹 감지 완료\n\n" +
+                var message = $"마킹 리딩 완료\n\n" +
                              $"총 영역: {results.Count}개\n" +
-                             $"마킹 감지: {markedCount}개\n" +
+                             $"마킹 리딩: {markedCount}개\n" +
                              $"미마킹: {results.Count - markedCount}개\n\n" +
                              $"임계값: {MarkingThreshold}";
                 
@@ -365,21 +365,21 @@ namespace SimpleOverlayEditor.ViewModels
 
                 message += "\n\n결과 이미지가 저장되었습니다.";
 
-                Logger.Instance.Info($"마킹 감지 완료: {markedCount}/{results.Count}개 마킹 감지");
-                MessageBox.Show(message, "마킹 감지 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+                Logger.Instance.Info($"마킹 리딩 완료: {markedCount}/{results.Count}개 마킹 리딩");
+                MessageBox.Show(message, "마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // OMR 결과 업데이트
                 UpdateSheetResults();
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error("마킹 감지 실패", ex);
-                MessageBox.Show($"마킹 감지 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Instance.Error("마킹 리딩 실패", ex);
+                MessageBox.Show($"마킹 리딩 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         /// <summary>
-        /// 모든 문서의 마킹을 감지합니다.
+        /// 모든 문서의 마킹을 리딩합니다.
         /// </summary>
         private void OnDetectAllMarkings()
         {
@@ -397,9 +397,9 @@ namespace SimpleOverlayEditor.ViewModels
 
             try
             {
-                Logger.Instance.Info($"전체 문서 마킹 감지 시작: {Documents.Count()}개 문서");
+                Logger.Instance.Info($"전체 문서 마킹 리딩 시작: {Documents.Count()}개 문서");
                 
-                // 마킹 감지
+                // 마킹 리딩
                 var allResults = _markingDetector.DetectAllMarkings(Documents, _workspace.Template, MarkingThreshold);
 
                 // Session에 마킹 결과 저장
@@ -419,7 +419,7 @@ namespace SimpleOverlayEditor.ViewModels
                     catch (Exception ex)
                     {
                         Logger.Instance.Error("전체 문서 바코드 디코딩 실패", ex);
-                        // 바코드 디코딩 실패해도 마킹 감지는 완료되었으므로 계속 진행
+                        // 바코드 디코딩 실패해도 마킹 리딩은 완료되었으므로 계속 진행
                     }
                 }
                 
@@ -436,10 +436,10 @@ namespace SimpleOverlayEditor.ViewModels
                     totalMarked += kvp.Value.Count(r => r.IsMarked);
                 }
 
-                var message = $"전체 문서 마킹 감지 완료\n\n" +
+                var message = $"전체 문서 마킹 리딩 완료\n\n" +
                              $"처리된 문서: {totalDocuments}개\n" +
                              $"총 영역: {totalAreas}개\n" +
-                             $"마킹 감지: {totalMarked}개\n" +
+                             $"마킹 리딩: {totalMarked}개\n" +
                              $"미마킹: {totalAreas - totalMarked}개\n\n" +
                              $"임계값: {MarkingThreshold}";
 
@@ -459,8 +459,8 @@ namespace SimpleOverlayEditor.ViewModels
                               $"실패: {totalBarcodeAreas - totalBarcodeSuccess}개";
                 }
 
-                Logger.Instance.Info($"전체 문서 마킹 감지 완료: {totalMarked}/{totalAreas}개 마킹 감지");
-                MessageBox.Show(message, "전체 마킹 감지 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+                Logger.Instance.Info($"전체 문서 마킹 리딩 완료: {totalMarked}/{totalAreas}개 마킹 리딩");
+                MessageBox.Show(message, "전체 마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // 현재 선택된 문서의 결과 표시
                 if (SelectedDocument != null)
@@ -488,7 +488,7 @@ namespace SimpleOverlayEditor.ViewModels
                 catch (Exception ex)
                 {
                     Logger.Instance.Error("전체 결과 이미지 파일 저장 실패", ex);
-                    // 저장 실패해도 마킹 감지는 완료되었으므로 계속 진행
+                    // 저장 실패해도 마킹 리딩은 완료되었으므로 계속 진행
                 }
 
                 // OMR 결과 업데이트
@@ -496,8 +496,8 @@ namespace SimpleOverlayEditor.ViewModels
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error("전체 마킹 감지 실패", ex);
-                MessageBox.Show($"전체 마킹 감지 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Instance.Error("전체 마킹 리딩 실패", ex);
+                MessageBox.Show($"전체 마킹 리딩 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -740,14 +740,14 @@ namespace SimpleOverlayEditor.ViewModels
                     }
                     
                     // 템플릿의 채점 영역 그리기
-                    // 마킹 감지 결과가 있으면 결과에 따라 색상 변경
+                    // 마킹 리딩 결과가 있으면 결과에 따라 색상 변경
                     var scoringAreas = template.ScoringAreas.ToList();
                     for (int i = 0; i < scoringAreas.Count; i++)
                     {
                         var overlay = scoringAreas[i];
                         var rect = new Rect(overlay.X, overlay.Y, overlay.Width, overlay.Height);
                         
-                        // 마킹 감지 결과 확인
+                        // 마킹 리딩 결과 확인
                         Brush? fillBrush = null;
                         Pen? pen = null;
                         
@@ -756,7 +756,7 @@ namespace SimpleOverlayEditor.ViewModels
                             var result = CurrentMarkingResults[i];
                             if (result.IsMarked)
                             {
-                                // 마킹 감지: 파란색 반투명 채우기 + 빨간색 테두리
+                                // 마킹 리딩: 파란색 반투명 채우기 + 빨간색 테두리
                                 fillBrush = new SolidColorBrush(Color.FromArgb(128, 0, 0, 255));
                                 pen = new Pen(Brushes.Blue, 2.0);
                             }
@@ -769,7 +769,7 @@ namespace SimpleOverlayEditor.ViewModels
                         }
                         else
                         {
-                            // 마킹 감지 결과 없음: 빨간색 테두리만
+                            // 마킹 리딩 결과 없음: 빨간색 테두리만
                             pen = new Pen(Brushes.Red, 2.0);
                         }
                         

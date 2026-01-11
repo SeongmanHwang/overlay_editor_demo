@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 namespace SimpleOverlayEditor.Models
 {
     /// <summary>
-    /// 마킹 감지 결과를 저장합니다.
+    /// 마킹 리딩 결과를 저장합니다.
     /// </summary>
     public class MarkingResult : INotifyPropertyChanged
     {
@@ -62,7 +62,7 @@ namespace SimpleOverlayEditor.Models
         }
 
         /// <summary>
-        /// 마킹 감지에 사용된 임계값
+        /// 마킹 리딩에 사용된 임계값
         /// </summary>
         public double Threshold
         {
@@ -79,7 +79,7 @@ namespace SimpleOverlayEditor.Models
     }
 
     /// <summary>
-    /// 이미지 문서별 마킹 감지 결과를 저장합니다.
+    /// 이미지 문서별 마킹 리딩 결과를 저장합니다.
     /// </summary>
     public class DocumentMarkingResults : INotifyPropertyChanged
     {

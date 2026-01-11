@@ -299,6 +299,7 @@ namespace SimpleOverlayEditor.Services
 
         /// <summary>
         /// 이미지에 변환을 적용합니다.
+        /// RenderTargetBitmap + DrawingVisual 방식으로 모든 변환 조합을 지원합니다.
         /// </summary>
         private BitmapSource ApplyTransform(BitmapSource sourceImage, AlignmentTransform transform)
         {
@@ -343,11 +344,55 @@ namespace SimpleOverlayEditor.Services
             if (transformGroup.Children.Count == 0)
                 return sourceImage;
 
-            // 변환 적용
-            var transformedImage = new TransformedBitmap(sourceImage, transformGroup);
-            transformedImage.Freeze();
+            // TransformGroup의 최종 Matrix 가져오기
+            var matrix = transformGroup.Value;
 
-            return transformedImage;
+            // 4개 꼭짓점 변환으로 새 크기와 오프셋 계산
+            var originalWidth = sourceImage.PixelWidth;
+            var originalHeight = sourceImage.PixelHeight;
+            
+            var corners = new Point[]
+            {
+                new Point(0, 0),
+                new Point(originalWidth, 0),
+                new Point(originalWidth, originalHeight),
+                new Point(0, originalHeight)
+            };
+
+            // 4개 꼭짓점 변환
+            var transformedCorners = corners.Select(c => matrix.Transform(c)).ToArray();
+            
+            // min/max로 새 크기와 오프셋 계산
+            var minX = transformedCorners.Min(p => p.X);
+            var minY = transformedCorners.Min(p => p.Y);
+            var maxX = transformedCorners.Max(p => p.X);
+            var maxY = transformedCorners.Max(p => p.Y);
+            
+            int newWidth = (int)Math.Ceiling(maxX - minX);
+            int newHeight = (int)Math.Ceiling(maxY - minY);
+
+            // 오프셋을 포함한 최종 변환 행렬 (이미지를 (0,0)부터 시작하도록)
+            var finalMatrix = new Matrix(
+                matrix.M11, matrix.M12,
+                matrix.M21, matrix.M22,
+                matrix.OffsetX - minX,
+                matrix.OffsetY - minY
+            );
+
+            // RenderTargetBitmap + DrawingVisual 사용
+            var rtb = new RenderTargetBitmap(newWidth, newHeight, 96, 96, PixelFormats.Pbgra32);
+            var drawingVisual = new DrawingVisual();
+            
+            using (var drawingContext = drawingVisual.RenderOpen())
+            {
+                drawingContext.PushTransform(new MatrixTransform(finalMatrix));
+                drawingContext.DrawImage(sourceImage, new Rect(0, 0, originalWidth, originalHeight));
+            }
+            
+            rtb.Render(drawingVisual);
+            rtb.Freeze();
+
+            return rtb;
         }
 
         /// <summary>
@@ -391,6 +436,8 @@ namespace SimpleOverlayEditor.Services
         public double TranslationY { get; set; }
     }
 }
+
+
 
 
 

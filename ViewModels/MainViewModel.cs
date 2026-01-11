@@ -21,7 +21,8 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly CoordinateConverter _coordConverter;
         private readonly ImageAlignmentService _alignmentService;
         private TemplateViewModel? _templateViewModel;
-        private MarkingViewModel? _markingViewModel;
+        // MarkingViewModel은 NavigationViewModel을 통해 관리되므로 더 이상 필요하지 않음
+        // private MarkingViewModel? _markingViewModel;
 
         private Workspace _workspace;
         private ImageDocument? _selectedDocument;
@@ -153,12 +154,7 @@ namespace SimpleOverlayEditor.ViewModels
                         Logger.Instance.Debug($"OnPropertyChanged 호출 전");
                         OnPropertyChanged();
                         OnPropertyChanged(nameof(DisplayOverlays));
-                        // 문서 변경 시 마킹 ViewModel 업데이트
-                        if (_markingViewModel != null)
-                        {
-                            _markingViewModel.SelectedDocument = value;
-                            _markingViewModel.CurrentMarkingResults = null;
-                        }
+                        // 문서 변경 시 마킹 ViewModel 업데이트는 NavigationViewModel을 통해 처리됨
                         Logger.Instance.Debug($"SelectedDocument 변경 완료");
                     }
                     else
@@ -243,7 +239,8 @@ namespace SimpleOverlayEditor.ViewModels
 
         // 분리된 ViewModel 속성
         public TemplateViewModel TemplateViewModel => _templateViewModel ?? throw new InvalidOperationException("TemplateViewModel이 초기화되지 않았습니다.");
-        public MarkingViewModel MarkingViewModel => _markingViewModel ?? throw new InvalidOperationException("MarkingViewModel이 초기화되지 않았습니다.");
+        // MarkingViewModel은 NavigationViewModel을 통해 관리되므로 제거됨
+        // public MarkingViewModel MarkingViewModel => _markingViewModel ?? throw new InvalidOperationException("MarkingViewModel이 초기화되지 않았습니다.");
 
         private void LoadWorkspace()
         {
@@ -738,15 +735,12 @@ namespace SimpleOverlayEditor.ViewModels
 
         /// <summary>
         /// MarkingViewModel의 데이터 소스를 업데이트합니다.
+        /// MarkingViewModel은 NavigationViewModel을 통해 관리되므로 더 이상 사용되지 않습니다.
         /// </summary>
         private void UpdateMarkingViewModel()
         {
-            if (_markingViewModel != null)
-            {
-                _markingViewModel.SelectedDocument = SelectedDocument;
-                _markingViewModel.Documents = Workspace.Documents;
-                _markingViewModel.ScoringAreas = Workspace.Template.ScoringAreas;
-            }
+            // MarkingViewModel은 NavigationViewModel을 통해 관리되므로 더 이상 필요하지 않음
+            // 이 메서드는 호출되지만 실제로는 아무 작업도 수행하지 않음
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

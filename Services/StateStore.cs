@@ -69,7 +69,28 @@ namespace SimpleOverlayEditor.Services
                             TranslationY = doc.AlignmentInfo.TranslationY,
                             AlignedImagePath = doc.AlignmentInfo.AlignedImagePath
                         } : null
-                    }).ToList()
+                    }).ToList(),
+                    MarkingResults = workspace.MarkingResults.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Select(mr => new
+                        {
+                            ScoringAreaId = mr.ScoringAreaId,
+                            IsMarked = mr.IsMarked,
+                            AverageBrightness = mr.AverageBrightness,
+                            Threshold = mr.Threshold
+                        }).ToList()
+                    ),
+                    BarcodeResults = workspace.BarcodeResults.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Select(br => new
+                        {
+                            BarcodeAreaId = br.BarcodeAreaId,
+                            DecodedText = br.DecodedText,
+                            Success = br.Success,
+                            Format = br.Format,
+                            ErrorMessage = br.ErrorMessage
+                        }).ToList()
+                    )
                 };
 
                 var json = JsonSerializer.Serialize(state, new JsonSerializerOptions 
@@ -319,6 +340,73 @@ namespace SimpleOverlayEditor.Services
 
                         workspace.Documents.Add(imageDoc);
                     }
+                }
+
+                // MarkingResults 로드
+                if (root.TryGetProperty("MarkingResults", out var markingResultsElement))
+                {
+                    var markingResults = new Dictionary<string, List<MarkingResult>>();
+                    foreach (var kvp in markingResultsElement.EnumerateObject())
+                    {
+                        var imageId = kvp.Name;
+                        var results = new List<MarkingResult>();
+                        foreach (var resultElem in kvp.Value.EnumerateArray())
+                        {
+                            var markingResult = new MarkingResult
+                            {
+                                ScoringAreaId = resultElem.TryGetProperty("ScoringAreaId", out var areaId)
+                                    ? areaId.GetString() ?? string.Empty
+                                    : string.Empty,
+                                IsMarked = resultElem.TryGetProperty("IsMarked", out var isMarked)
+                                    ? isMarked.GetBoolean()
+                                    : false,
+                                AverageBrightness = resultElem.TryGetProperty("AverageBrightness", out var brightness)
+                                    ? brightness.GetDouble()
+                                    : 0.0,
+                                Threshold = resultElem.TryGetProperty("Threshold", out var threshold)
+                                    ? threshold.GetDouble()
+                                    : 128.0
+                            };
+                            results.Add(markingResult);
+                        }
+                        markingResults[imageId] = results;
+                    }
+                    workspace.MarkingResults = markingResults;
+                }
+
+                // BarcodeResults 로드
+                if (root.TryGetProperty("BarcodeResults", out var barcodeResultsElement))
+                {
+                    var barcodeResults = new Dictionary<string, List<BarcodeResult>>();
+                    foreach (var kvp in barcodeResultsElement.EnumerateObject())
+                    {
+                        var imageId = kvp.Name;
+                        var results = new List<BarcodeResult>();
+                        foreach (var resultElem in kvp.Value.EnumerateArray())
+                        {
+                            var barcodeResult = new BarcodeResult
+                            {
+                                BarcodeAreaId = resultElem.TryGetProperty("BarcodeAreaId", out var areaId)
+                                    ? areaId.GetString() ?? string.Empty
+                                    : string.Empty,
+                                DecodedText = resultElem.TryGetProperty("DecodedText", out var text)
+                                    ? text.GetString()
+                                    : null,
+                                Success = resultElem.TryGetProperty("Success", out var success)
+                                    ? success.GetBoolean()
+                                    : false,
+                                Format = resultElem.TryGetProperty("Format", out var format)
+                                    ? format.GetString()
+                                    : null,
+                                ErrorMessage = resultElem.TryGetProperty("ErrorMessage", out var errorMsg)
+                                    ? errorMsg.GetString()
+                                    : null
+                            };
+                            results.Add(barcodeResult);
+                        }
+                        barcodeResults[imageId] = results;
+                    }
+                    workspace.BarcodeResults = barcodeResults;
                 }
 
                 return workspace;

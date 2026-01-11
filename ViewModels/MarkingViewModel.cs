@@ -50,6 +50,44 @@ namespace SimpleOverlayEditor.ViewModels
                 OnDetectAllMarkings, 
                 () => Documents != null && Documents.Count() > 0 && ScoringAreas != null && ScoringAreas.Count() > 0);
             LoadFolderCommand = new RelayCommand(OnLoadFolder);
+
+            // Workspace.Documents가 이미 로드되어 있으면 정렬 수행
+            InitializeDocumentsAlignment();
+        }
+
+        /// <summary>
+        /// Workspace.Documents가 로드되어 있을 때 정렬을 수행합니다.
+        /// </summary>
+        private void InitializeDocumentsAlignment()
+        {
+            if (_workspace.Documents == null || _workspace.Documents.Count == 0)
+            {
+                Documents = _workspace.Documents;
+                return;
+            }
+
+            Logger.Instance.Info($"Workspace.Documents 초기화: {_workspace.Documents.Count}개 문서 발견, 정렬 적용 시작");
+
+            // 정렬이 수행되지 않은 문서들에 대해 정렬 수행
+            foreach (var doc in _workspace.Documents)
+            {
+                // 정렬이 이미 성공적으로 수행되었거나, 정렬 정보가 있으면 건너뜀
+                if (doc.AlignmentInfo?.Success == true)
+                {
+                    Logger.Instance.Debug($"정렬 이미 완료됨: {doc.SourcePath}");
+                    continue;
+                }
+
+                // 정렬 적용
+                ApplyAlignmentToDocument(doc);
+            }
+
+            // Documents 컬렉션 설정
+            Documents = _workspace.Documents;
+            OnPropertyChanged(nameof(Documents));
+            OnPropertyChanged(nameof(DocumentCount));
+
+            Logger.Instance.Info($"Workspace.Documents 초기화 완료: {_workspace.Documents.Count}개 문서 처리됨");
         }
 
         public ImageDocument? SelectedDocument 

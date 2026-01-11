@@ -36,7 +36,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly MarkingAnalyzer _markingAnalyzer;
         private List<MarkingResult>? _currentMarkingResults;
         private List<BarcodeResult>? _currentBarcodeResults;
-        private double _markingThreshold = 180.0;
+        private double _markingThreshold = 200.0;
         private BitmapSource? _displayImage;
         private ObservableCollection<OmrSheetResult>? _sheetResults;
 
@@ -257,6 +257,25 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
+        /// ImageId로 문서를 선택합니다 (OMR 결과 테이블 행 더블 클릭 시 사용).
+        /// </summary>
+        public void SelectDocumentByImageId(string imageId)
+        {
+            if (Documents == null) return;
+
+            var document = Documents.FirstOrDefault(d => d.ImageId == imageId);
+            if (document != null)
+            {
+                SelectedDocument = document;
+                Logger.Instance.Info($"OMR 결과 테이블에서 문서 선택: {Path.GetFileName(document.SourcePath)}");
+            }
+            else
+            {
+                Logger.Instance.Warning($"문서를 찾을 수 없음: ImageId={imageId}");
+            }
+        }
+
+        /// <summary>
         /// 현재 선택된 문서의 마킹을 리딩합니다.
         /// </summary>
         private void OnDetectMarkings()
@@ -412,53 +431,9 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     var cancellationToken = progressWindow.CancellationToken;
                     var documentsList = Documents.ToList();
-                    Logger.Instance.Info($"전체 문서 마킹 리딩 시작: {documentsList.Count}개 문서");
+                    Logger.Instance.Info($"전체 문서 바코드/마킹 리딩 시작: {documentsList.Count}개 문서");
                     
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        progressWindow.UpdateProgress(0, documentsList.Count, "마킹 리딩 시작");
-                    });
-
-                    if (cancellationToken.IsCancellationRequested) return;
-
-                    // 마킹 리딩
-                    Dictionary<string, List<MarkingResult>> allResults;
-                    try
-                    {
-                        allResults = _markingDetector.DetectAllMarkings(
-                            documentsList, 
-                            _workspace.Template, 
-                            MarkingThreshold,
-                            (current, total, message) =>
-                            {
-                                if (cancellationToken.IsCancellationRequested) return;
-                                Application.Current.Dispatcher.Invoke(() =>
-                                {
-                                    progressWindow.UpdateProgress(current, total, message);
-                                });
-                            },
-                            cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        Logger.Instance.Info("마킹 리딩 작업이 취소되었습니다.");
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            progressWindow.Close();
-                            MessageBox.Show("작업이 취소되었습니다.", "취소됨", MessageBoxButton.OK, MessageBoxImage.Information);
-                        });
-                        return;
-                    }
-
-                    if (cancellationToken.IsCancellationRequested) return;
-
-                    // Session에 마킹 결과 저장
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        _session.MarkingResults = allResults;
-                    });
-
-                    // 바코드 디코딩 (바코드 영역이 있는 경우)
+                    // 바코드 디코딩 (바코드 영역이 있는 경우) - 마킹 리딩보다 먼저 실행
                     Dictionary<string, List<BarcodeResult>>? allBarcodeResults = null;
                     if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
                     {
@@ -509,9 +484,55 @@ namespace SimpleOverlayEditor.ViewModels
                         catch (Exception ex)
                         {
                             Logger.Instance.Error("전체 문서 바코드 디코딩 실패", ex);
-                            // 바코드 디코딩 실패해도 마킹 리딩은 완료되었으므로 계속 진행
+                            // 바코드 디코딩 실패해도 마킹 리딩은 계속 진행
                         }
                     }
+
+                    if (cancellationToken.IsCancellationRequested) return;
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        progressWindow.UpdateProgress(0, documentsList.Count, "마킹 리딩 시작");
+                    });
+
+                    if (cancellationToken.IsCancellationRequested) return;
+
+                    // 마킹 리딩
+                    Dictionary<string, List<MarkingResult>> allResults;
+                    try
+                    {
+                        allResults = _markingDetector.DetectAllMarkings(
+                            documentsList, 
+                            _workspace.Template, 
+                            MarkingThreshold,
+                            (current, total, message) =>
+                            {
+                                if (cancellationToken.IsCancellationRequested) return;
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    progressWindow.UpdateProgress(current, total, message);
+                                });
+                            },
+                            cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Logger.Instance.Info("마킹 리딩 작업이 취소되었습니다.");
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            progressWindow.Close();
+                            MessageBox.Show("작업이 취소되었습니다.", "취소됨", MessageBoxButton.OK, MessageBoxImage.Information);
+                        });
+                        return;
+                    }
+
+                    if (cancellationToken.IsCancellationRequested) return;
+
+                    // Session에 마킹 결과 저장
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        _session.MarkingResults = allResults;
+                    });
                     
                     if (cancellationToken.IsCancellationRequested) return;
                     

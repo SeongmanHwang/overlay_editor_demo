@@ -103,13 +103,7 @@ namespace SimpleOverlayEditor.ViewModels
 
             // 정렬 명령
             AlignLeftCommand = new RelayCommand(OnAlignLeft, () => _selectionVM.Selected.Count >= 2);
-            AlignRightCommand = new RelayCommand(OnAlignRight, () => _selectionVM.Selected.Count >= 2);
-            AlignCenterXCommand = new RelayCommand(OnAlignCenterX, () => _selectionVM.Selected.Count >= 2);
             AlignTopCommand = new RelayCommand(OnAlignTop, () => _selectionVM.Selected.Count >= 2);
-            AlignBottomCommand = new RelayCommand(OnAlignBottom, () => _selectionVM.Selected.Count >= 2);
-            AlignCenterYCommand = new RelayCommand(OnAlignCenterY, () => _selectionVM.Selected.Count >= 2);
-            DistributeHorizontalCommand = new RelayCommand(OnDistributeHorizontal, () => _selectionVM.Selected.Count >= 3);
-            DistributeVerticalCommand = new RelayCommand(OnDistributeVertical, () => _selectionVM.Selected.Count >= 3);
 
             Logger.Instance.Info("TemplateEditViewModel 초기화 완료");
         }
@@ -256,13 +250,7 @@ namespace SimpleOverlayEditor.ViewModels
 
         // 정렬 명령
         public ICommand AlignLeftCommand { get; }
-        public ICommand AlignRightCommand { get; }
-        public ICommand AlignCenterXCommand { get; }
         public ICommand AlignTopCommand { get; }
-        public ICommand AlignBottomCommand { get; }
-        public ICommand AlignCenterYCommand { get; }
-        public ICommand DistributeHorizontalCommand { get; }
-        public ICommand DistributeVerticalCommand { get; }
 
         public TemplateViewModel TemplateViewModel => _templateViewModel ?? throw new InvalidOperationException("TemplateViewModel이 초기화되지 않았습니다.");
 
@@ -606,29 +594,6 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        private void OnAlignRight()
-        {
-            if (_selectionVM.Selected.Count < 2) return;
-            var maxX = _selectionVM.Selected.Max(o => o.X + o.Width);
-            foreach (var overlay in _selectionVM.Selected)
-            {
-                overlay.X = maxX - overlay.Width;
-            }
-        }
-
-        private void OnAlignCenterX()
-        {
-            if (_selectionVM.Selected.Count < 2) return;
-            var minX = _selectionVM.Selected.Min(o => o.X);
-            var maxX = _selectionVM.Selected.Max(o => o.X + o.Width);
-            var centerX = (minX + maxX) / 2;
-
-            foreach (var overlay in _selectionVM.Selected)
-            {
-                overlay.X = centerX - overlay.Width / 2;
-            }
-        }
-
         private void OnAlignTop()
         {
             if (_selectionVM.Selected.Count < 2) return;
@@ -636,61 +601,6 @@ namespace SimpleOverlayEditor.ViewModels
             foreach (var overlay in _selectionVM.Selected)
             {
                 overlay.Y = minY;
-            }
-        }
-
-        private void OnAlignBottom()
-        {
-            if (_selectionVM.Selected.Count < 2) return;
-            var maxY = _selectionVM.Selected.Max(o => o.Y + o.Height);
-            foreach (var overlay in _selectionVM.Selected)
-            {
-                overlay.Y = maxY - overlay.Height;
-            }
-        }
-
-        private void OnAlignCenterY()
-        {
-            if (_selectionVM.Selected.Count < 2) return;
-            var minY = _selectionVM.Selected.Min(o => o.Y);
-            var maxY = _selectionVM.Selected.Max(o => o.Y + o.Height);
-            var centerY = (minY + maxY) / 2;
-
-            foreach (var overlay in _selectionVM.Selected)
-            {
-                overlay.Y = centerY - overlay.Height / 2;
-            }
-        }
-
-        private void OnDistributeHorizontal()
-        {
-            if (_selectionVM.Selected.Count < 3) return;
-
-            var sorted = _selectionVM.Selected.OrderBy(o => o.X).ToList();
-            var firstX = sorted.First().X;
-            var lastX = sorted.Last().X + sorted.Last().Width;
-            var totalWidth = lastX - firstX;
-            var itemWidth = totalWidth / (sorted.Count - 1);
-
-            for (int i = 1; i < sorted.Count - 1; i++)
-            {
-                sorted[i].X = firstX + itemWidth * i - sorted[i].Width / 2;
-            }
-        }
-
-        private void OnDistributeVertical()
-        {
-            if (_selectionVM.Selected.Count < 3) return;
-
-            var sorted = _selectionVM.Selected.OrderBy(o => o.Y).ToList();
-            var firstY = sorted.First().Y;
-            var lastY = sorted.Last().Y + sorted.Last().Height;
-            var totalHeight = lastY - firstY;
-            var itemHeight = totalHeight / (sorted.Count - 1);
-
-            for (int i = 1; i < sorted.Count - 1; i++)
-            {
-                sorted[i].Y = firstY + itemHeight * i - sorted[i].Height / 2;
             }
         }
 

@@ -33,6 +33,7 @@ namespace SimpleOverlayEditor.Views
         // 드래그 선택 관련
         private Point? _dragStartPoint;
         private Rectangle? _selectionBox;
+        private bool _isSyncingDataGrid = false; // DataGrid 동기화 중 무한 루프 방지
 
         public TemplateEditView()
         {
@@ -71,6 +72,9 @@ namespace SimpleOverlayEditor.Views
 
                 // 초기 로드 시 안내 메시지 상태 업데이트
                 UpdateNoImageHintVisibility();
+                
+                // 초기 커서 설정
+                UpdateCursor();
             }
         }
 
@@ -134,6 +138,11 @@ namespace SimpleOverlayEditor.Views
                     e.PropertyName == nameof(ViewModel.CurrentOverlayType))
                 {
                     DrawOverlays();
+                }
+
+                if (e.PropertyName == nameof(ViewModel.IsAddMode))
+                {
+                    UpdateCursor();
                 }
             }
             catch (Exception ex)
@@ -279,6 +288,9 @@ namespace SimpleOverlayEditor.Views
                 var scaleX = displayRect.Width / doc.ImageWidth;
                 var scaleY = displayRect.Height / doc.ImageHeight;
 
+                // 선택된 오버레이를 리스트로 먼저 복사하여 열거 중 수정 방지
+                var selectedOverlays = ViewModel.SelectionVM.Selected.ToList();
+
                 foreach (var overlay in allOverlays)
                 {
                     try
@@ -296,7 +308,7 @@ namespace SimpleOverlayEditor.Views
                         Canvas.SetTop(rect, displayRect.Y + overlay.Y * scaleY);
 
                         // 선택된 오버레이 강조 (다중 선택 지원)
-                        bool isSelected = ViewModel.SelectionVM.Selected.Contains(overlay);
+                        bool isSelected = selectedOverlays.Contains(overlay);
                         if (isSelected)
                         {
                             rect.Stroke = Brushes.Blue;
@@ -315,20 +327,25 @@ namespace SimpleOverlayEditor.Views
                         {
                             if (!isSelected)
                             {
-                                // 문항별 색상 구분
+                                // 선택된 문항(CurrentQuestionNumber)에 속한 오버레이는 한 색상, 그 외는 다른 색상
                                 var question = ViewModel.Workspace.Template.Questions
                                     .FirstOrDefault(q => q.Options.Contains(overlay));
 
-                                if (question != null)
+                                if (question != null && ViewModel.CurrentQuestionNumber.HasValue)
                                 {
-                                    // 문항별 색상 (1: Red, 2: Orange, 3: Gold, 4: Purple)
-                                    var colors = new[] { Brushes.Red, Brushes.Orange, Brushes.Gold, Brushes.Purple };
-                                    var color = colors[(question.QuestionNumber - 1) % 4];
-                                    rect.Stroke = color;
+                                    // 선택된 문항에 속한 오버레이는 Red, 그 외는 Gray
+                                    if (question.QuestionNumber == ViewModel.CurrentQuestionNumber.Value)
+                                    {
+                                        rect.Stroke = Brushes.Red;
+                                    }
+                                    else
+                                    {
+                                        rect.Stroke = Brushes.Gray;
+                                    }
                                 }
                                 else
                                 {
-                                    rect.Stroke = Brushes.Red;
+                                    rect.Stroke = Brushes.Gray;
                                 }
                             }
                         }
@@ -446,6 +463,9 @@ namespace SimpleOverlayEditor.Views
 
         private void ImageCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            // 커서 업데이트 (추가 모드 여부에 따라)
+            UpdateCursor();
+            
             if (_dragStartPoint.HasValue && e.LeftButton == MouseButtonState.Pressed)
             {
                 var currentPos = e.GetPosition(ImageCanvas);
@@ -456,9 +476,9 @@ namespace SimpleOverlayEditor.Views
                     _selectionBox = new Rectangle
                     {
                         Stroke = Brushes.Blue,
-                        StrokeThickness = 1,
+                        StrokeThickness = 2,
                         StrokeDashArray = new DoubleCollection { 4, 4 },
-                        Fill = Brushes.Transparent
+                        Fill = new SolidColorBrush(Color.FromArgb(30, 0, 120, 255)) // 반투명 파란색 채우기
                     };
                     ImageCanvas.Children.Add(_selectionBox);
                 }
@@ -478,6 +498,31 @@ namespace SimpleOverlayEditor.Views
             }
         }
 
+        private void ImageCanvas_MouseLeave(object sender, MouseEventArgs e)
+        {
+            // 마우스가 캔버스를 떠날 때 커서 복원
+            if (!ViewModel.IsAddMode)
+            {
+                ImageCanvas.Cursor = Cursors.Arrow;
+            }
+        }
+
+        private void UpdateCursor()
+        {
+            if (ImageCanvas == null) return;
+
+            if (ViewModel.IsAddMode)
+            {
+                // 추가 모드일 때는 십자 모양이 아닌 다른 커서 (예: Cross 또는 Hand)
+                ImageCanvas.Cursor = Cursors.Hand; // 또는 다른 적절한 커서
+            }
+            else
+            {
+                // 일반 모드일 때는 십자 모양 (선택 모드)
+                ImageCanvas.Cursor = Cursors.Cross;
+            }
+        }
+
         private void ImageCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (_selectionBox != null)
@@ -488,6 +533,10 @@ namespace SimpleOverlayEditor.Views
 
             _dragStartPoint = null;
             ImageCanvas.ReleaseMouseCapture();
+            ImageCanvas.Cursor = Cursors.Arrow;
+            
+            // 드래그 선택 후 DataGrid 동기화
+            SyncDataGridSelection();
             DrawOverlays();
         }
 
@@ -576,6 +625,7 @@ namespace SimpleOverlayEditor.Views
                 .ToList();
 
             ViewModel.SelectionVM.SetSelection(overlaysInBox);
+            // 드래그 중에는 DataGrid 동기화하지 않음 (MouseLeftButtonUp에서 처리)
         }
 
         private void DataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
@@ -586,6 +636,8 @@ namespace SimpleOverlayEditor.Views
 
         private void DataGrid_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
+            if (_isSyncingDataGrid) return; // 동기화 중이면 무시 (무한 루프 방지)
+            
             if (sender is System.Windows.Controls.DataGrid dg)
             {
                 // DataGrid 선택 변경 시 SelectionVM 동기화
@@ -597,12 +649,25 @@ namespace SimpleOverlayEditor.Views
         private void SyncDataGridSelection()
         {
             if (OverlayDataGrid == null) return;
+            if (_isSyncingDataGrid) return; // 이미 동기화 중이면 무시
 
-            // SelectionVM 변경 시 DataGrid 선택 동기화
-            OverlayDataGrid.SelectedItems.Clear();
-            foreach (var overlay in ViewModel.SelectionVM.Selected)
+            try
             {
-                OverlayDataGrid.SelectedItems.Add(overlay);
+                _isSyncingDataGrid = true;
+                
+                // SelectionVM 변경 시 DataGrid 선택 동기화
+                // 먼저 리스트로 복사하여 열거 중 수정 방지
+                var selectedOverlays = ViewModel.SelectionVM.Selected.ToList();
+                
+                OverlayDataGrid.SelectedItems.Clear();
+                foreach (var overlay in selectedOverlays)
+                {
+                    OverlayDataGrid.SelectedItems.Add(overlay);
+                }
+            }
+            finally
+            {
+                _isSyncingDataGrid = false;
             }
         }
 

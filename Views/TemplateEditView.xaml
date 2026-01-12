@@ -40,6 +40,16 @@
                                  LoadingRow="DataGrid_LoadingRow"
                                  SelectionChanged="DataGrid_SelectionChanged"
                                  MaxHeight="200">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#FF0078D7"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="번호" Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Header}" Width="50" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="타입" Binding="{Binding OverlayType}" Width="80"/>
@@ -90,25 +100,8 @@
                     <!-- 정렬 도구 -->
                     <GroupBox Header="정렬" Margin="0,0,0,10">
                         <StackPanel Margin="5">
-                            <TextBlock Text="가로 정렬" FontWeight="Bold" Margin="0,0,0,3"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="왼쪽" Command="{Binding AlignLeftCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                                <Button Content="가운데" Command="{Binding AlignCenterXCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                                <Button Content="오른쪽" Command="{Binding AlignRightCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                            </StackPanel>
-                            
-                            <TextBlock Text="세로 정렬" FontWeight="Bold" Margin="0,5,0,3"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="위" Command="{Binding AlignTopCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                                <Button Content="가운데" Command="{Binding AlignCenterYCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                                <Button Content="아래" Command="{Binding AlignBottomCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                            </StackPanel>
-                            
-                            <TextBlock Text="간격 분배" FontWeight="Bold" Margin="0,5,0,3"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="가로 균등" Command="{Binding DistributeHorizontalCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                                <Button Content="세로 균등" Command="{Binding DistributeVerticalCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                            </StackPanel>
+                            <Button Content="왼쪽에 맞추기" Command="{Binding AlignLeftCommand}" Margin="2" Padding="6,3" FontSize="10"/>
+                            <Button Content="위쪽에 맞추기" Command="{Binding AlignTopCommand}" Margin="2" Padding="6,3" FontSize="10"/>
                         </StackPanel>
                     </GroupBox>
 
@@ -282,6 +275,7 @@
                            MouseLeftButtonDown="ImageCanvas_MouseLeftButtonDown"
                            MouseMove="ImageCanvas_MouseMove"
                            MouseLeftButtonUp="ImageCanvas_MouseLeftButtonUp"
+                           MouseLeave="ImageCanvas_MouseLeave"
                            Background="White"
                            SizeChanged="ImageCanvas_SizeChanged"
                            VerticalAlignment="Top"

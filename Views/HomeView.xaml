@@ -32,90 +32,136 @@
               VerticalAlignment="Top" 
               HorizontalAlignment="Center"
               Margin="40,30">
-            <StackPanel VerticalAlignment="Top" 
-                       HorizontalAlignment="Center"
-                       MaxWidth="1100">
+            <Grid VerticalAlignment="Top" 
+                  HorizontalAlignment="Center"
+                  MaxWidth="1200">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
                 
-                <!-- 첫 번째 행: 초기 설정 -->
-                <StackPanel Margin="0,0,0,20">
-                    <TextBlock Text="초기 설정" 
+                <!-- 1열: 학교별 설정 -->
+                <Grid Grid.Column="0" Grid.Row="0" Grid.RowSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0"
+                              Text="학교별 설정" 
                               FontSize="16" 
                               FontWeight="Bold" 
                               Foreground="#212121"
                               TextOptions.TextRenderingMode="ClearType"
                               Margin="0,0,0,10"/>
-                    <UniformGrid Columns="2" Rows="1" HorizontalAlignment="Stretch">
-                        <Button Content="템플릿 편집" 
-                               Command="{Binding NavigateToTemplateEditCommand}"
-                               Style="{StaticResource CleanButton}"
-                               Background="#6A1B9A"
-                               Margin="0,0,10,0"
-                               Height="85"/>
-                        <Button Content="문항 배점 입력" 
-                               Command="{Binding NavigateToScoringRuleCommand}"
-                               Style="{StaticResource CleanButton}"
-                               Background="#E65100"
-                               Margin="10,0,0,0"
-                               Height="85"/>
-                    </UniformGrid>
-                </StackPanel>
+                    <Button Grid.Row="2"
+                           Content="템플릿 편집" 
+                           Command="{Binding NavigateToTemplateEditCommand}"
+                           Style="{StaticResource CleanButton}"
+                           Background="#6A1B9A"
+                           Height="85"
+                           HorizontalAlignment="Stretch"/>
+                    <Button Grid.Row="4"
+                           Content="문항 배점 입력" 
+                           Command="{Binding NavigateToScoringRuleCommand}"
+                           Style="{StaticResource CleanButton}"
+                           Background="#E65100"
+                           Height="85"
+                           HorizontalAlignment="Stretch"/>
+                </Grid>
 
-                <!-- 두 번째 행: 면접 준비 -->
-                <StackPanel Margin="0,0,0,20">
-                    <TextBlock Text="면접 준비" 
+                <!-- 2열: 면접 준비 -->
+                <Grid Grid.Column="2" Grid.Row="0" Grid.RowSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0"
+                              Text="면접 준비" 
                               FontSize="16" 
                               FontWeight="Bold" 
                               Foreground="#212121"
                               TextOptions.TextRenderingMode="ClearType"
                               Margin="0,0,0,10"/>
-                    <Button Content="수험생 명렬 관리" 
+                    <Button Grid.Row="2"
+                           Content="수험생 명렬 관리" 
                            Command="{Binding NavigateToRegistryCommand}"
                            Style="{StaticResource CleanButton}"
                            Background="#2E7D32"
-                           Height="85"
-                           HorizontalAlignment="Stretch"/>
-                </StackPanel>
+                           MinHeight="180"
+                           HorizontalAlignment="Stretch"
+                           VerticalAlignment="Stretch"/>
+                </Grid>
 
-                <!-- 세 번째 행: 마킹 리딩 -->
-                <StackPanel Margin="0,0,0,20">
-                    <TextBlock Text="마킹 리딩" 
+                <!-- 3열: 마킹 리딩 -->
+                <Grid Grid.Column="4" Grid.Row="0" Grid.RowSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0"
+                              Text="OMR 스캔" 
                               FontSize="16" 
                               FontWeight="Bold" 
                               Foreground="#212121"
                               TextOptions.TextRenderingMode="ClearType"
                               Margin="0,0,0,10"/>
-                    <Button Content="마킹 리딩" 
+                    <Button Grid.Row="2"
+                           Content="마킹 리딩" 
                            Command="{Binding NavigateToMarkingCommand}"
                            Style="{StaticResource CleanButton}"
                            Background="#1565C0"
-                           Height="85"
-                           HorizontalAlignment="Stretch"/>
-                </StackPanel>
+                           MinHeight="180"
+                           HorizontalAlignment="Stretch"
+                           VerticalAlignment="Stretch"/>
+                </Grid>
 
-                <!-- 네 번째 행: 성적 처리 -->
-                <StackPanel Margin="0,0,0,0">
-                    <TextBlock Text="성적 처리" 
+                <!-- 4열: 성적 처리 -->
+                <Grid Grid.Column="6" Grid.Row="0" Grid.RowSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0"
+                              Text="성적 처리" 
                               FontSize="16" 
                               FontWeight="Bold" 
                               Foreground="#212121"
                               TextOptions.TextRenderingMode="ClearType"
                               Margin="0,0,0,10"/>
-                    <UniformGrid Columns="2" Rows="1" HorizontalAlignment="Stretch">
-                        <Button Content="채점 및 성적 처리" 
-                               Command="{Binding NavigateToGradingCommand}"
-                               Style="{StaticResource CleanButton}"
-                               Background="#C62828"
-                               Margin="0,0,10,0"
-                               Height="85"/>
-                        <Button Content="수기 검산" 
-                               Command="{Binding NavigateToManualVerificationCommand}"
-                               Style="{StaticResource CleanButton}"
-                               Background="#424242"
-                               Margin="10,0,0,0"
-                               Height="85"/>
-                    </UniformGrid>
-                </StackPanel>
-            </StackPanel>
+                    <Button Grid.Row="2"
+                           Content="채점 및 성적 처리" 
+                           Command="{Binding NavigateToGradingCommand}"
+                           Style="{StaticResource CleanButton}"
+                           Background="#C62828"
+                           Height="85"
+                           HorizontalAlignment="Stretch"/>
+                    <Button Grid.Row="4"
+                           Content="수기 검산" 
+                           Command="{Binding NavigateToManualVerificationCommand}"
+                           Style="{StaticResource CleanButton}"
+                           Background="#424242"
+                           Height="85"
+                           HorizontalAlignment="Stretch"/>
+                </Grid>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

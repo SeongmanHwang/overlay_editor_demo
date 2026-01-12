@@ -148,10 +148,11 @@
                     
                     <Button Content="홈으로" 
                            Command="{Binding NavigateToHomeCommand}"
-                           Padding="12,5"
+                           Padding="20,12"
                            Background="#757575"
                            Foreground="White"
-                           FontWeight="Normal"/>
+                           FontSize="14"
+                           FontWeight="Bold"/>
                 </StackPanel>
             </Grid>
         </Border>

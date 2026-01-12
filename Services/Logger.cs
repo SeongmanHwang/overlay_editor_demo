@@ -16,7 +16,7 @@ namespace SimpleOverlayEditor.Services
     {
         private static Logger? _instance;
         private static readonly object _lock = new object();
-        private string _logFilePath;
+        private string _logFilePath = string.Empty;
         private DateTime _currentLogDate;
         private readonly string _logDirectory;
         private readonly StringBuilder _logBuffer = new StringBuilder();

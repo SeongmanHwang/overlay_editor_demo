@@ -10,52 +10,62 @@
              d:DesignHeight="600" d:DesignWidth="1200">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="180"/>  <!-- 왼쪽: 샘플 이미지 정보 -->
+            <ColumnDefinition Width="240"/>  <!-- 왼쪽: 정보 패널 -->
             <ColumnDefinition Width="*"/>    <!-- 중앙: 이미지 뷰 -->
-            <ColumnDefinition Width="240"/>  <!-- 오른쪽: 정보 패널 -->
+            <ColumnDefinition Width="180"/>  <!-- 오른쪽: 샘플 이미지 정보 -->
         </Grid.ColumnDefinitions>
 
-        <!-- 왼쪽: 샘플 이미지 정보 -->
+        <!-- 왼쪽: 정보 패널 -->
         <DockPanel Grid.Column="0" Background="#F5F5F5">
-            <StackPanel DockPanel.Dock="Top" Margin="10">
-                <TextBlock Text="샘플 이미지" 
-                          FontWeight="Bold" 
-                          FontSize="14"
-                          Margin="0,10,0,10"/>
-                <Button Content="이미지 로드" 
-                       Command="{Binding LoadSampleImageCommand}"
-                       Margin="0,0,0,10"
-                       Padding="8,5"
-                       Background="#4CAF50"
-                       Foreground="White"
-                       FontWeight="Bold"/>
-                <Button Content="홈으로" 
-                       Command="{Binding NavigateToHomeCommand}"
-                       Margin="0,0,0,10"
-                       Padding="8,5"
-                       Background="#757575"
-                       Foreground="White"/>
-            </StackPanel>
-            <StackPanel Margin="10">
-                <GroupBox Header="이미지 정보" Margin="0,0,0,10">
-                    <StackPanel Margin="5" IsEnabled="{Binding SelectedDocument, Converter={StaticResource NullToBoolConverter}}">
-                        <TextBlock Margin="0,5,0,2" TextWrapping="Wrap">
-                            <Run Text="파일명:" FontWeight="Bold"/>
-                            <LineBreak/>
-                            <Run Text="{Binding SelectedDocument.SourcePath, Converter={StaticResource FileNameConverter}}" 
-                                 FontSize="11"/>
-                        </TextBlock>
-                        <TextBlock Margin="0,10,0,2">
-                            <Run Text="너비:" FontWeight="Bold"/>
-                            <Run Text="{Binding SelectedDocument.ImageWidth}"/> <Run Text="px"/>
-                        </TextBlock>
-                        <TextBlock Margin="0,5,0,2">
-                            <Run Text="높이:" FontWeight="Bold"/>
-                            <Run Text="{Binding SelectedDocument.ImageHeight}"/> <Run Text="px"/>
-                        </TextBlock>
-                    </StackPanel>
-                </GroupBox>
-            </StackPanel>
+            <TextBlock DockPanel.Dock="Top" 
+                      Text="템플릿 편집" 
+                      FontWeight="Bold" 
+                      FontSize="14"
+                      Margin="10,10,10,5"
+                      Padding="5"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10">
+                    <!-- 오버레이 목록 -->
+                    <GroupBox Header="오버레이 목록" Margin="0,0,0,10">
+                        <DataGrid ItemsSource="{Binding CurrentOverlayCollection}"
+                                 SelectedItem="{Binding SelectedOverlay}"
+                                 AutoGenerateColumns="False"
+                                 CanUserAddRows="False"
+                                 CanUserDeleteRows="False"
+                                 SelectionMode="Single"
+                                 HeadersVisibility="Column"
+                                 LoadingRow="DataGrid_LoadingRow"
+                                 MaxHeight="200">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="번호" Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Header}" Width="50" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="타입" Binding="{Binding OverlayType}" Width="80"/>
+                                <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F1}" Width="50"/>
+                                <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F1}" Width="50"/>
+                                <DataGridTextColumn Header="W" Binding="{Binding Width, StringFormat=F1}" Width="50"/>
+                                <DataGridTextColumn Header="H" Binding="{Binding Height, StringFormat=F1}" Width="50"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+
+                    <!-- 선택된 오버레이 상세 편집 -->
+                    <GroupBox Header="선택된 사각형 편집" Margin="0,0,0,10">
+                        <StackPanel Margin="5" IsEnabled="{Binding SelectedOverlay, Converter={StaticResource NullToBoolConverter}}">
+                            <TextBlock Text="X:" Margin="0,5,0,2"/>
+                            <TextBox Text="{Binding SelectedOverlay.X, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                                    Margin="0,0,0,5"/>
+                            <TextBlock Text="Y:" Margin="0,5,0,2"/>
+                            <TextBox Text="{Binding SelectedOverlay.Y, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                                    Margin="0,0,0,5"/>
+                            <TextBlock Text="너비 (W):" Margin="0,5,0,2"/>
+                            <TextBox Text="{Binding SelectedOverlay.Width, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                                    Margin="0,0,0,5"/>
+                            <TextBlock Text="높이 (H):" Margin="0,5,0,2"/>
+                            <TextBox Text="{Binding SelectedOverlay.Height, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                                    Margin="0,0,0,5"/>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
         </DockPanel>
 
         <!-- 중앙: 이미지 뷰 + 도구바 -->
@@ -167,57 +177,49 @@
             </ScrollViewer>
         </DockPanel>
 
-        <!-- 오른쪽: 정보 패널 -->
+        <!-- 오른쪽: 샘플 이미지 정보 -->
         <DockPanel Grid.Column="2" Background="#F5F5F5">
-            <TextBlock DockPanel.Dock="Top" 
-                      Text="템플릿 편집" 
-                      FontWeight="Bold" 
-                      FontSize="14"
-                      Margin="10,10,10,5"
-                      Padding="5"/>
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="10">
-                    <!-- 오버레이 목록 -->
-                    <GroupBox Header="오버레이 목록" Margin="0,0,0,10">
-                        <DataGrid ItemsSource="{Binding CurrentOverlayCollection}"
-                                 SelectedItem="{Binding SelectedOverlay}"
-                                 AutoGenerateColumns="False"
-                                 CanUserAddRows="False"
-                                 CanUserDeleteRows="False"
-                                 SelectionMode="Single"
-                                 HeadersVisibility="Column"
-                                 LoadingRow="DataGrid_LoadingRow"
-                                 MaxHeight="200">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="번호" Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Header}" Width="50" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="타입" Binding="{Binding OverlayType}" Width="80"/>
-                                <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F1}" Width="50"/>
-                                <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F1}" Width="50"/>
-                                <DataGridTextColumn Header="W" Binding="{Binding Width, StringFormat=F1}" Width="50"/>
-                                <DataGridTextColumn Header="H" Binding="{Binding Height, StringFormat=F1}" Width="50"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </GroupBox>
-
-                    <!-- 선택된 오버레이 상세 편집 -->
-                    <GroupBox Header="선택된 사각형 편집" Margin="0,0,0,10">
-                        <StackPanel Margin="5" IsEnabled="{Binding SelectedOverlay, Converter={StaticResource NullToBoolConverter}}">
-                            <TextBlock Text="X:" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.X, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
-                                    Margin="0,0,0,5"/>
-                            <TextBlock Text="Y:" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.Y, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
-                                    Margin="0,0,0,5"/>
-                            <TextBlock Text="너비 (W):" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.Width, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
-                                    Margin="0,0,0,5"/>
-                            <TextBlock Text="높이 (H):" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.Height, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
-                                    Margin="0,0,0,5"/>
-                        </StackPanel>
-                    </GroupBox>
-                </StackPanel>
-            </ScrollViewer>
+            <StackPanel DockPanel.Dock="Top" Margin="10">
+                <TextBlock Text="샘플 이미지" 
+                          FontWeight="Bold" 
+                          FontSize="14"
+                          Margin="0,10,0,10"/>
+                <Button Content="홈으로" 
+                       Command="{Binding NavigateToHomeCommand}"
+                       Margin="0,0,0,10"
+                       Padding="20,12"
+                       Background="#757575"
+                       Foreground="White"
+                       FontSize="14"
+                       FontWeight="Bold"/>
+                <Button Content="이미지 로드" 
+                       Command="{Binding LoadSampleImageCommand}"
+                       Margin="0,0,0,10"
+                       Padding="8,5"
+                       Background="#4CAF50"
+                       Foreground="White"
+                       FontWeight="Bold"/>
+            </StackPanel>
+            <StackPanel Margin="10">
+                <GroupBox Header="이미지 정보" Margin="0,0,0,10">
+                    <StackPanel Margin="5" IsEnabled="{Binding SelectedDocument, Converter={StaticResource NullToBoolConverter}}">
+                        <TextBlock Margin="0,5,0,2" TextWrapping="Wrap">
+                            <Run Text="파일명:" FontWeight="Bold"/>
+                            <LineBreak/>
+                            <Run Text="{Binding SelectedDocument.SourcePath, Converter={StaticResource FileNameConverter}}" 
+                                 FontSize="11"/>
+                        </TextBlock>
+                        <TextBlock Margin="0,10,0,2">
+                            <Run Text="너비:" FontWeight="Bold"/>
+                            <Run Text="{Binding SelectedDocument.ImageWidth}"/> <Run Text="px"/>
+                        </TextBlock>
+                        <TextBlock Margin="0,5,0,2">
+                            <Run Text="높이:" FontWeight="Bold"/>
+                            <Run Text="{Binding SelectedDocument.ImageHeight}"/> <Run Text="px"/>
+                        </TextBlock>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
         </DockPanel>
     </Grid>
 </UserControl>

@@ -16,132 +16,13 @@
         <!-- 기존 3열 구조 -->
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>  <!-- 왼쪽: 문서 목록 및 설정 -->
+                <ColumnDefinition Width="300"/>  <!-- 왼쪽: 마킹 결과 상세 -->
                 <ColumnDefinition Width="*"/>    <!-- 중앙: 결과 표시 -->
-                <ColumnDefinition Width="300"/>  <!-- 오른쪽: 마킹 결과 상세 -->
+                <ColumnDefinition Width="200"/>  <!-- 오른쪽: 문서 목록 및 설정 -->
             </Grid.ColumnDefinitions>
 
-            <!-- 왼쪽: 문서 목록 및 설정 -->
+            <!-- 왼쪽: 마킹 리딩 결과 및 상세 정보 -->
             <DockPanel Grid.Column="0" Background="#F5F5F5">
-            <StackPanel DockPanel.Dock="Top" Margin="10">
-                <TextBlock Text="마킹 리딩" 
-                          FontWeight="Bold" 
-                          FontSize="16"
-                          Margin="0,10,0,15"/>
-                <Button Content="홈으로" 
-                       Command="{Binding Navigation.NavigateToHomeCommand}"
-                       Margin="0,0,0,10"
-                       Padding="8,5"
-                       Background="#757575"
-                       Foreground="White"/>
-                <Button Content="폴더 로드" 
-                       Command="{Binding LoadFolderCommand}"
-                       Margin="0,0,0,10"
-                       Padding="8,5"
-                       Background="#2196F3"
-                       Foreground="White"
-                       FontWeight="Bold"/>
-                <Separator Margin="0,10"/>
-            </StackPanel>
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="10">
-                    <GroupBox Header="설정" Margin="0,0,0,10">
-                        <StackPanel Margin="5">
-                            <TextBlock Text="임계값:" Margin="0,5,0,2" FontWeight="Bold"/>
-                            <TextBox Text="{Binding MarkingThreshold, UpdateSourceTrigger=PropertyChanged}" 
-                                    Margin="0,0,0,10"/>
-                            <Button Content="현재 문서 리딩" 
-                                   Command="{Binding DetectMarkingsCommand}"
-                                   Margin="0,0,0,5"
-                                   Padding="6,3"
-                                   Background="#2196F3"
-                                   Foreground="White"
-                                   FontWeight="Bold"/>
-                            <Button Content="전체 문서 리딩" 
-                                   Command="{Binding DetectAllMarkingsCommand}"
-                                   Margin="0,0,0,10"
-                                   Padding="6,3"
-                                   Background="#4CAF50"
-                                   Foreground="White"
-                                   FontWeight="Bold"/>
-                        </StackPanel>
-                    </GroupBox>
-
-                    <GroupBox Margin="0,0,0,10">
-                        <GroupBox.Header>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="문서 목록"/>
-                                <TextBlock Text="{Binding DocumentCount, StringFormat=' (총 {0}개)'}" 
-                                          Margin="5,0,0,0"
-                                          Foreground="#666"
-                                          FontWeight="Normal"/>
-                            </StackPanel>
-                        </GroupBox.Header>
-                        <ListBox ItemsSource="{Binding Documents}"
-                                SelectedItem="{Binding SelectedDocument}"
-                                MaxHeight="300">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding SourcePath, Converter={StaticResource FileNameConverter}}" 
-                                              TextWrapping="Wrap"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </GroupBox>
-                </StackPanel>
-            </ScrollViewer>
-        </DockPanel>
-
-            <!-- 중앙: 오버레이 이미지 표시 -->
-            <DockPanel Grid.Column="1" Background="#E0E0E0">
-            <StackPanel DockPanel.Dock="Top" Margin="10">
-                <TextBlock Text="오버레이 이미지" 
-                          FontWeight="Bold" 
-                          FontSize="18"
-                          Margin="0,10,0,10"/>
-            </StackPanel>
-            <ScrollViewer x:Name="ImageScrollViewer"
-                         HorizontalScrollBarVisibility="Auto"
-                         VerticalScrollBarVisibility="Auto"
-                         Background="#E0E0E0"
-                         VerticalContentAlignment="Top">
-                <Grid>
-                    <!-- 안내 메시지 (마킹 리딩 전) -->
-                    <TextBlock Text="이미지를 선택하고 마킹 리딩을 실행하세요." 
-                              FontSize="14" 
-                              Foreground="#666"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              TextAlignment="Center">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding DisplayImage}" Value="{x:Null}">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    <!-- 오버레이 이미지 (마킹 리딩 후) -->
-                    <Canvas x:Name="ImageCanvas" 
-                           Background="White"
-                           SizeChanged="ImageCanvas_SizeChanged"
-                           VerticalAlignment="Top"
-                           HorizontalAlignment="Left">
-                        <Image x:Name="SourceImage" 
-                              Stretch="Uniform"
-                              RenderOptions.BitmapScalingMode="HighQuality"
-                              IsHitTestVisible="False">
-                        </Image>
-                    </Canvas>
-                </Grid>
-            </ScrollViewer>
-        </DockPanel>
-
-            <!-- 오른쪽: 마킹 리딩 결과 및 상세 정보 -->
-            <DockPanel Grid.Column="2" Background="#F5F5F5">
             <TextBlock DockPanel.Dock="Top" 
                       Text="마킹 리딩 결과" 
                       FontWeight="Bold" 
@@ -391,6 +272,127 @@
                 </StackPanel>
             </ScrollViewer>
             </DockPanel>
+
+            <!-- 중앙: 오버레이 이미지 표시 -->
+            <DockPanel Grid.Column="1" Background="#E0E0E0">
+            <StackPanel DockPanel.Dock="Top" Margin="10">
+                <TextBlock Text="오버레이 이미지" 
+                          FontWeight="Bold" 
+                          FontSize="18"
+                          Margin="0,10,0,10"/>
+            </StackPanel>
+            <ScrollViewer x:Name="ImageScrollViewer"
+                         HorizontalScrollBarVisibility="Auto"
+                         VerticalScrollBarVisibility="Auto"
+                         Background="#E0E0E0"
+                         VerticalContentAlignment="Top">
+                <Grid>
+                    <!-- 안내 메시지 (마킹 리딩 전) -->
+                    <TextBlock Text="이미지를 선택하고 마킹 리딩을 실행하세요." 
+                              FontSize="14" 
+                              Foreground="#666"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              TextAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DisplayImage}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <!-- 오버레이 이미지 (마킹 리딩 후) -->
+                    <Canvas x:Name="ImageCanvas" 
+                           Background="White"
+                           SizeChanged="ImageCanvas_SizeChanged"
+                           VerticalAlignment="Top"
+                           HorizontalAlignment="Left">
+                        <Image x:Name="SourceImage" 
+                              Stretch="Uniform"
+                              RenderOptions.BitmapScalingMode="HighQuality"
+                              IsHitTestVisible="False">
+                        </Image>
+                    </Canvas>
+                </Grid>
+            </ScrollViewer>
+        </DockPanel>
+
+            <!-- 오른쪽: 문서 목록 및 설정 -->
+            <DockPanel Grid.Column="2" Background="#F5F5F5">
+            <StackPanel DockPanel.Dock="Top" Margin="10">
+                <TextBlock Text="마킹 리딩" 
+                          FontWeight="Bold" 
+                          FontSize="16"
+                          Margin="0,10,0,15"/>
+                <Button Content="홈으로" 
+                       Command="{Binding Navigation.NavigateToHomeCommand}"
+                       Margin="0,0,0,10"
+                       Padding="20,12"
+                       Background="#757575"
+                       Foreground="White"
+                       FontSize="14"
+                       FontWeight="Bold"/>
+                <Button Content="폴더 로드" 
+                       Command="{Binding LoadFolderCommand}"
+                       Margin="0,0,0,10"
+                       Padding="8,5"
+                       Background="#2196F3"
+                       Foreground="White"
+                       FontWeight="Bold"/>
+                <Separator Margin="0,10"/>
+            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10">
+                    <GroupBox Header="설정" Margin="0,0,0,10">
+                        <StackPanel Margin="5">
+                            <TextBlock Text="임계값:" Margin="0,5,0,2" FontWeight="Bold"/>
+                            <TextBox Text="{Binding MarkingThreshold, UpdateSourceTrigger=PropertyChanged}" 
+                                    Margin="0,0,0,10"/>
+                            <Button Content="현재 문서 리딩" 
+                                   Command="{Binding DetectMarkingsCommand}"
+                                   Margin="0,0,0,5"
+                                   Padding="6,3"
+                                   Background="#2196F3"
+                                   Foreground="White"
+                                   FontWeight="Bold"/>
+                            <Button Content="전체 문서 리딩" 
+                                   Command="{Binding DetectAllMarkingsCommand}"
+                                   Margin="0,0,0,10"
+                                   Padding="6,3"
+                                   Background="#4CAF50"
+                                   Foreground="White"
+                                   FontWeight="Bold"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Margin="0,0,0,10">
+                        <GroupBox.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="문서 목록"/>
+                                <TextBlock Text="{Binding DocumentCount, StringFormat=' (총 {0}개)'}" 
+                                          Margin="5,0,0,0"
+                                          Foreground="#666"
+                                          FontWeight="Normal"/>
+                            </StackPanel>
+                        </GroupBox.Header>
+                        <ListBox ItemsSource="{Binding Documents}"
+                                SelectedItem="{Binding SelectedDocument}"
+                                MaxHeight="300">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding SourcePath, Converter={StaticResource FileNameConverter}}" 
+                                              TextWrapping="Wrap"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
         </Grid>
 
         <!-- OMR 결과 테이블 영역 -->

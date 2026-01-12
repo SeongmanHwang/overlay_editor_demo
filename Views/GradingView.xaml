@@ -27,10 +27,11 @@
                 <Button Grid.Column="1"
                        Content="홈으로"
                        Command="{Binding NavigateToHomeCommand}"
-                       Padding="15,5"
+                       Padding="20,12"
                        Background="#757575"
                        Foreground="White"
-                       FontWeight="Normal"
+                       FontSize="14"
+                       FontWeight="Bold"
                        Margin="10,0,0,0"/>
             </Grid>
         </Border>

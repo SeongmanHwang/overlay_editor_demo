@@ -129,7 +129,7 @@ namespace SimpleOverlayEditor.Views
                 {
                     // SelectedOverlay가 변경될 때마다 구독 재설정
                     ResubscribeOverlay(ViewModel.SelectedOverlay);
-                    DrawOverlays();
+                    // ✅ DrawOverlays는 SelectionVM.PropertyChanged에서 이미 호출됨
                 }
 
                 if (e.PropertyName == nameof(ViewModel.SelectionVM) ||
@@ -680,25 +680,24 @@ namespace SimpleOverlayEditor.Views
         {
             if (e.Key == Key.Enter)
             {
-                // 값 적용
+                // 값 적용 (모델 프로퍼티 변경)
                 ApplyTextBoxValue(sender);
                 
-                // 포커스를 다른 곳으로 이동하여 선택 취소 효과
+                // 포커스를 텍스트 박스에서 벗어나게 이동
                 if (sender is TextBox tb)
                 {
-                    // 포커스를 부모 컨테이너나 다른 요소로 이동
-                    var parent = tb.Parent;
-                    if (parent is FrameworkElement fe)
-                    {
-                        fe.Focus();
-                    }
-                    
-                    // 또는 선택을 취소
-                    ViewModel.SelectionVM.Clear();
+                    // UserControl로 포커스 이동 (포커스 가능한 요소)
+                    this.Focus();
                     
                     // 이벤트 처리 완료 표시
                     e.Handled = true;
                 }
+                
+                // ✅ DrawOverlays() 호출 불필요!
+                // ApplyTextBoxValue → RectangleOverlay.X/Y/Width/Height 변경
+                // → OverlaySelectionViewModel.Overlay_PropertyChanged 발생
+                // → 오버레이의 PropertyChanged가 직접 발생
+                // → DrawOverlays()는 오버레이 속성 변경 시 자동 호출됨
             }
         }
 

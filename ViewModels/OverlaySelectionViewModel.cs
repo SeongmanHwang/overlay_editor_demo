@@ -20,6 +20,9 @@ namespace SimpleOverlayEditor.ViewModels
             _selected = new ObservableCollection<RectangleOverlay>();
             _selected.CollectionChanged += (s, e) =>
             {
+                // ✅ 핵심: Selected 속성 변경 통지 추가 (Single Source of Truth)
+                OnPropertyChanged(nameof(Selected));
+                
                 OnPropertyChanged(nameof(IsMulti));
                 OnPropertyChanged(nameof(IsEmpty));
                 OnPropertyChanged(nameof(Count));
@@ -216,6 +219,9 @@ namespace SimpleOverlayEditor.ViewModels
             }
             SubscribeToOverlays();
             
+            // ✅ Selected 속성 변경 통지 (CollectionChanged가 자동으로 발생하지만 명시적으로도)
+            OnPropertyChanged(nameof(Selected));
+            
             // Display 속성 업데이트
             OnPropertyChanged(nameof(XDisplay));
             OnPropertyChanged(nameof(YDisplay));
@@ -227,6 +233,8 @@ namespace SimpleOverlayEditor.ViewModels
         {
             UnsubscribeFromOverlays();
             _selected.Clear();
+            // ✅ Selected 속성 변경 통지
+            OnPropertyChanged(nameof(Selected));
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

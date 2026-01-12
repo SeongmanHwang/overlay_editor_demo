@@ -8,6 +8,7 @@
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1200"
+             Focusable="True"
              PreviewKeyDown="Root_PreviewKeyDown">
     <UserControl.InputBindings>
         <KeyBinding Key="Z" Modifiers="Ctrl" Command="{Binding UndoCommand}"/>

@@ -28,7 +28,7 @@ namespace SimpleOverlayEditor.ViewModels
 
         private Workspace _workspace;
         private ImageDocument? _selectedDocument;
-        private RectangleOverlay? _selectedOverlay;
+        // ✅ _selectedOverlay 필드 제거: SelectedOverlay는 계산 프로퍼티로 변경
         private OverlaySelectionViewModel _selectionVM;
         private OverlayType _currentOverlayType = OverlayType.ScoringArea;
         private int? _currentQuestionNumber = 1; // ScoringArea일 때 사용 (1-4)
@@ -50,9 +50,16 @@ namespace SimpleOverlayEditor.ViewModels
 
             // SelectionVM 초기화
             _selectionVM = new OverlaySelectionViewModel();
+            
+            // ✅ SelectionVM의 Selected 변경 감지 (Single Source of Truth)
             _selectionVM.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName is nameof(OverlaySelectionViewModel.X)
+                if (e.PropertyName == nameof(OverlaySelectionViewModel.Selected))
+                {
+                    // SelectedOverlay는 계산 프로퍼티이므로 자동으로 갱신됨
+                    OnPropertyChanged(nameof(SelectedOverlay));
+                }
+                else if (e.PropertyName is nameof(OverlaySelectionViewModel.X)
                     or nameof(OverlaySelectionViewModel.Y)
                     or nameof(OverlaySelectionViewModel.Width)
                     or nameof(OverlaySelectionViewModel.Height))
@@ -67,21 +74,27 @@ namespace SimpleOverlayEditor.ViewModels
             // 템플릿 변경 감지
             if (_workspace.Template != null)
             {
-                _workspace.Template.TimingMarks.CollectionChanged += (s, e) =>
+                // ✅ 오버레이 컬렉션 변경 시 선택 자동 정리
+                void OnOverlayCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
                 {
+                    if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove ||
+                        e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Replace)
+                    {
+                        // 삭제된 오버레이를 선택에서 제거
+                        var removedOverlays = e.OldItems?.Cast<RectangleOverlay>() ?? Enumerable.Empty<RectangleOverlay>();
+                        foreach (var overlay in removedOverlays)
+                        {
+                            _selectionVM.Remove(overlay);
+                        }
+                    }
+                    
                     OnPropertyChanged(nameof(DisplayOverlays));
                     OnPropertyChanged(nameof(CurrentOverlayCollection));
-                };
-                _workspace.Template.ScoringAreas.CollectionChanged += (s, e) =>
-                {
-                    OnPropertyChanged(nameof(DisplayOverlays));
-                    OnPropertyChanged(nameof(CurrentOverlayCollection));
-                };
-                _workspace.Template.BarcodeAreas.CollectionChanged += (s, e) =>
-                {
-                    OnPropertyChanged(nameof(DisplayOverlays));
-                    OnPropertyChanged(nameof(CurrentOverlayCollection));
-                };
+                }
+                
+                _workspace.Template.TimingMarks.CollectionChanged += OnOverlayCollectionChanged;
+                _workspace.Template.ScoringAreas.CollectionChanged += OnOverlayCollectionChanged;
+                _workspace.Template.BarcodeAreas.CollectionChanged += OnOverlayCollectionChanged;
                 _workspace.Template.Questions.CollectionChanged += (s, e) =>
                 {
                     OnPropertyChanged(nameof(DisplayOverlays));
@@ -89,11 +102,7 @@ namespace SimpleOverlayEditor.ViewModels
                 };
                 foreach (var question in _workspace.Template.Questions)
                 {
-                    question.Options.CollectionChanged += (s, e) =>
-                    {
-                        OnPropertyChanged(nameof(DisplayOverlays));
-                        OnPropertyChanged(nameof(CurrentOverlayCollection));
-                    };
+                    question.Options.CollectionChanged += OnOverlayCollectionChanged;
                 }
             }
 
@@ -151,31 +160,29 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
+        /// <summary>
+        /// 선택된 오버레이 (단일 선택, 하위 호환성용)
+        /// ✅ 계산 프로퍼티: SelectionVM이 Single Source of Truth
+        /// </summary>
         public RectangleOverlay? SelectedOverlay
         {
-            get => _selectedOverlay;
+            get => _selectionVM.Selected.FirstOrDefault();
             set
             {
-                if (_selectedOverlay != value)
+                // setter는 하위 호환성을 위해 유지하되, SelectionVM만 수정
+                if (value != null)
                 {
-                    _selectedOverlay = value;
-                    OnPropertyChanged();
-                    
-                    // SelectionVM 동기화
-                    if (value != null)
-                    {
-                        _selectionVM.SetSelection(new[] { value });
-                    }
-                    else
-                    {
-                        _selectionVM.Clear();
-                    }
-                    
-                    // 오버레이 선택 시 추가 모드 해제
-                    if (_selectedOverlay != null)
-                    {
-                        IsAddMode = false;
-                    }
+                    _selectionVM.SetSelection(new[] { value });
+                }
+                else
+                {
+                    _selectionVM.Clear();
+                }
+                
+                // 오버레이 선택 시 추가 모드 해제
+                if (value != null)
+                {
+                    IsAddMode = false;
                 }
             }
         }
@@ -452,9 +459,13 @@ namespace SimpleOverlayEditor.ViewModels
 
         private void OnDeleteSelected()
         {
-            if (SelectedOverlay == null) return;
-
-            var overlay = SelectedOverlay;
+            // ✅ SelectionVM.Selected를 직접 사용 (Single Source of Truth)
+            if (_selectionVM.IsEmpty) return;
+            
+            // 첫 번째 선택된 오버레이를 삭제
+            var overlay = _selectionVM.Selected.FirstOrDefault();
+            if (overlay == null) return;
+            
             IUndoableCommand? command = null;
 
             // TimingMarks와 BarcodeAreas는 직접 삭제
@@ -499,7 +510,8 @@ namespace SimpleOverlayEditor.ViewModels
             if (command != null)
             {
                 _undoManager.ExecuteCommand(command);
-                SelectedOverlay = null;
+                // ✅ SelectionVM에서 자동으로 제거됨 (컬렉션에서 삭제되므로)
+                // 명시적으로 Clear할 필요 없음
                 OnPropertyChanged(nameof(DisplayOverlays));
                 OnPropertyChanged(nameof(CurrentOverlayCollection));
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
@@ -520,7 +532,7 @@ namespace SimpleOverlayEditor.ViewModels
                 if (result == MessageBoxResult.Yes)
                 {
                     collection.Clear();
-                    SelectedOverlay = null;
+                    // ✅ SelectionVM에서 자동으로 제거됨 (컬렉션 변경 감지로)
                     OnPropertyChanged(nameof(DisplayOverlays));
                     OnPropertyChanged(nameof(CurrentOverlayCollection));
                 }
@@ -631,10 +643,9 @@ namespace SimpleOverlayEditor.ViewModels
                 .Where(o => IsOverlaySelectable(o))
                 .ToList();
             _selectionVM.SetSelection(overlays);
-
-            // 단일 선택도 업데이트 (하위 호환)
-            _selectedOverlay = overlays.FirstOrDefault();
-            OnPropertyChanged(nameof(SelectedOverlay));
+            
+            // ✅ SelectedOverlay는 계산 프로퍼티이므로 자동으로 갱신됨
+            // OnPropertyChanged는 SelectionVM.PropertyChanged에서 자동 호출됨
         }
 
         // 정렬 메서드들

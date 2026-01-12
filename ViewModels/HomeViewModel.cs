@@ -35,6 +35,11 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 _navigation.NavigateTo(Models.ApplicationMode.Grading);
             });
+
+            NavigateToScoringRuleCommand = new RelayCommand(() =>
+            {
+                _navigation.NavigateTo(Models.ApplicationMode.ScoringRule);
+            });
         }
 
         /// <summary>
@@ -56,6 +61,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// 채점 및 성적 처리 모드로 이동
         /// </summary>
         public ICommand NavigateToGradingCommand { get; }
+
+        /// <summary>
+        /// 정답 및 배점 모드로 이동
+        /// </summary>
+        public ICommand NavigateToScoringRuleCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

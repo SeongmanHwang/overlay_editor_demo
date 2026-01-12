@@ -25,6 +25,9 @@
         <DataTemplate DataType="{x:Type vm:GradingViewModel}">
             <views:GradingView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ScoringRuleViewModel}">
+            <views:ScoringRuleView/>
+        </DataTemplate>
     </Window.Resources>
     <Grid>
         <!-- ContentControl: 현재 모드에 따라 View 전환 -->

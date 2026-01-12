@@ -19,6 +19,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly SessionStore _sessionStore;
         private readonly RegistryStore _registryStore;
         private readonly MarkingAnalyzer _markingAnalyzer;
+        private readonly ScoringRuleStore _scoringRuleStore;
         private ObservableCollection<GradingResult>? _gradingResults;
         private ICollectionView? _filteredGradingResults;
 
@@ -28,6 +29,7 @@ namespace SimpleOverlayEditor.ViewModels
             _sessionStore = new SessionStore();
             _registryStore = new RegistryStore();
             _markingAnalyzer = new MarkingAnalyzer();
+            _scoringRuleStore = new ScoringRuleStore();
 
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
 
@@ -81,86 +83,133 @@ namespace SimpleOverlayEditor.ViewModels
                 // 3. StudentRegistry 로드
                 var studentRegistry = _registryStore.LoadStudentRegistry();
 
-                // 4. 수험번호 기준으로 그룹화하여 면접위원별 점수를 합산
-                var groupedByStudentId = sheetResults
-                    .Where(s => !string.IsNullOrEmpty(s.StudentId))
-                    .GroupBy(s => s.StudentId!)
-                    .ToList();
+                // 4. ScoringRule 로드 (배점 정보)
+                var scoringRule = _scoringRuleStore.LoadScoringRule();
 
-                // 5. 수험번호별로 GradingResult 생성 (면접위원 점수 합산)
+                // 5. "수험번호 + 면접번호" 결합 ID 기준으로 그룹화하여 중복 감지
+                var groupedByCombinedId = sheetResults
+                    .Where(s => !string.IsNullOrEmpty(s.StudentId) && !string.IsNullOrEmpty(s.InterviewId))
+                    .GroupBy(s => $"{s.StudentId}_{s.InterviewId}")
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                // 6. GradingResult 생성
                 var gradingResults = new ObservableCollection<GradingResult>();
 
-                foreach (var studentGroup in groupedByStudentId)
+                // 각 결합 ID별로 처리
+                foreach (var combinedGroup in groupedByCombinedId)
                 {
-                    var studentId = studentGroup.Key;
-                    var studentSheets = studentGroup.ToList();
+                    var combinedId = combinedGroup.Key;
+                    var sheets = combinedGroup.Value;
+                    var firstSheet = sheets.First();
+                    var studentId = firstSheet.StudentId!;
+                    var interviewId = firstSheet.InterviewId!;
 
                     // StudentInfo lookup
                     var studentInfo = studentRegistry.Students
                         .FirstOrDefault(s => s.StudentId == studentId);
 
-                    // "수험번호 + 면접번호" 결합 ID 기준으로 중복 감지
-                    // 같은 면접위원(면접번호)에 여러 시트가 있으면 중복
-                    var groupedByCombinedId = studentSheets
-                        .Where(s => !string.IsNullOrEmpty(s.InterviewId))
-                        .GroupBy(s => $"{s.StudentId}_{s.InterviewId}")
-                        .ToDictionary(g => g.Key, g => g.ToList());
+                    // 중복 여부 확인 (같은 결합 ID로 여러 시트가 있으면 중복)
+                    var hasDuplicate = sheets.Count > 1;
+                    var duplicateCount = sheets.Count;
 
-                    var maxDuplicateCount = groupedByCombinedId.Values.Any() 
-                        ? groupedByCombinedId.Values.Max(g => g.Count) 
-                        : 0;
-                    var hasDuplicate = maxDuplicateCount > 1;
-
-                    // 면접위원별 점수를 문항별로 합산
-                    int? question1Sum = null;
-                    int? question2Sum = null;
-                    int? question3Sum = null;
-                    int? question4Sum = null;
-                    bool hasErrors = false;
-
-                    foreach (var sheet in studentSheets)
+                    // 중복이 있는 경우 각 시트를 개별 행으로 표시
+                    foreach (var sheet in sheets)
                     {
-                        // 오류가 있으면 표시
-                        if (sheet.HasErrors)
-                        {
-                            hasErrors = true;
-                        }
+                        // 각 시트의 마킹 번호를 배점으로 변환
+                        double? q1Score = null, q2Score = null, q3Score = null, q4Score = null;
 
-                        // 각 문항 점수 합산 (null이 아니면 합산)
                         if (sheet.Question1Marking.HasValue)
                         {
-                            question1Sum = (question1Sum ?? 0) + sheet.Question1Marking.Value;
+                            q1Score = scoringRule.GetScore(1, sheet.Question1Marking.Value);
                         }
                         if (sheet.Question2Marking.HasValue)
                         {
-                            question2Sum = (question2Sum ?? 0) + sheet.Question2Marking.Value;
+                            q2Score = scoringRule.GetScore(2, sheet.Question2Marking.Value);
                         }
                         if (sheet.Question3Marking.HasValue)
                         {
-                            question3Sum = (question3Sum ?? 0) + sheet.Question3Marking.Value;
+                            q3Score = scoringRule.GetScore(3, sheet.Question3Marking.Value);
                         }
                         if (sheet.Question4Marking.HasValue)
                         {
-                            question4Sum = (question4Sum ?? 0) + sheet.Question4Marking.Value;
+                            q4Score = scoringRule.GetScore(4, sheet.Question4Marking.Value);
                         }
+
+                        var result = new GradingResult
+                        {
+                            ImageId = sheet.ImageId,
+                            ImageFileName = string.Empty,
+                            StudentId = studentId,
+                            StudentName = studentInfo?.Name,
+                            InterviewId = interviewId, // 중복 행 표시를 위해 면접번호 표시
+                            Question1Marking = q1Score.HasValue ? (int?)Math.Round(q1Score.Value) : null,
+                            Question2Marking = q2Score.HasValue ? (int?)Math.Round(q2Score.Value) : null,
+                            Question3Marking = q3Score.HasValue ? (int?)Math.Round(q3Score.Value) : null,
+                            Question4Marking = q4Score.HasValue ? (int?)Math.Round(q4Score.Value) : null,
+                            IsDuplicate = hasDuplicate,
+                            DuplicateCount = duplicateCount,
+                            HasErrors = sheet.HasErrors,
+                            RegistrationNumber = studentInfo?.RegistrationNumber,
+                            MiddleSchool = studentInfo?.MiddleSchool
+                        };
+
+                        CalculateScores(result);
+                        gradingResults.Add(result);
+                    }
+                }
+
+                // 중복이 없는 시트들도 처리 (StudentId는 있지만 InterviewId가 없는 경우, 또는 결합 ID가 1개만 있는 경우)
+                var processedCombinedIds = groupedByCombinedId.Keys.ToHashSet();
+                var remainingSheets = sheetResults
+                    .Where(s => !string.IsNullOrEmpty(s.StudentId) && 
+                                (string.IsNullOrEmpty(s.InterviewId) || 
+                                 !processedCombinedIds.Contains($"{s.StudentId}_{s.InterviewId}")))
+                    .ToList();
+
+                // InterviewId가 없는 시트들 처리
+                var sheetsWithoutInterviewId = sheetResults
+                    .Where(s => !string.IsNullOrEmpty(s.StudentId) && string.IsNullOrEmpty(s.InterviewId))
+                    .ToList();
+
+                foreach (var sheet in sheetsWithoutInterviewId)
+                {
+                    var studentId = sheet.StudentId!;
+                    var studentInfo = studentRegistry.Students
+                        .FirstOrDefault(s => s.StudentId == studentId);
+
+                    double? q1Score = null, q2Score = null, q3Score = null, q4Score = null;
+
+                    if (sheet.Question1Marking.HasValue)
+                    {
+                        q1Score = scoringRule.GetScore(1, sheet.Question1Marking.Value);
+                    }
+                    if (sheet.Question2Marking.HasValue)
+                    {
+                        q2Score = scoringRule.GetScore(2, sheet.Question2Marking.Value);
+                    }
+                    if (sheet.Question3Marking.HasValue)
+                    {
+                        q3Score = scoringRule.GetScore(3, sheet.Question3Marking.Value);
+                    }
+                    if (sheet.Question4Marking.HasValue)
+                    {
+                        q4Score = scoringRule.GetScore(4, sheet.Question4Marking.Value);
                     }
 
-                    // 수험번호당 하나의 GradingResult 생성
                     var result = new GradingResult
                     {
-                        ImageId = studentSheets.First().ImageId, // 첫 번째 시트의 ImageId 사용
-                        ImageFileName = string.Empty, // 파일명은 표시하지 않음
+                        ImageId = sheet.ImageId,
+                        ImageFileName = string.Empty,
                         StudentId = studentId,
                         StudentName = studentInfo?.Name,
-                        InterviewId = null, // 합산된 결과이므로 면접번호는 표시하지 않음
-                        Question1Marking = question1Sum,
-                        Question2Marking = question2Sum,
-                        Question3Marking = question3Sum,
-                        Question4Marking = question4Sum,
-                        IsDuplicate = hasDuplicate,
-                        DuplicateCount = maxDuplicateCount,
-                        HasErrors = hasErrors,
-                        // StudentInfo 필드들
+                        InterviewId = null,
+                        Question1Marking = q1Score.HasValue ? (int?)Math.Round(q1Score.Value) : null,
+                        Question2Marking = q2Score.HasValue ? (int?)Math.Round(q2Score.Value) : null,
+                        Question3Marking = q3Score.HasValue ? (int?)Math.Round(q3Score.Value) : null,
+                        Question4Marking = q4Score.HasValue ? (int?)Math.Round(q4Score.Value) : null,
+                        IsDuplicate = false,
+                        DuplicateCount = 1,
+                        HasErrors = sheet.HasErrors,
                         RegistrationNumber = studentInfo?.RegistrationNumber,
                         MiddleSchool = studentInfo?.MiddleSchool
                     };
@@ -176,23 +225,43 @@ namespace SimpleOverlayEditor.ViewModels
 
                 foreach (var errorSheet in errorSheets)
                 {
+                    // 오류 데이터도 배점으로 변환
+                    double? q1Score = null, q2Score = null, q3Score = null, q4Score = null;
+                    
+                    if (errorSheet.Question1Marking.HasValue)
+                    {
+                        q1Score = scoringRule.GetScore(1, errorSheet.Question1Marking.Value);
+                    }
+                    if (errorSheet.Question2Marking.HasValue)
+                    {
+                        q2Score = scoringRule.GetScore(2, errorSheet.Question2Marking.Value);
+                    }
+                    if (errorSheet.Question3Marking.HasValue)
+                    {
+                        q3Score = scoringRule.GetScore(3, errorSheet.Question3Marking.Value);
+                    }
+                    if (errorSheet.Question4Marking.HasValue)
+                    {
+                        q4Score = scoringRule.GetScore(4, errorSheet.Question4Marking.Value);
+                    }
+
                     var errorResult = new GradingResult
                     {
                         ImageId = errorSheet.ImageId,
                         ImageFileName = string.Empty,
                         StudentId = null,
                         InterviewId = errorSheet.InterviewId,
-                        Question1Marking = errorSheet.Question1Marking,
-                        Question2Marking = errorSheet.Question2Marking,
-                        Question3Marking = errorSheet.Question3Marking,
-                        Question4Marking = errorSheet.Question4Marking,
+                        Question1Marking = q1Score.HasValue ? (int?)Math.Round(q1Score.Value) : null,
+                        Question2Marking = q2Score.HasValue ? (int?)Math.Round(q2Score.Value) : null,
+                        Question3Marking = q3Score.HasValue ? (int?)Math.Round(q3Score.Value) : null,
+                        Question4Marking = q4Score.HasValue ? (int?)Math.Round(q4Score.Value) : null,
                         HasErrors = errorSheet.HasErrors
                     };
                     CalculateScores(errorResult);
                     gradingResults.Add(errorResult);
                 }
 
-                // 6. 석차 계산 (TotalScore 기준)
+                // 7. 석차 계산 (TotalScore 기준)
                 CalculateRank(gradingResults);
 
                 GradingResults = gradingResults;
@@ -208,7 +277,7 @@ namespace SimpleOverlayEditor.ViewModels
 
         private void CalculateScores(GradingResult result)
         {
-            var scores = new System.Collections.Generic.List<int>();
+            var scores = new System.Collections.Generic.List<double>();
             if (result.Question1Marking.HasValue) scores.Add(result.Question1Marking.Value);
             if (result.Question2Marking.HasValue) scores.Add(result.Question2Marking.Value);
             if (result.Question3Marking.HasValue) scores.Add(result.Question3Marking.Value);

@@ -38,6 +38,11 @@
                    Command="{Binding NavigateToTemplateEditCommand}"
                    Style="{StaticResource HomeModeButton}"/>
 
+            <!-- 정답 및 배점 버튼 -->
+            <Button Content="정답 및 배점" 
+                   Command="{Binding NavigateToScoringRuleCommand}"
+                   Style="{StaticResource HomeModeButton}"/>
+
             <!-- 수험생 명렬 관리 버튼 -->
             <Button Content="수험생 명렬 관리" 
                    Command="{Binding NavigateToRegistryCommand}"

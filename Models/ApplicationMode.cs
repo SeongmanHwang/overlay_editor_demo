@@ -31,6 +31,11 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 채점 및 성적 처리 모드
         /// </summary>
-        Grading
+        Grading,
+
+        /// <summary>
+        /// 정답 및 배점 모드 (문항별 선택지 점수 설정)
+        /// </summary>
+        ScoringRule
     }
 }

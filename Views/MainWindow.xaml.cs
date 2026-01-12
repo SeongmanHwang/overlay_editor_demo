@@ -78,6 +78,12 @@ namespace SimpleOverlayEditor.Views
                         var gradingViewModel = new GradingViewModel(_navigation);
                         _navigation.SetGradingViewModel(gradingViewModel);
                     }
+                    else if (_navigation.CurrentMode == ApplicationMode.ScoringRule && _navigation.CurrentViewModel == null)
+                    {
+                        // ScoringRule 모드로 전환 시 ViewModel 생성
+                        var scoringRuleViewModel = new ScoringRuleViewModel(_navigation);
+                        _navigation.SetScoringRuleViewModel(scoringRuleViewModel);
+                    }
                 }
             };
 
@@ -207,6 +213,13 @@ namespace SimpleOverlayEditor.Views
                             var gradingViewModel = new GradingViewModel(_navigation);
                             _navigation.SetGradingViewModel(gradingViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: GradingViewModel 생성 완료");
+                        }
+                        else if (_navigation.CurrentMode == ApplicationMode.ScoringRule)
+                        {
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: ScoringRuleViewModel 생성 시작");
+                            var scoringRuleViewModel = new ScoringRuleViewModel(_navigation);
+                            _navigation.SetScoringRuleViewModel(scoringRuleViewModel);
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: ScoringRuleViewModel 생성 완료");
                         }
                     }
                 }

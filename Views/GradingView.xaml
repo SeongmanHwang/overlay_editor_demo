@@ -49,6 +49,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" Width="100"/>
                 <DataGridTextColumn Header="이름" Binding="{Binding StudentName}" Width="100"/>
+                <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" Width="100"/>
                 <DataGridTextColumn Header="접수번호" Binding="{Binding RegistrationNumber}" Width="100"/>
                 <DataGridTextColumn Header="중학교" Binding="{Binding MiddleSchool}" Width="120"/>
                 <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" Width="60">
@@ -80,13 +81,6 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <DataGridTextColumn Header="총점" Binding="{Binding TotalScore}" Width="70">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="평균" Binding="{Binding AverageScore, StringFormat=F2}" Width="70">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>

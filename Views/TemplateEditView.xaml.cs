@@ -673,6 +673,37 @@ namespace SimpleOverlayEditor.Views
 
         private void NumericTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
+            ApplyTextBoxValue(sender);
+        }
+
+        private void NumericTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                // 값 적용
+                ApplyTextBoxValue(sender);
+                
+                // 포커스를 다른 곳으로 이동하여 선택 취소 효과
+                if (sender is TextBox tb)
+                {
+                    // 포커스를 부모 컨테이너나 다른 요소로 이동
+                    var parent = tb.Parent;
+                    if (parent is FrameworkElement fe)
+                    {
+                        fe.Focus();
+                    }
+                    
+                    // 또는 선택을 취소
+                    ViewModel.SelectionVM.Clear();
+                    
+                    // 이벤트 처리 완료 표시
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void ApplyTextBoxValue(object sender)
+        {
             if (sender is TextBox tb)
             {
                 // "다중 선택" 문자열을 파싱하여 숫자로 변환
@@ -695,6 +726,65 @@ namespace SimpleOverlayEditor.Views
                     {
                         ViewModel.SelectionVM.Height = value;
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ctrl + 마우스 휠로 줌 제어
+        /// </summary>
+        private void ImageScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Ctrl 키가 눌려있을 때만 줌 작동
+            if (Keyboard.Modifiers != ModifierKeys.Control)
+            {
+                return;
+            }
+
+            // 기본 스크롤 동작 방지
+            e.Handled = true;
+
+            if (ViewModel.SelectedDocument == null)
+            {
+                return;
+            }
+
+            // 줌 증감량 (휠 위로 = 줌 인, 아래로 = 줌 아웃)
+            const double zoomFactor = 0.1; // 10%씩 증감
+            double zoomDelta = e.Delta > 0 ? zoomFactor : -zoomFactor;
+
+            // 현재 줌 레벨 계산
+            double oldZoom = ViewModel.ZoomLevel;
+            double newZoom = oldZoom + zoomDelta;
+
+            // 마우스 위치를 중심으로 줌 (스크롤 위치 조정)
+            var mousePosition = e.GetPosition(ImageScrollViewer);
+            var scrollViewer = sender as ScrollViewer;
+            if (scrollViewer != null)
+            {
+                // 스크롤 위치 계산
+                double scrollX = scrollViewer.HorizontalOffset;
+                double scrollY = scrollViewer.VerticalOffset;
+
+                // 줌 레벨 변경
+                ViewModel.ZoomLevel = newZoom;
+
+                // 이미지 표시 영역 업데이트
+                var viewportWidth = ImageScrollViewer.ViewportWidth;
+                var viewportHeight = ImageScrollViewer.ViewportHeight;
+                if (viewportWidth > 0 && viewportHeight > 0)
+                {
+                    var availableSize = new Size(viewportWidth, viewportHeight);
+                    ViewModel.UpdateImageDisplayRect(availableSize);
+                    UpdateImageDisplay();
+
+                    // 마우스 위치를 중심으로 스크롤 조정
+                    double zoomRatio = newZoom / oldZoom;
+                    double newScrollX = (scrollX + mousePosition.X) * zoomRatio - mousePosition.X;
+                    double newScrollY = (scrollY + mousePosition.Y) * zoomRatio - mousePosition.Y;
+
+                    scrollViewer.ScrollToHorizontalOffset(Math.Max(0, newScrollX));
+                    scrollViewer.ScrollToVerticalOffset(Math.Max(0, newScrollY));
                 }
             }
         }
@@ -761,6 +851,12 @@ namespace SimpleOverlayEditor.Views
         /// </summary>
         private void Root_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // Ctrl+Z는 UndoCommand로 처리되므로 여기서는 무시
+            if (e.Key == Key.Z && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                return;
+            }
+
             if (ViewModel.SelectionVM.IsEmpty) return;
 
             // TextBox에서 편집 중이면 기본 커서 이동을 존중

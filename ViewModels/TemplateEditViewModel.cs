@@ -9,6 +9,7 @@ using Microsoft.Win32;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
 using SimpleOverlayEditor.Utils;
+using SimpleOverlayEditor.Utils.Commands;
 
 namespace SimpleOverlayEditor.ViewModels
 {
@@ -22,6 +23,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly ImageLoader _imageLoader;
         private readonly CoordinateConverter _coordConverter;
         private readonly NavigationViewModel _navigation;
+        private readonly UndoManager _undoManager;
         private TemplateViewModel? _templateViewModel;
 
         private Workspace _workspace;
@@ -32,6 +34,7 @@ namespace SimpleOverlayEditor.ViewModels
         private int? _currentQuestionNumber = 1; // ScoringArea일 때 사용 (1-4)
         private Rect _currentImageDisplayRect;
         private bool _isAddMode = false;
+        private double _zoomLevel = 1.0; // 줌 레벨 (1.0 = 100%)
 
         public TemplateEditViewModel(NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
@@ -40,6 +43,7 @@ namespace SimpleOverlayEditor.ViewModels
             _templateStore = new TemplateStore();
             _imageLoader = new ImageLoader();
             _coordConverter = new CoordinateConverter();
+            _undoManager = new UndoManager();
 
             _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
             _currentImageDisplayRect = new Rect();
@@ -104,6 +108,9 @@ namespace SimpleOverlayEditor.ViewModels
             // 정렬 명령
             AlignLeftCommand = new RelayCommand(OnAlignLeft, () => _selectionVM.Selected.Count >= 2);
             AlignTopCommand = new RelayCommand(OnAlignTop, () => _selectionVM.Selected.Count >= 2);
+
+            // 실행 취소 명령
+            UndoCommand = new RelayCommand(OnUndo, () => _undoManager.CanUndo);
 
             Logger.Instance.Info("TemplateEditViewModel 초기화 완료");
         }
@@ -241,6 +248,24 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
+        /// <summary>
+        /// 이미지 줌 레벨 (1.0 = 100%, 최소 0.1, 최대 5.0)
+        /// </summary>
+        public double ZoomLevel
+        {
+            get => _zoomLevel;
+            set
+            {
+                var clampedValue = Math.Max(0.1, Math.Min(5.0, value));
+                if (Math.Abs(_zoomLevel - clampedValue) > 0.001)
+                {
+                    _zoomLevel = clampedValue;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayOverlays)); // 오버레이도 줌에 맞게 다시 그리기
+                }
+            }
+        }
+
         public ICommand ToggleAddModeCommand { get; }
         public ICommand DeleteSelectedCommand { get; }
         public ICommand ClearAllCommand { get; }
@@ -251,6 +276,9 @@ namespace SimpleOverlayEditor.ViewModels
         // 정렬 명령
         public ICommand AlignLeftCommand { get; }
         public ICommand AlignTopCommand { get; }
+
+        // 실행 취소 명령
+        public ICommand UndoCommand { get; }
 
         public TemplateViewModel TemplateViewModel => _templateViewModel ?? throw new InvalidOperationException("TemplateViewModel이 초기화되지 않았습니다.");
 
@@ -348,13 +376,14 @@ namespace SimpleOverlayEditor.ViewModels
                 Logger.Instance.Debug($"픽셀 좌표 변환 완료: ({pixelPoint.X}, {pixelPoint.Y})");
 
                 // 기본 크기로 사각형 생성 (클릭 위치를 중심으로)
-                const double defaultSize = 30.0;
+                const double defaultWidth = 45.0;
+                const double defaultHeight = 41.0;
                 var overlay = new RectangleOverlay
                 {
-                    X = pixelPoint.X - defaultSize / 2,
-                    Y = pixelPoint.Y - defaultSize / 2,
-                    Width = defaultSize,
-                    Height = defaultSize
+                    X = pixelPoint.X - defaultWidth / 2,
+                    Y = pixelPoint.Y - defaultHeight / 2,
+                    Width = defaultWidth,
+                    Height = defaultHeight
                 };
 
                 // 경계 체크
@@ -369,7 +398,8 @@ namespace SimpleOverlayEditor.ViewModels
                 var collection = GetCurrentOverlayCollection();
                 if (collection != null)
                 {
-                    collection.Add(overlay);
+                    var command = new AddOverlayCommand(overlay, collection);
+                    _undoManager.ExecuteCommand(command);
                     SelectedOverlay = overlay;
 
                     // 템플릿 기준 크기 업데이트 (첫 번째 오버레이 추가 시)
@@ -381,6 +411,7 @@ namespace SimpleOverlayEditor.ViewModels
 
                     OnPropertyChanged(nameof(DisplayOverlays));
                     OnPropertyChanged(nameof(CurrentOverlayCollection));
+                    System.Windows.Input.CommandManager.InvalidateRequerySuggested();
                 }
             }
             catch (Exception ex)
@@ -394,11 +425,19 @@ namespace SimpleOverlayEditor.ViewModels
         {
             if (SelectedDocument != null)
             {
-                var newRect = ZoomHelper.CalculateImageDisplayRect(
+                // 기본 표시 크기 계산 (줌 없이)
+                var baseRect = ZoomHelper.CalculateImageDisplayRect(
                     SelectedDocument.ImageWidth,
                     SelectedDocument.ImageHeight,
                     availableSize,
                     ZoomHelper.ImageAlignment.TopLeft);
+
+                // 줌 레벨을 적용하여 실제 표시 크기 계산
+                var newRect = new Rect(
+                    baseRect.X * ZoomLevel,
+                    baseRect.Y * ZoomLevel,
+                    baseRect.Width * ZoomLevel,
+                    baseRect.Height * ZoomLevel);
 
                 const double epsilon = 0.001;
                 if (Math.Abs(CurrentImageDisplayRect.X - newRect.X) > epsilon ||
@@ -413,42 +452,57 @@ namespace SimpleOverlayEditor.ViewModels
 
         private void OnDeleteSelected()
         {
-            if (SelectedOverlay != null)
-            {
-                bool removed = false;
+            if (SelectedOverlay == null) return;
 
-                // TimingMarks와 BarcodeAreas는 직접 삭제
-                if (_workspace.Template.TimingMarks.Contains(SelectedOverlay))
+            var overlay = SelectedOverlay;
+            IUndoableCommand? command = null;
+
+            // TimingMarks와 BarcodeAreas는 직접 삭제
+            if (_workspace.Template.TimingMarks.Contains(overlay))
+            {
+                command = new DeleteOverlayCommand(
+                    overlay,
+                    _workspace.Template.TimingMarks,
+                    OverlayType.TimingMark);
+            }
+            else if (_workspace.Template.BarcodeAreas.Contains(overlay))
+            {
+                command = new DeleteOverlayCommand(
+                    overlay,
+                    _workspace.Template.BarcodeAreas,
+                    OverlayType.BarcodeArea);
+            }
+            // ScoringAreas는 Questions.Options에서 삭제해야 함 (ScoringAreas는 자동 동기화됨)
+            else if (_workspace.Template.ScoringAreas.Contains(overlay))
+            {
+                // Questions의 Options에서 찾아서 삭제
+                Question? parentQuestion = null;
+                foreach (var question in _workspace.Template.Questions)
                 {
-                    _workspace.Template.TimingMarks.Remove(SelectedOverlay);
-                    removed = true;
-                }
-                else if (_workspace.Template.BarcodeAreas.Contains(SelectedOverlay))
-                {
-                    _workspace.Template.BarcodeAreas.Remove(SelectedOverlay);
-                    removed = true;
-                }
-                // ScoringAreas는 Questions.Options에서 삭제해야 함 (ScoringAreas는 자동 동기화됨)
-                else if (_workspace.Template.ScoringAreas.Contains(SelectedOverlay))
-                {
-                    // Questions의 Options에서 찾아서 삭제
-                    foreach (var question in _workspace.Template.Questions)
+                    if (question.Options.Contains(overlay))
                     {
-                        if (question.Options.Contains(SelectedOverlay))
-                        {
-                            question.Options.Remove(SelectedOverlay);
-                            removed = true;
-                            break; // ScoringAreas는 자동으로 동기화됨
-                        }
+                        parentQuestion = question;
+                        break;
                     }
                 }
 
-                if (removed)
+                if (parentQuestion != null)
                 {
-                    SelectedOverlay = null;
-                    OnPropertyChanged(nameof(DisplayOverlays));
-                    OnPropertyChanged(nameof(CurrentOverlayCollection));
+                    command = new DeleteOverlayCommand(
+                        overlay,
+                        parentQuestion.Options,
+                        OverlayType.ScoringArea,
+                        parentQuestion);
                 }
+            }
+
+            if (command != null)
+            {
+                _undoManager.ExecuteCommand(command);
+                SelectedOverlay = null;
+                OnPropertyChanged(nameof(DisplayOverlays));
+                OnPropertyChanged(nameof(CurrentOverlayCollection));
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
         }
 
@@ -587,21 +641,30 @@ namespace SimpleOverlayEditor.ViewModels
         private void OnAlignLeft()
         {
             if (_selectionVM.Selected.Count < 2) return;
-            var minX = _selectionVM.Selected.Min(o => o.X);
-            foreach (var overlay in _selectionVM.Selected)
-            {
-                overlay.X = minX;
-            }
+            var command = new AlignLeftCommand(_selectionVM.Selected);
+            _undoManager.ExecuteCommand(command);
+            OnPropertyChanged(nameof(DisplayOverlays));
+            OnPropertyChanged(nameof(CurrentOverlayCollection));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
 
         private void OnAlignTop()
         {
             if (_selectionVM.Selected.Count < 2) return;
-            var minY = _selectionVM.Selected.Min(o => o.Y);
-            foreach (var overlay in _selectionVM.Selected)
-            {
-                overlay.Y = minY;
-            }
+            var command = new AlignTopCommand(_selectionVM.Selected);
+            _undoManager.ExecuteCommand(command);
+            OnPropertyChanged(nameof(DisplayOverlays));
+            OnPropertyChanged(nameof(CurrentOverlayCollection));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+
+        private void OnUndo()
+        {
+            _undoManager.Undo();
+            OnPropertyChanged(nameof(DisplayOverlays));
+            OnPropertyChanged(nameof(CurrentOverlayCollection));
+            // Command의 CanExecute 업데이트
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

@@ -9,6 +9,9 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1200"
              PreviewKeyDown="Root_PreviewKeyDown">
+    <UserControl.InputBindings>
+        <KeyBinding Key="Z" Modifiers="Ctrl" Command="{Binding UndoCommand}"/>
+    </UserControl.InputBindings>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="240" MinWidth="180"/>  <!-- 왼쪽: 정보 패널 -->
@@ -75,24 +78,28 @@
                                     Text="{Binding SelectionVM.XDisplay, Mode=OneWay}"
                                     GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     LostFocus="NumericTextBox_LostFocus"
+                                    KeyDown="NumericTextBox_KeyDown"
                                     Margin="0,0,0,5"/>
                             <TextBlock Text="Y:" Margin="0,5,0,2"/>
                             <TextBox x:Name="YTextBox"
                                     Text="{Binding SelectionVM.YDisplay, Mode=OneWay}"
                                     GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     LostFocus="NumericTextBox_LostFocus"
+                                    KeyDown="NumericTextBox_KeyDown"
                                     Margin="0,0,0,5"/>
                             <TextBlock Text="너비 (W):" Margin="0,5,0,2"/>
                             <TextBox x:Name="WidthTextBox"
                                     Text="{Binding SelectionVM.WidthDisplay, Mode=OneWay}"
                                     GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     LostFocus="NumericTextBox_LostFocus"
+                                    KeyDown="NumericTextBox_KeyDown"
                                     Margin="0,0,0,5"/>
                             <TextBlock Text="높이 (H):" Margin="0,5,0,2"/>
                             <TextBox x:Name="HeightTextBox"
                                     Text="{Binding SelectionVM.HeightDisplay, Mode=OneWay}"
                                     GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     LostFocus="NumericTextBox_LostFocus"
+                                    KeyDown="NumericTextBox_KeyDown"
                                     Margin="0,0,0,5"/>
                         </StackPanel>
                     </GroupBox>
@@ -266,7 +273,8 @@
                          HorizontalScrollBarVisibility="Auto"
                          VerticalScrollBarVisibility="Auto"
                          Background="#E0E0E0"
-                         VerticalContentAlignment="Top">
+                         VerticalContentAlignment="Top"
+                         PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel">
                 <Grid x:Name="ImageContainer"
                       HorizontalAlignment="Stretch"
                       VerticalAlignment="Stretch"

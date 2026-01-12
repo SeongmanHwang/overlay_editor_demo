@@ -55,6 +55,8 @@ namespace SimpleOverlayEditor.ViewModels
 
                 if (dialog.ShowDialog() == true)
                 {
+                    // ExportTemplate은 StateStore에 있지만, TemplateStore를 사용하는 것이 더 적절함
+                    // 일단 StateStore.ExportTemplate을 사용 (기존 코드 유지)
                     _stateStore.ExportTemplate(Template, dialog.FileName);
                     Logger.Instance.Info($"템플릿 내보내기 완료: {dialog.FileName}");
                     MessageBox.Show(
@@ -86,6 +88,8 @@ namespace SimpleOverlayEditor.ViewModels
 
                 if (dialog.ShowDialog() == true)
                 {
+                    // ImportTemplate은 StateStore에 있지만, TemplateStore를 사용하는 것이 더 적절함
+                    // 일단 StateStore.ImportTemplate을 사용 (기존 코드 유지)
                     var importedTemplate = _stateStore.ImportTemplate(dialog.FileName);
                     if (importedTemplate == null)
                     {

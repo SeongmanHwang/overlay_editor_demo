@@ -9,6 +9,41 @@ namespace SimpleOverlayEditor.Services
 {
     public class StateStore
     {
+        /// <summary>
+        /// 작업 상황만 저장합니다 (InputFolderPath, SelectedDocumentId).
+        /// 템플릿은 저장하지 않습니다.
+        /// </summary>
+        public void SaveWorkspaceState(Workspace workspace)
+        {
+            try
+            {
+                PathService.EnsureDirectories();
+
+                var state = new
+                {
+                    InputFolderPath = workspace.InputFolderPath,
+                    SelectedDocumentId = workspace.SelectedDocumentId
+                };
+
+                var json = JsonSerializer.Serialize(state, new JsonSerializerOptions 
+                { 
+                    WriteIndented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                });
+                
+                File.WriteAllText(PathService.StateFilePath, json);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"상태 저장 실패: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 전체 Workspace를 저장합니다 (하위 호환성용).
+        /// 템플릿은 TemplateStore를 사용하도록 권장합니다.
+        /// </summary>
+        [Obsolete("템플릿은 TemplateStore를 사용하세요. 작업 상황만 저장하려면 SaveWorkspaceState를 사용하세요.")]
         public void Save(Workspace workspace)
         {
             try
@@ -104,169 +139,189 @@ namespace SimpleOverlayEditor.Services
                         : null
                 };
 
-                // 템플릿 로드 (새 형식)
+                // 하위 호환성: state.json에 Template이 있으면 template.json으로 마이그레이션
                 if (root.TryGetProperty("Template", out var templateElement))
                 {
-                    var template = workspace.Template;
-                    
-                    if (templateElement.TryGetProperty("ReferenceWidth", out var refWidth))
+                    Logger.Instance.Info("state.json에서 템플릿 발견. template.json으로 마이그레이션합니다.");
+                    try
                     {
-                        template.ReferenceWidth = refWidth.GetInt32();
-                    }
-                    
-                    if (templateElement.TryGetProperty("ReferenceHeight", out var refHeight))
-                    {
-                        template.ReferenceHeight = refHeight.GetInt32();
-                    }
-
-                    // 타이밍 마크 로드
-                    if (templateElement.TryGetProperty("TimingMarks", out var timingMarksElement))
-                    {
-                        foreach (var ovElem in timingMarksElement.EnumerateArray())
+                        // 기존 템플릿 로드 로직으로 템플릿 복원
+                        var template = workspace.Template;
+                        
+                        if (templateElement.TryGetProperty("ReferenceWidth", out var refWidth))
                         {
-                            var overlay = new RectangleOverlay
-                            {
-                                X = ovElem.GetProperty("X").GetDouble(),
-                                Y = ovElem.GetProperty("Y").GetDouble(),
-                                Width = ovElem.GetProperty("Width").GetDouble(),
-                                Height = ovElem.GetProperty("Height").GetDouble(),
-                                StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
-                                    ? thickness.GetDouble()
-                                    : 2.0
-                            };
-                            
-                            if (ovElem.TryGetProperty("OverlayType", out var overlayType))
-                            {
-                                if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
-                                {
-                                    overlay.OverlayType = type;
-                                }
-                            }
-                            
-                            template.TimingMarks.Add(overlay);
+                            template.ReferenceWidth = refWidth.GetInt32();
                         }
-                    }
-
-                    // Questions 로드 (새 형식)
-                    if (templateElement.TryGetProperty("Questions", out var questionsElement))
-                    {
-                        foreach (var qElem in questionsElement.EnumerateArray())
+                        
+                        if (templateElement.TryGetProperty("ReferenceHeight", out var refHeight))
                         {
-                            var questionNumber = qElem.TryGetProperty("QuestionNumber", out var qNum)
-                                ? qNum.GetInt32()
-                                : 1;
+                            template.ReferenceHeight = refHeight.GetInt32();
+                        }
 
-                            var question = template.Questions.FirstOrDefault(q => q.QuestionNumber == questionNumber);
-                            if (question == null)
+                        // 타이밍 마크 로드
+                        if (templateElement.TryGetProperty("TimingMarks", out var timingMarksElement))
+                        {
+                            foreach (var ovElem in timingMarksElement.EnumerateArray())
                             {
-                                question = new Question { QuestionNumber = questionNumber };
-                                template.Questions.Add(question);
-                                // Questions.Add()를 호출하면 OmrTemplate의 CollectionChanged 이벤트 핸들러가 자동으로 이벤트 구독
-                            }
-
-                            if (qElem.TryGetProperty("Options", out var optionsElement))
-                            {
-                                foreach (var ovElem in optionsElement.EnumerateArray())
+                                var overlay = new RectangleOverlay
                                 {
-                                    var overlay = new RectangleOverlay
+                                    X = ovElem.GetProperty("X").GetDouble(),
+                                    Y = ovElem.GetProperty("Y").GetDouble(),
+                                    Width = ovElem.GetProperty("Width").GetDouble(),
+                                    Height = ovElem.GetProperty("Height").GetDouble(),
+                                    StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                        ? thickness.GetDouble()
+                                        : 2.0
+                                };
+                                
+                                if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                                {
+                                    if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
                                     {
-                                        X = ovElem.GetProperty("X").GetDouble(),
-                                        Y = ovElem.GetProperty("Y").GetDouble(),
-                                        Width = ovElem.GetProperty("Width").GetDouble(),
-                                        Height = ovElem.GetProperty("Height").GetDouble(),
-                                        StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
-                                            ? thickness.GetDouble()
-                                            : 2.0
-                                    };
-
-                                    if (ovElem.TryGetProperty("OverlayType", out var overlayType))
-                                    {
-                                        if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
-                                        {
-                                            overlay.OverlayType = type;
-                                        }
+                                        overlay.OverlayType = type;
                                     }
-
-                                    question.Options.Add(overlay);
                                 }
+                                
+                                template.TimingMarks.Add(overlay);
                             }
                         }
-                    }
-                    // 하위 호환성: ScoringAreas만 있는 경우 Questions로 변환
-                    else if (templateElement.TryGetProperty("ScoringAreas", out var scoringAreasElement))
-                    {
-                        var scoringAreasList = new List<RectangleOverlay>();
-                        foreach (var ovElem in scoringAreasElement.EnumerateArray())
-                        {
-                            var overlay = new RectangleOverlay
-                            {
-                                X = ovElem.GetProperty("X").GetDouble(),
-                                Y = ovElem.GetProperty("Y").GetDouble(),
-                                Width = ovElem.GetProperty("Width").GetDouble(),
-                                Height = ovElem.GetProperty("Height").GetDouble(),
-                                StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
-                                    ? thickness.GetDouble()
-                                    : 2.0
-                            };
 
-                            if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                        // Questions 로드
+                        if (templateElement.TryGetProperty("Questions", out var questionsElement))
+                        {
+                            foreach (var qElem in questionsElement.EnumerateArray())
                             {
-                                if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                var questionNumber = qElem.TryGetProperty("QuestionNumber", out var qNum)
+                                    ? qNum.GetInt32()
+                                    : 1;
+
+                                var question = template.Questions.FirstOrDefault(q => q.QuestionNumber == questionNumber);
+                                if (question == null)
                                 {
-                                    overlay.OverlayType = type;
+                                    question = new Question { QuestionNumber = questionNumber };
+                                    template.Questions.Add(question);
                                 }
-                            }
 
-                            scoringAreasList.Add(overlay);
-                        }
-
-                        // 48개를 4문항 × 12선택지로 분할
-                        const int questionsCount = 4;
-                        const int optionsPerQuestion = 12;
-                        for (int q = 0; q < questionsCount; q++)
-                        {
-                            var question = template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
-                            if (question == null)
-                            {
-                                question = new Question { QuestionNumber = q + 1 };
-                                template.Questions.Add(question);
-                            }
-
-                            int startIndex = q * optionsPerQuestion;
-                            for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
-                            {
-                                question.Options.Add(scoringAreasList[startIndex + o]);
-                            }
-                        }
-                    }
-
-                    // 바코드 영역 로드
-                    if (templateElement.TryGetProperty("BarcodeAreas", out var barcodeAreasElement))
-                    {
-                        foreach (var ovElem in barcodeAreasElement.EnumerateArray())
-                        {
-                            var overlay = new RectangleOverlay
-                            {
-                                X = ovElem.GetProperty("X").GetDouble(),
-                                Y = ovElem.GetProperty("Y").GetDouble(),
-                                Width = ovElem.GetProperty("Width").GetDouble(),
-                                Height = ovElem.GetProperty("Height").GetDouble(),
-                                StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
-                                    ? thickness.GetDouble()
-                                    : 2.0
-                            };
-                            
-                            if (ovElem.TryGetProperty("OverlayType", out var overlayType))
-                            {
-                                if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                if (qElem.TryGetProperty("Options", out var optionsElement))
                                 {
-                                    overlay.OverlayType = type;
+                                    foreach (var ovElem in optionsElement.EnumerateArray())
+                                    {
+                                        var overlay = new RectangleOverlay
+                                        {
+                                            X = ovElem.GetProperty("X").GetDouble(),
+                                            Y = ovElem.GetProperty("Y").GetDouble(),
+                                            Width = ovElem.GetProperty("Width").GetDouble(),
+                                            Height = ovElem.GetProperty("Height").GetDouble(),
+                                            StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                                ? thickness.GetDouble()
+                                                : 2.0
+                                        };
+
+                                        if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                                        {
+                                            if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                            {
+                                                overlay.OverlayType = type;
+                                            }
+                                        }
+
+                                        question.Options.Add(overlay);
+                                    }
                                 }
                             }
-                            
-                            template.BarcodeAreas.Add(overlay);
                         }
+                        // 하위 호환성: ScoringAreas만 있는 경우
+                        else if (templateElement.TryGetProperty("ScoringAreas", out var scoringAreasElement))
+                        {
+                            var scoringAreasList = new List<RectangleOverlay>();
+                            foreach (var ovElem in scoringAreasElement.EnumerateArray())
+                            {
+                                var overlay = new RectangleOverlay
+                                {
+                                    X = ovElem.GetProperty("X").GetDouble(),
+                                    Y = ovElem.GetProperty("Y").GetDouble(),
+                                    Width = ovElem.GetProperty("Width").GetDouble(),
+                                    Height = ovElem.GetProperty("Height").GetDouble(),
+                                    StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                        ? thickness.GetDouble()
+                                        : 2.0
+                                };
+
+                                if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                                {
+                                    if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                    {
+                                        overlay.OverlayType = type;
+                                    }
+                                }
+
+                                scoringAreasList.Add(overlay);
+                            }
+
+                            const int questionsCount = 4;
+                            const int optionsPerQuestion = 12;
+                            for (int q = 0; q < questionsCount; q++)
+                            {
+                                var question = template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
+                                if (question == null)
+                                {
+                                    question = new Question { QuestionNumber = q + 1 };
+                                    template.Questions.Add(question);
+                                }
+
+                                int startIndex = q * optionsPerQuestion;
+                                for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
+                                {
+                                    question.Options.Add(scoringAreasList[startIndex + o]);
+                                }
+                            }
+                        }
+
+                        // 바코드 영역 로드
+                        if (templateElement.TryGetProperty("BarcodeAreas", out var barcodeAreasElement))
+                        {
+                            foreach (var ovElem in barcodeAreasElement.EnumerateArray())
+                            {
+                                var overlay = new RectangleOverlay
+                                {
+                                    X = ovElem.GetProperty("X").GetDouble(),
+                                    Y = ovElem.GetProperty("Y").GetDouble(),
+                                    Width = ovElem.GetProperty("Width").GetDouble(),
+                                    Height = ovElem.GetProperty("Height").GetDouble(),
+                                    StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                        ? thickness.GetDouble()
+                                        : 2.0
+                                };
+                                
+                                if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                                {
+                                    if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
+                                    {
+                                        overlay.OverlayType = type;
+                                    }
+                                }
+                                
+                                template.BarcodeAreas.Add(overlay);
+                            }
+                        }
+
+                        // template.json으로 저장
+                        var migrationTemplateStore = new TemplateStore();
+                        migrationTemplateStore.Save(template);
+                        Logger.Instance.Info("템플릿 마이그레이션 완료: template.json에 저장됨");
                     }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Error("템플릿 마이그레이션 실패", ex);
+                    }
+                }
+
+                // template.json에서 템플릿 로드
+                var templateStore = new TemplateStore();
+                var loadedTemplate = templateStore.Load();
+                if (loadedTemplate != null)
+                {
+                    workspace.Template = loadedTemplate;
                 }
 
                 // Documents, MarkingResults, BarcodeResults는 session.json에서 로드됨

@@ -87,7 +87,42 @@
                        Background="#E8E8E8"
                        Margin="3"
                        Height="36">
-                <TextBlock Text="오버레이 타입:" VerticalAlignment="Center" Margin="3,0" FontSize="11"/>
+                <!-- 오버레이 추가 모드 토글 버튼 -->
+                <Button Command="{Binding ToggleAddModeCommand}"
+                       Margin="2"
+                       Padding="8,4"
+                       MinWidth="120"
+                       FontSize="11"
+                       Foreground="White"
+                       Cursor="Hand"
+                       VerticalAlignment="Center">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="#CCCCCC"/>
+                            <Setter Property="BorderThickness" Value="2"/>
+                            <Setter Property="BorderBrush" Value="#999999"/>
+                            <Setter Property="FontWeight" Value="Normal"/>
+                            <Setter Property="Content" Value="➕ 추가 모드"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAddMode}" Value="True">
+                                    <Setter Property="Background" Value="#4CAF50"/>
+                                    <Setter Property="BorderThickness" Value="3"/>
+                                    <Setter Property="BorderBrush" Value="#2E7D32"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Content" Value="✅ 추가 모드"/>
+                                </DataTrigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="#000000" Opacity="0.2" BlurRadius="4" ShadowDepth="2"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Separator Margin="5,0"/>
                 <ComboBox SelectedItem="{Binding CurrentOverlayType, Mode=TwoWay}"
                          Margin="3,0"
                          VerticalAlignment="Center"

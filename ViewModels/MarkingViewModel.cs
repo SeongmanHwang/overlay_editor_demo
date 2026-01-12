@@ -1013,7 +1013,8 @@ namespace SimpleOverlayEditor.ViewModels
                                     OnPropertyChanged(nameof(Documents));
                                     OnPropertyChanged(nameof(DocumentCount));
 
-                                    _stateStore.Save(_workspace);
+                                    // 작업 상황만 저장 (InputFolderPath)
+                                    _stateStore.SaveWorkspaceState(_workspace);
                                     _sessionStore.Save(_session);
 
                                     progressWindow.Close();

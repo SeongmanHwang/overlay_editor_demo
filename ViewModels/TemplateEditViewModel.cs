@@ -18,6 +18,7 @@ namespace SimpleOverlayEditor.ViewModels
     public class TemplateEditViewModel : INotifyPropertyChanged
     {
         private readonly StateStore _stateStore;
+        private readonly TemplateStore _templateStore;
         private readonly ImageLoader _imageLoader;
         private readonly CoordinateConverter _coordConverter;
         private readonly NavigationViewModel _navigation;
@@ -29,11 +30,13 @@ namespace SimpleOverlayEditor.ViewModels
         private OverlayType _currentOverlayType = OverlayType.ScoringArea;
         private int? _currentQuestionNumber = 1; // ScoringArea일 때 사용 (1-4)
         private Rect _currentImageDisplayRect;
+        private bool _isAddMode = false;
 
         public TemplateEditViewModel(NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
             _navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
             _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
+            _templateStore = new TemplateStore();
             _imageLoader = new ImageLoader();
             _coordConverter = new CoordinateConverter();
 
@@ -77,6 +80,7 @@ namespace SimpleOverlayEditor.ViewModels
             }
 
             // Commands
+            ToggleAddModeCommand = new RelayCommand(() => IsAddMode = !IsAddMode);
             DeleteSelectedCommand = new RelayCommand(OnDeleteSelected, () => SelectedOverlay != null);
             ClearAllCommand = new RelayCommand(OnClearAll, () => GetCurrentOverlayCollection()?.Count > 0);
             SaveTemplateCommand = new RelayCommand(OnSaveTemplate);
@@ -163,6 +167,19 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public bool IsQuestionNumberVisible => CurrentOverlayType == OverlayType.ScoringArea;
 
+        /// <summary>
+        /// 오버레이 추가 모드 활성화 여부
+        /// </summary>
+        public bool IsAddMode
+        {
+            get => _isAddMode;
+            set
+            {
+                _isAddMode = value;
+                OnPropertyChanged();
+            }
+        }
+
         public Rect CurrentImageDisplayRect
         {
             get => _currentImageDisplayRect;
@@ -173,6 +190,7 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
+        public ICommand ToggleAddModeCommand { get; }
         public ICommand DeleteSelectedCommand { get; }
         public ICommand ClearAllCommand { get; }
         public ICommand SaveTemplateCommand { get; }
@@ -241,6 +259,12 @@ namespace SimpleOverlayEditor.ViewModels
 
         public void OnCanvasClick(Point screenPoint, Size canvasSize)
         {
+            if (!IsAddMode)
+            {
+                Logger.Instance.Debug($"OnCanvasClick 스킵. IsAddMode: false");
+                return;
+            }
+
             if (SelectedDocument == null)
             {
                 Logger.Instance.Debug($"OnCanvasClick 스킵. SelectedDocument: null");
@@ -395,14 +419,14 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// 템플릿 저장 (상태와 함께)
+        /// 템플릿 저장 (template.json에 저장)
         /// </summary>
         private void OnSaveTemplate()
         {
             Logger.Instance.Info("템플릿 저장 시작");
             try
             {
-                _stateStore.Save(_workspace);
+                _templateStore.Save(_workspace.Template);
                 Logger.Instance.Info("템플릿 저장 완료");
                 MessageBox.Show(
                     "템플릿이 저장되었습니다.",

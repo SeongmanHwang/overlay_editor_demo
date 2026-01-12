@@ -15,6 +15,9 @@ namespace SimpleOverlayEditor.Services
         public static string SessionFilePath =>
             Path.Combine(AppDataFolder, "session.json");
 
+        public static string TemplateFilePath =>
+            Path.Combine(AppDataFolder, "template.json");
+
         public static string OutputFolder =>
             Path.Combine(AppDataFolder, "output");
 

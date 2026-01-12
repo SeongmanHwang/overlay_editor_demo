@@ -134,15 +134,15 @@ namespace SimpleOverlayEditor.Views
 
         protected override void OnClosed(EventArgs e)
         {
-            // 종료 시 자동 저장
+            // 종료 시 작업 상황만 자동 저장 (템플릿은 저장하지 않음)
             try
             {
-                _stateStore.Save(_workspace);
-                Logger.Instance.Info("MainWindow 종료 - 상태 저장 완료");
+                _stateStore.SaveWorkspaceState(_workspace);
+                Logger.Instance.Info("MainWindow 종료 - 작업 상황 저장 완료");
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error("MainWindow 종료 - 상태 저장 실패", ex);
+                Logger.Instance.Error("MainWindow 종료 - 작업 상황 저장 실패", ex);
             }
 
             base.OnClosed(e);

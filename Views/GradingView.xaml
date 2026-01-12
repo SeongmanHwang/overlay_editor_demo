@@ -48,10 +48,12 @@
                   Margin="10">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" Width="100"/>
-                <DataGridTextColumn Header="이름" Binding="{Binding StudentName}" Width="100"/>
-                <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" Width="100"/>
                 <DataGridTextColumn Header="접수번호" Binding="{Binding RegistrationNumber}" Width="100"/>
-                <DataGridTextColumn Header="중학교" Binding="{Binding MiddleSchool}" Width="120"/>
+                <DataGridTextColumn Header="전형명" Binding="{Binding ExamType}" Width="100"/>
+                <DataGridTextColumn Header="성명" Binding="{Binding StudentName}" Width="100"/>
+                <DataGridTextColumn Header="생년월일" Binding="{Binding BirthDate}" Width="120"/>
+                <DataGridTextColumn Header="출신교명" Binding="{Binding MiddleSchool}" Width="150"/>
+                <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" Width="100"/>
                 <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">

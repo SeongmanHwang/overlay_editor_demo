@@ -26,12 +26,10 @@ namespace SimpleOverlayEditor.Models
         private bool _hasErrors;  // OmrSheetResult의 오류 정보
         
         // StudentInfo의 추가 정보들
-        private string? _group;
-        private string? _interviewRoom;
-        private string? _time;
-        private string? _number;
         private string? _registrationNumber;
-        private string? _middleSchool;
+        private string? _examType;  // 전형명
+        private string? _middleSchool;  // 출신교명
+        private string? _birthDate;  // 생년월일
 
         public string ImageId
         {
@@ -130,40 +128,28 @@ namespace SimpleOverlayEditor.Models
         }
 
         // StudentInfo 필드들
-        public string? Group
-        {
-            get => _group;
-            set { _group = value; OnPropertyChanged(); }
-        }
-
-        public string? InterviewRoom
-        {
-            get => _interviewRoom;
-            set { _interviewRoom = value; OnPropertyChanged(); }
-        }
-
-        public string? Time
-        {
-            get => _time;
-            set { _time = value; OnPropertyChanged(); }
-        }
-
-        public string? Number
-        {
-            get => _number;
-            set { _number = value; OnPropertyChanged(); }
-        }
-
         public string? RegistrationNumber
         {
             get => _registrationNumber;
             set { _registrationNumber = value; OnPropertyChanged(); }
         }
 
+        public string? ExamType
+        {
+            get => _examType;
+            set { _examType = value; OnPropertyChanged(); }
+        }
+
         public string? MiddleSchool
         {
             get => _middleSchool;
             set { _middleSchool = value; OnPropertyChanged(); }
+        }
+
+        public string? BirthDate
+        {
+            get => _birthDate;
+            set { _birthDate = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

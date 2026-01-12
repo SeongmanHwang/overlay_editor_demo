@@ -33,13 +33,11 @@ namespace SimpleOverlayEditor.Services
                     Students = registry.Students.Select(s => new
                     {
                         StudentId = s.StudentId,
-                        Time = s.Time,
-                        Group = s.Group,
-                        InterviewRoom = s.InterviewRoom,
-                        Number = s.Number,
                         RegistrationNumber = s.RegistrationNumber,
-                        MiddleSchool = s.MiddleSchool,
-                        Name = s.Name
+                        ExamType = s.ExamType,
+                        Name = s.Name,
+                        BirthDate = s.BirthDate,
+                        MiddleSchool = s.MiddleSchool
                     }).ToList()
                 };
 
@@ -84,26 +82,20 @@ namespace SimpleOverlayEditor.Services
                             StudentId = studentElem.TryGetProperty("StudentId", out var id)
                                 ? id.GetString() ?? string.Empty
                                 : string.Empty,
-                            Time = studentElem.TryGetProperty("Time", out var time)
-                                ? time.GetString()
-                                : null,
-                            Group = studentElem.TryGetProperty("Group", out var group)
-                                ? group.GetString()
-                                : null,
-                            InterviewRoom = studentElem.TryGetProperty("InterviewRoom", out var room)
-                                ? room.GetString()
-                                : null,
-                            Number = studentElem.TryGetProperty("Number", out var num)
-                                ? num.GetString()
-                                : null,
                             RegistrationNumber = studentElem.TryGetProperty("RegistrationNumber", out var regNum)
                                 ? regNum.GetString()
                                 : null,
-                            MiddleSchool = studentElem.TryGetProperty("MiddleSchool", out var school)
-                                ? school.GetString()
+                            ExamType = studentElem.TryGetProperty("ExamType", out var examType)
+                                ? examType.GetString()
                                 : null,
                             Name = studentElem.TryGetProperty("Name", out var name)
                                 ? name.GetString()
+                                : null,
+                            BirthDate = studentElem.TryGetProperty("BirthDate", out var birthDate)
+                                ? birthDate.GetString()
+                                : null,
+                            MiddleSchool = studentElem.TryGetProperty("MiddleSchool", out var school)
+                                ? school.GetString()
                                 : null
                         };
 
@@ -227,13 +219,11 @@ namespace SimpleOverlayEditor.Services
                     var student = new StudentInfo
                     {
                         StudentId = studentId,
-                        Time = worksheet.Cell(row, 2).GetString().Trim(),
-                        Group = worksheet.Cell(row, 3).GetString().Trim(),
-                        InterviewRoom = worksheet.Cell(row, 4).GetString().Trim(),
-                        Number = worksheet.Cell(row, 5).GetString().Trim(),
-                        RegistrationNumber = worksheet.Cell(row, 6).GetString().Trim(),
-                        MiddleSchool = worksheet.Cell(row, 7).GetString().Trim(),
-                        Name = worksheet.Cell(row, 8).GetString().Trim()
+                        RegistrationNumber = worksheet.Cell(row, 2).GetString().Trim(),
+                        ExamType = worksheet.Cell(row, 3).GetString().Trim(),
+                        Name = worksheet.Cell(row, 4).GetString().Trim(),
+                        BirthDate = worksheet.Cell(row, 5).GetString().Trim(),
+                        MiddleSchool = worksheet.Cell(row, 6).GetString().Trim()
                     };
 
                     registry.Students.Add(student);
@@ -281,6 +271,68 @@ namespace SimpleOverlayEditor.Services
             }
 
             return registry;
+        }
+
+        /// <summary>
+        /// 수험생 명부 양식 파일을 내보냅니다.
+        /// </summary>
+        public void ExportStudentRegistryTemplate(string filePath)
+        {
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("수험생 명부");
+
+                // 헤더 행 (1행)
+                worksheet.Cell(1, 1).Value = "수험번호";
+                worksheet.Cell(1, 2).Value = "접수번호";
+                worksheet.Cell(1, 3).Value = "전형명";
+                worksheet.Cell(1, 4).Value = "성명";
+                worksheet.Cell(1, 5).Value = "생년월일";
+                worksheet.Cell(1, 6).Value = "출신교명";
+
+                // 스타일 적용
+                var headerRange = worksheet.Range(1, 1, 1, 6);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                // 열 너비 조정
+                worksheet.Column(1).Width = 12;
+                worksheet.Column(2).Width = 12;
+                worksheet.Column(3).Width = 12;
+                worksheet.Column(4).Width = 12;
+                worksheet.Column(5).Width = 12;
+                worksheet.Column(6).Width = 15;
+
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        /// <summary>
+        /// 면접위원 명부 양식 파일을 내보냅니다.
+        /// </summary>
+        public void ExportInterviewerRegistryTemplate(string filePath)
+        {
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("면접위원 명부");
+
+                // 헤더 행 (1행)
+                worksheet.Cell(1, 1).Value = "면접위원번호";
+                worksheet.Cell(1, 2).Value = "성명";
+
+                // 스타일 적용
+                var headerRange = worksheet.Range(1, 1, 1, 2);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                // 열 너비 조정
+                worksheet.Column(1).Width = 15;
+                worksheet.Column(2).Width = 15;
+
+                workbook.SaveAs(filePath);
+            }
         }
     }
 }

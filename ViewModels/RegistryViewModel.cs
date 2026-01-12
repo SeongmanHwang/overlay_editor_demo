@@ -18,6 +18,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly RegistryStore _registryStore;
         private StudentRegistry _studentRegistry;
         private InterviewerRegistry _interviewerRegistry;
+        private int _selectedTabIndex = 0;
 
         public RegistryViewModel(NavigationViewModel navigation)
         {
@@ -29,6 +30,8 @@ namespace SimpleOverlayEditor.ViewModels
             _interviewerRegistry = _registryStore.LoadInterviewerRegistry();
 
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
+            ExportStudentRegistryTemplateCommand = new RelayCommand(OnExportStudentRegistryTemplate);
+            ExportInterviewerRegistryTemplateCommand = new RelayCommand(OnExportInterviewerRegistryTemplate);
             LoadStudentRegistryCommand = new RelayCommand(OnLoadStudentRegistry);
             LoadInterviewerRegistryCommand = new RelayCommand(OnLoadInterviewerRegistry);
             SaveStudentRegistryCommand = new RelayCommand(OnSaveStudentRegistry, () => StudentRegistry.Students.Count > 0);
@@ -37,7 +40,34 @@ namespace SimpleOverlayEditor.ViewModels
             Logger.Instance.Info("RegistryViewModel 초기화 완료");
         }
 
+        /// <summary>
+        /// 현재 선택된 탭 인덱스 (0: 수험생 명부, 1: 면접위원 명부)
+        /// </summary>
+        public int SelectedTabIndex
+        {
+            get => _selectedTabIndex;
+            set
+            {
+                _selectedTabIndex = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsStudentTabSelected));
+                OnPropertyChanged(nameof(IsInterviewerTabSelected));
+            }
+        }
+
+        /// <summary>
+        /// 수험생 명부 탭이 선택되었는지 여부 (0번 탭)
+        /// </summary>
+        public bool IsStudentTabSelected => SelectedTabIndex == 0;
+
+        /// <summary>
+        /// 면접위원 명부 탭이 선택되었는지 여부 (1번 탭)
+        /// </summary>
+        public bool IsInterviewerTabSelected => SelectedTabIndex == 1;
+
         public ICommand NavigateToHomeCommand { get; }
+        public ICommand ExportStudentRegistryTemplateCommand { get; }
+        public ICommand ExportInterviewerRegistryTemplateCommand { get; }
         public ICommand LoadStudentRegistryCommand { get; }
         public ICommand LoadInterviewerRegistryCommand { get; }
         public ICommand SaveStudentRegistryCommand { get; }
@@ -71,6 +101,62 @@ namespace SimpleOverlayEditor.ViewModels
                 if (SaveInterviewerRegistryCommand is RelayCommand cmd)
                 {
                     cmd.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        private void OnExportStudentRegistryTemplate()
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "Excel 파일 (*.xlsx)|*.xlsx|모든 파일 (*.*)|*.*",
+                Title = "양식 파일 저장",
+                FileName = "수험생_명부_양식.xlsx"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    Logger.Instance.Info($"수험생 명부 양식 파일 내보내기 시작: {dialog.FileName}");
+                    _registryStore.ExportStudentRegistryTemplate(dialog.FileName);
+                    Logger.Instance.Info("수험생 명부 양식 파일 내보내기 완료");
+                    MessageBox.Show("양식 파일을 내보냈습니다.", 
+                        "완료", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error("수험생 명부 양식 파일 내보내기 실패", ex);
+                    MessageBox.Show($"양식 파일 내보내기 실패:\n{ex.Message}", 
+                        "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void OnExportInterviewerRegistryTemplate()
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "Excel 파일 (*.xlsx)|*.xlsx|모든 파일 (*.*)|*.*",
+                Title = "양식 파일 저장",
+                FileName = "면접위원_명부_양식.xlsx"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    Logger.Instance.Info($"면접위원 명부 양식 파일 내보내기 시작: {dialog.FileName}");
+                    _registryStore.ExportInterviewerRegistryTemplate(dialog.FileName);
+                    Logger.Instance.Info("면접위원 명부 양식 파일 내보내기 완료");
+                    MessageBox.Show("양식 파일을 내보냈습니다.", 
+                        "완료", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error("면접위원 명부 양식 파일 내보내기 실패", ex);
+                    MessageBox.Show($"양식 파일 내보내기 실패:\n{ex.Message}", 
+                        "오류", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }

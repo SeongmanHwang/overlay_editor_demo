@@ -10,42 +10,16 @@ namespace SimpleOverlayEditor.Models
     public class StudentInfo : INotifyPropertyChanged
     {
         private string _studentId = string.Empty;
-        private string? _time;
-        private string? _group;
-        private string? _interviewRoom;
-        private string? _number;
         private string? _registrationNumber;
-        private string? _middleSchool;
-        private string? _name;
+        private string? _examType;  // 전형명
+        private string? _name;  // 성명
+        private string? _birthDate;  // 생년월일
+        private string? _middleSchool;  // 출신교명
 
         public string StudentId
         {
             get => _studentId;
             set { _studentId = value; OnPropertyChanged(); }
-        }
-
-        public string? Time
-        {
-            get => _time;
-            set { _time = value; OnPropertyChanged(); }
-        }
-
-        public string? Group
-        {
-            get => _group;
-            set { _group = value; OnPropertyChanged(); }
-        }
-
-        public string? InterviewRoom
-        {
-            get => _interviewRoom;
-            set { _interviewRoom = value; OnPropertyChanged(); }
-        }
-
-        public string? Number
-        {
-            get => _number;
-            set { _number = value; OnPropertyChanged(); }
         }
 
         public string? RegistrationNumber
@@ -54,16 +28,28 @@ namespace SimpleOverlayEditor.Models
             set { _registrationNumber = value; OnPropertyChanged(); }
         }
 
-        public string? MiddleSchool
+        public string? ExamType
         {
-            get => _middleSchool;
-            set { _middleSchool = value; OnPropertyChanged(); }
+            get => _examType;
+            set { _examType = value; OnPropertyChanged(); }
         }
 
         public string? Name
         {
             get => _name;
             set { _name = value; OnPropertyChanged(); }
+        }
+
+        public string? BirthDate
+        {
+            get => _birthDate;
+            set { _birthDate = value; OnPropertyChanged(); }
+        }
+
+        public string? MiddleSchool
+        {
+            get => _middleSchool;
+            set { _middleSchool = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

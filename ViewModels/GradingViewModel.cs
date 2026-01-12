@@ -150,7 +150,9 @@ namespace SimpleOverlayEditor.ViewModels
                             DuplicateCount = duplicateCount,
                             HasErrors = sheet.HasErrors,
                             RegistrationNumber = studentInfo?.RegistrationNumber,
-                            MiddleSchool = studentInfo?.MiddleSchool
+                            ExamType = studentInfo?.ExamType,
+                            MiddleSchool = studentInfo?.MiddleSchool,
+                            BirthDate = studentInfo?.BirthDate
                         };
 
                         CalculateScores(result);
@@ -211,7 +213,9 @@ namespace SimpleOverlayEditor.ViewModels
                         DuplicateCount = 1,
                         HasErrors = sheet.HasErrors,
                         RegistrationNumber = studentInfo?.RegistrationNumber,
-                        MiddleSchool = studentInfo?.MiddleSchool
+                        ExamType = studentInfo?.ExamType,
+                        MiddleSchool = studentInfo?.MiddleSchool,
+                        BirthDate = studentInfo?.BirthDate
                     };
 
                     CalculateScores(result);

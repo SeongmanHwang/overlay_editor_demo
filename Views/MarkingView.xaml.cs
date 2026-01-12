@@ -162,16 +162,38 @@ namespace SimpleOverlayEditor.Views
             var key = e.Column.SortMemberPath;
             if (string.IsNullOrWhiteSpace(key)) return;
 
-            // 방향 토글: 해당 key가 기존에 있으면 반대로, 없으면 Asc로 시작
-            var existing = view.SortDescriptions.FirstOrDefault(sd => sd.PropertyName == key);
-            var newDir = (!string.IsNullOrEmpty(existing.PropertyName) && existing.Direction == ListSortDirection.Ascending)
-                ? ListSortDirection.Descending
-                : ListSortDirection.Ascending;
+            // 현재 정렬 목록을 복사
+            var current = view.SortDescriptions.ToList();
 
-            // 기존 정렬 중 클릭한 열은 제거하고 나머지는 보관
-            var rest = view.SortDescriptions.Where(sd => sd.PropertyName != key).ToList();
+            // 클릭한 열의 위치 찾기
+            var existingIndex = current.FindIndex(sd => sd.PropertyName == key);
+            bool isPrimary = existingIndex == 0;  // 0이면 1순위
+            bool existsSomewhere = existingIndex >= 0;
 
-            // 엑셀식: 클릭한 열을 1순위로 올리고, 기존은 2순위로 유지
+            ListSortDirection newDir;
+
+            if (isPrimary)
+            {
+                // 1순위 열을 다시 클릭: 토글
+                newDir = current[0].Direction == ListSortDirection.Ascending
+                    ? ListSortDirection.Descending
+                    : ListSortDirection.Ascending;
+            }
+            else if (existsSomewhere)
+            {
+                // 2순위 이하로 있던 열을 1순위로 올림: 방향 유지
+                newDir = current[existingIndex].Direction;
+            }
+            else
+            {
+                // 처음 등장한 열: 항상 오름차순
+                newDir = ListSortDirection.Ascending;
+            }
+
+            // 클릭한 열을 제거한 나머지(방향 포함 그대로 유지)
+            var rest = current.Where(sd => sd.PropertyName != key).ToList();
+
+            // 클릭한 열을 1순위로 올리고, 기존 정렬들은 차순위로 유지
             view.SortDescriptions.Clear();
             view.SortDescriptions.Add(new SortDescription(key, newDir));
             foreach (var sd in rest)
@@ -179,7 +201,7 @@ namespace SimpleOverlayEditor.Views
 
             view.Refresh();
 
-            // 아이콘 정리: 1순위만 표시
+            // UI 아이콘은 1순위만 표시
             foreach (var col in grid.Columns)
                 col.SortDirection = null;
 

@@ -45,66 +45,66 @@
                   GridLinesVisibility="All"
                   HeadersVisibility="Column"
                   AlternatingRowBackground="#F5F5F5"
-                  Margin="10">
+                  Margin="10"
+                  Sorting="GradingDataGrid_Sorting">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" Width="100"/>
-                <DataGridTextColumn Header="접수번호" Binding="{Binding RegistrationNumber}" Width="100"/>
-                <DataGridTextColumn Header="전형명" Binding="{Binding ExamType}" Width="100"/>
-                <DataGridTextColumn Header="성명" Binding="{Binding StudentName}" Width="100"/>
-                <DataGridTextColumn Header="생년월일" Binding="{Binding BirthDate}" Width="120"/>
-                <DataGridTextColumn Header="출신교명" Binding="{Binding MiddleSchool}" Width="150"/>
-                <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" Width="100"/>
-                <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" Width="60">
+                <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" SortMemberPath="StudentId" Width="100"/>
+                <DataGridTextColumn Header="접수번호" Binding="{Binding RegistrationNumber}" SortMemberPath="RegistrationNumber" Width="100"/>
+                <DataGridTextColumn Header="전형명" Binding="{Binding ExamType}" SortMemberPath="ExamType" Width="100"/>
+                <DataGridTextColumn Header="성명" Binding="{Binding StudentName}" SortMemberPath="StudentName" Width="100"/>
+                <DataGridTextColumn Header="생년월일" Binding="{Binding BirthDate}" SortMemberPath="BirthDate" Width="120"/>
+                <DataGridTextColumn Header="출신교명" Binding="{Binding MiddleSchool}" SortMemberPath="MiddleSchool" Width="150"/>
+                <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" SortMemberPath="Question1Marking" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="문항2" Binding="{Binding Question2Marking}" Width="60">
+                <DataGridTextColumn Header="문항2" Binding="{Binding Question2Marking}" SortMemberPath="Question2Marking" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="문항3" Binding="{Binding Question3Marking}" Width="60">
+                <DataGridTextColumn Header="문항3" Binding="{Binding Question3Marking}" SortMemberPath="Question3Marking" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="문항4" Binding="{Binding Question4Marking}" Width="60">
+                <DataGridTextColumn Header="문항4" Binding="{Binding Question4Marking}" SortMemberPath="Question4Marking" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="총점" Binding="{Binding TotalScore}" Width="70">
+                <DataGridTextColumn Header="총점" Binding="{Binding TotalScore}" SortMemberPath="TotalScore" Width="70">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="석차" Binding="{Binding Rank}" Width="60">
+                <DataGridTextColumn Header="석차" Binding="{Binding Rank}" SortMemberPath="Rank" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" Width="60" IsReadOnly="True"/>
-                <DataGridTextColumn Header="중복수" Binding="{Binding DuplicateCount}" Width="70">
+                <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" SortMemberPath="IsDuplicate" Width="60" IsReadOnly="True"/>
+                <DataGridTextColumn Header="중복수" Binding="{Binding DuplicateCount}" SortMemberPath="DuplicateCount" Width="70">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" Width="60" IsReadOnly="True"/>
+                <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" SortMemberPath="HasErrors" Width="60" IsReadOnly="True"/>
             </DataGrid.Columns>
 
             <!-- 중복 행을 붉은색으로 표시 -->

@@ -164,21 +164,22 @@
             <TabItem Header="수험생 명부">
                 <DataGrid ItemsSource="{Binding StudentRegistry.Students}"
                          AutoGenerateColumns="False"
-                         CanUserAddRows="True"
-                         CanUserDeleteRows="True"
-                         IsReadOnly="False"
+                         CanUserAddRows="False"
+                         CanUserDeleteRows="False"
+                         IsReadOnly="True"
                          SelectionMode="Single"
                          GridLinesVisibility="All"
                          HeadersVisibility="Column"
                          AlternatingRowBackground="#F5F5F5"
-                         Margin="10">
+                         Margin="10"
+                         Sorting="StudentDataGrid_Sorting">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                        <DataGridTextColumn Header="접수번호" Binding="{Binding RegistrationNumber, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                        <DataGridTextColumn Header="전형명" Binding="{Binding ExamType, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                        <DataGridTextColumn Header="성명" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                        <DataGridTextColumn Header="생년월일" Binding="{Binding BirthDate, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
-                        <DataGridTextColumn Header="출신교명" Binding="{Binding MiddleSchool, UpdateSourceTrigger=PropertyChanged}" Width="150"/>
+                        <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" SortMemberPath="StudentId" Width="100"/>
+                        <DataGridTextColumn Header="접수번호" Binding="{Binding RegistrationNumber}" SortMemberPath="RegistrationNumber" Width="100"/>
+                        <DataGridTextColumn Header="전형명" Binding="{Binding ExamType}" SortMemberPath="ExamType" Width="100"/>
+                        <DataGridTextColumn Header="성명" Binding="{Binding Name}" SortMemberPath="Name" Width="100"/>
+                        <DataGridTextColumn Header="생년월일" Binding="{Binding BirthDate}" SortMemberPath="BirthDate" Width="120"/>
+                        <DataGridTextColumn Header="출신교명" Binding="{Binding MiddleSchool}" SortMemberPath="MiddleSchool" Width="150"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>
@@ -187,17 +188,18 @@
             <TabItem Header="면접위원 명부">
                 <DataGrid ItemsSource="{Binding InterviewerRegistry.Interviewers}"
                          AutoGenerateColumns="False"
-                         CanUserAddRows="True"
-                         CanUserDeleteRows="True"
-                         IsReadOnly="False"
+                         CanUserAddRows="False"
+                         CanUserDeleteRows="False"
+                         IsReadOnly="True"
                          SelectionMode="Single"
                          GridLinesVisibility="All"
                          HeadersVisibility="Column"
                          AlternatingRowBackground="#F5F5F5"
-                         Margin="10">
+                         Margin="10"
+                         Sorting="InterviewerDataGrid_Sorting">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="면접위원번호" Binding="{Binding InterviewerId, UpdateSourceTrigger=PropertyChanged}" Width="150"/>
-                        <DataGridTextColumn Header="성명" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="150"/>
+                        <DataGridTextColumn Header="면접위원번호" Binding="{Binding InterviewerId}" SortMemberPath="InterviewerId" Width="150"/>
+                        <DataGridTextColumn Header="성명" Binding="{Binding Name}" SortMemberPath="Name" Width="150"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>

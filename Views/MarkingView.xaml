@@ -505,7 +505,7 @@
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
-                          IsReadOnly="False"
+                          IsReadOnly="True"
                           SelectionMode="Extended"
                           MaxHeight="300"
                           GridLinesVisibility="All"

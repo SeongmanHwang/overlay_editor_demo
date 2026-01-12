@@ -86,54 +86,66 @@
                           FontWeight="Bold"
                           VerticalAlignment="Center"
                           HorizontalAlignment="Center"/>
-                <TextBox Grid.Column="1" 
-                        Text="{Binding ScoringRule.ScoreNames[0], UpdateSourceTrigger=PropertyChanged}" 
+                <TextBlock Grid.Column="1" 
+                        Text="{Binding ScoringRule.ScoreNames[0]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="2" 
-                        Text="{Binding ScoringRule.ScoreNames[1], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" 
+                        Text="{Binding ScoringRule.ScoreNames[1]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="3" 
-                        Text="{Binding ScoringRule.ScoreNames[2], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" 
+                        Text="{Binding ScoringRule.ScoreNames[2]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="4" 
-                        Text="{Binding ScoringRule.ScoreNames[3], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" 
+                        Text="{Binding ScoringRule.ScoreNames[3]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="5" 
-                        Text="{Binding ScoringRule.ScoreNames[4], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="5" 
+                        Text="{Binding ScoringRule.ScoreNames[4]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="6" 
-                        Text="{Binding ScoringRule.ScoreNames[5], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="6" 
+                        Text="{Binding ScoringRule.ScoreNames[5]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="7" 
-                        Text="{Binding ScoringRule.ScoreNames[6], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="7" 
+                        Text="{Binding ScoringRule.ScoreNames[6]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="8" 
-                        Text="{Binding ScoringRule.ScoreNames[7], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="8" 
+                        Text="{Binding ScoringRule.ScoreNames[7]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="9" 
-                        Text="{Binding ScoringRule.ScoreNames[8], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="9" 
+                        Text="{Binding ScoringRule.ScoreNames[8]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="10" 
-                        Text="{Binding ScoringRule.ScoreNames[9], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="10" 
+                        Text="{Binding ScoringRule.ScoreNames[9]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="11" 
-                        Text="{Binding ScoringRule.ScoreNames[10], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="11" 
+                        Text="{Binding ScoringRule.ScoreNames[10]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
-                <TextBox Grid.Column="12" 
-                        Text="{Binding ScoringRule.ScoreNames[11], UpdateSourceTrigger=PropertyChanged}" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="12" 
+                        Text="{Binding ScoringRule.ScoreNames[11]}" 
                         Margin="2"
-                        HorizontalContentAlignment="Center"/>
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
@@ -143,7 +155,7 @@
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
-                  IsReadOnly="False"
+                  IsReadOnly="True"
                   SelectionMode="Single"
                   GridLinesVisibility="All"
                   HeadersVisibility="Column"

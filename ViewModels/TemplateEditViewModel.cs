@@ -27,6 +27,7 @@ namespace SimpleOverlayEditor.ViewModels
         private Workspace _workspace;
         private ImageDocument? _selectedDocument;
         private RectangleOverlay? _selectedOverlay;
+        private OverlaySelectionViewModel _selectionVM;
         private OverlayType _currentOverlayType = OverlayType.ScoringArea;
         private int? _currentQuestionNumber = 1; // ScoringArea일 때 사용 (1-4)
         private Rect _currentImageDisplayRect;
@@ -42,6 +43,19 @@ namespace SimpleOverlayEditor.ViewModels
 
             _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
             _currentImageDisplayRect = new Rect();
+
+            // SelectionVM 초기화
+            _selectionVM = new OverlaySelectionViewModel();
+            _selectionVM.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName is nameof(OverlaySelectionViewModel.X)
+                    or nameof(OverlaySelectionViewModel.Y)
+                    or nameof(OverlaySelectionViewModel.Width)
+                    or nameof(OverlaySelectionViewModel.Height))
+                {
+                    OnPropertyChanged(nameof(SelectionVM));
+                }
+            };
 
             // TemplateViewModel 초기화
             _templateViewModel = new TemplateViewModel(_stateStore, _workspace.Template);
@@ -81,11 +95,21 @@ namespace SimpleOverlayEditor.ViewModels
 
             // Commands
             ToggleAddModeCommand = new RelayCommand(() => IsAddMode = !IsAddMode);
-            DeleteSelectedCommand = new RelayCommand(OnDeleteSelected, () => SelectedOverlay != null);
+            DeleteSelectedCommand = new RelayCommand(OnDeleteSelected, () => !_selectionVM.IsEmpty);
             ClearAllCommand = new RelayCommand(OnClearAll, () => GetCurrentOverlayCollection()?.Count > 0);
             SaveTemplateCommand = new RelayCommand(OnSaveTemplate);
             LoadSampleImageCommand = new RelayCommand(OnLoadSampleImage);
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
+
+            // 정렬 명령
+            AlignLeftCommand = new RelayCommand(OnAlignLeft, () => _selectionVM.Selected.Count >= 2);
+            AlignRightCommand = new RelayCommand(OnAlignRight, () => _selectionVM.Selected.Count >= 2);
+            AlignCenterXCommand = new RelayCommand(OnAlignCenterX, () => _selectionVM.Selected.Count >= 2);
+            AlignTopCommand = new RelayCommand(OnAlignTop, () => _selectionVM.Selected.Count >= 2);
+            AlignBottomCommand = new RelayCommand(OnAlignBottom, () => _selectionVM.Selected.Count >= 2);
+            AlignCenterYCommand = new RelayCommand(OnAlignCenterY, () => _selectionVM.Selected.Count >= 2);
+            DistributeHorizontalCommand = new RelayCommand(OnDistributeHorizontal, () => _selectionVM.Selected.Count >= 3);
+            DistributeVerticalCommand = new RelayCommand(OnDistributeVertical, () => _selectionVM.Selected.Count >= 3);
 
             Logger.Instance.Info("TemplateEditViewModel 초기화 완료");
         }
@@ -136,6 +160,16 @@ namespace SimpleOverlayEditor.ViewModels
                     _selectedOverlay = value;
                     OnPropertyChanged();
                     
+                    // SelectionVM 동기화
+                    if (value != null)
+                    {
+                        _selectionVM.SetSelection(new[] { value });
+                    }
+                    else
+                    {
+                        _selectionVM.Clear();
+                    }
+                    
                     // 오버레이 선택 시 추가 모드 해제
                     if (_selectedOverlay != null)
                     {
@@ -177,6 +211,11 @@ namespace SimpleOverlayEditor.ViewModels
         public bool IsQuestionNumberVisible => CurrentOverlayType == OverlayType.ScoringArea;
 
         /// <summary>
+        /// 다중 선택 관리 ViewModel
+        /// </summary>
+        public OverlaySelectionViewModel SelectionVM => _selectionVM;
+
+        /// <summary>
         /// 오버레이 추가 모드 활성화 여부
         /// </summary>
         public bool IsAddMode
@@ -214,6 +253,16 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand SaveTemplateCommand { get; }
         public ICommand LoadSampleImageCommand { get; }
         public ICommand NavigateToHomeCommand { get; }
+
+        // 정렬 명령
+        public ICommand AlignLeftCommand { get; }
+        public ICommand AlignRightCommand { get; }
+        public ICommand AlignCenterXCommand { get; }
+        public ICommand AlignTopCommand { get; }
+        public ICommand AlignBottomCommand { get; }
+        public ICommand AlignCenterYCommand { get; }
+        public ICommand DistributeHorizontalCommand { get; }
+        public ICommand DistributeVerticalCommand { get; }
 
         public TemplateViewModel TemplateViewModel => _templateViewModel ?? throw new InvalidOperationException("TemplateViewModel이 초기화되지 않았습니다.");
 
@@ -508,6 +557,140 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Logger.Instance.Error("샘플 이미지 로드 실패", ex);
                 MessageBox.Show($"샘플 이미지 로드 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 오버레이가 현재 선택 가능한지 확인 (현재 문항에 속하는지)
+        /// </summary>
+        public bool IsOverlaySelectable(RectangleOverlay overlay)
+        {
+            if (CurrentOverlayType != OverlayType.ScoringArea)
+            {
+                // ScoringArea가 아니면 항상 선택 가능
+                return true;
+            }
+
+            // ScoringArea인 경우, 현재 선택된 문항에 속한 것만 선택 가능
+            if (!CurrentQuestionNumber.HasValue) return false;
+
+            var question = _workspace.Template.Questions
+                .FirstOrDefault(q => q.QuestionNumber == CurrentQuestionNumber.Value);
+
+            return question?.Options.Contains(overlay) ?? false;
+        }
+
+        /// <summary>
+        /// DataGrid 선택 동기화
+        /// </summary>
+        public void SyncSelectionFromDataGrid(System.Collections.IList selectedItems)
+        {
+            var overlays = selectedItems.Cast<RectangleOverlay>()
+                .Where(o => IsOverlaySelectable(o))
+                .ToList();
+            _selectionVM.SetSelection(overlays);
+
+            // 단일 선택도 업데이트 (하위 호환)
+            _selectedOverlay = overlays.FirstOrDefault();
+            OnPropertyChanged(nameof(SelectedOverlay));
+        }
+
+        // 정렬 메서드들
+        private void OnAlignLeft()
+        {
+            if (_selectionVM.Selected.Count < 2) return;
+            var minX = _selectionVM.Selected.Min(o => o.X);
+            foreach (var overlay in _selectionVM.Selected)
+            {
+                overlay.X = minX;
+            }
+        }
+
+        private void OnAlignRight()
+        {
+            if (_selectionVM.Selected.Count < 2) return;
+            var maxX = _selectionVM.Selected.Max(o => o.X + o.Width);
+            foreach (var overlay in _selectionVM.Selected)
+            {
+                overlay.X = maxX - overlay.Width;
+            }
+        }
+
+        private void OnAlignCenterX()
+        {
+            if (_selectionVM.Selected.Count < 2) return;
+            var minX = _selectionVM.Selected.Min(o => o.X);
+            var maxX = _selectionVM.Selected.Max(o => o.X + o.Width);
+            var centerX = (minX + maxX) / 2;
+
+            foreach (var overlay in _selectionVM.Selected)
+            {
+                overlay.X = centerX - overlay.Width / 2;
+            }
+        }
+
+        private void OnAlignTop()
+        {
+            if (_selectionVM.Selected.Count < 2) return;
+            var minY = _selectionVM.Selected.Min(o => o.Y);
+            foreach (var overlay in _selectionVM.Selected)
+            {
+                overlay.Y = minY;
+            }
+        }
+
+        private void OnAlignBottom()
+        {
+            if (_selectionVM.Selected.Count < 2) return;
+            var maxY = _selectionVM.Selected.Max(o => o.Y + o.Height);
+            foreach (var overlay in _selectionVM.Selected)
+            {
+                overlay.Y = maxY - overlay.Height;
+            }
+        }
+
+        private void OnAlignCenterY()
+        {
+            if (_selectionVM.Selected.Count < 2) return;
+            var minY = _selectionVM.Selected.Min(o => o.Y);
+            var maxY = _selectionVM.Selected.Max(o => o.Y + o.Height);
+            var centerY = (minY + maxY) / 2;
+
+            foreach (var overlay in _selectionVM.Selected)
+            {
+                overlay.Y = centerY - overlay.Height / 2;
+            }
+        }
+
+        private void OnDistributeHorizontal()
+        {
+            if (_selectionVM.Selected.Count < 3) return;
+
+            var sorted = _selectionVM.Selected.OrderBy(o => o.X).ToList();
+            var firstX = sorted.First().X;
+            var lastX = sorted.Last().X + sorted.Last().Width;
+            var totalWidth = lastX - firstX;
+            var itemWidth = totalWidth / (sorted.Count - 1);
+
+            for (int i = 1; i < sorted.Count - 1; i++)
+            {
+                sorted[i].X = firstX + itemWidth * i - sorted[i].Width / 2;
+            }
+        }
+
+        private void OnDistributeVertical()
+        {
+            if (_selectionVM.Selected.Count < 3) return;
+
+            var sorted = _selectionVM.Selected.OrderBy(o => o.Y).ToList();
+            var firstY = sorted.First().Y;
+            var lastY = sorted.Last().Y + sorted.Last().Height;
+            var totalHeight = lastY - firstY;
+            var itemHeight = totalHeight / (sorted.Count - 1);
+
+            for (int i = 1; i < sorted.Count - 1; i++)
+            {
+                sorted[i].Y = firstY + itemHeight * i - sorted[i].Height / 2;
             }
         }
 

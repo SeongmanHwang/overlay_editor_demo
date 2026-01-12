@@ -13,6 +13,7 @@
         <utils:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <utils:StringEqualsConverter x:Key="StringEqualsConverter"/>
         <utils:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <utils:InverseBoolToBoolConverter x:Key="InverseBoolToBoolConverter"/>
         
         <!-- 홈 화면 모드 버튼 스타일 -->
         <Style x:Key="HomeModeButton" TargetType="Button">

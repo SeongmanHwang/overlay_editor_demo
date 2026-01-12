@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.ViewModels;
 using SimpleOverlayEditor.Utils;
@@ -39,6 +40,11 @@ namespace SimpleOverlayEditor.Views
             {
                 if (e.PropertyName == nameof(ViewModel.DisplayImage) || 
                     e.PropertyName == nameof(ViewModel.SelectedDocument))
+                {
+                    UpdateImageDisplay();
+                }
+
+                if (e.PropertyName == nameof(ViewModel.CurrentImageDisplayRect))
                 {
                     UpdateImageDisplay();
                 }
@@ -92,11 +98,8 @@ namespace SimpleOverlayEditor.Views
                 }
 
                 var availableSize = new Size(viewportWidth, viewportHeight);
-                var displayRect = ZoomHelper.CalculateImageDisplayRect(
-                    doc.ImageWidth,
-                    doc.ImageHeight,
-                    availableSize,
-                    ZoomHelper.ImageAlignment.TopLeft);
+                ViewModel.UpdateImageDisplayRect(availableSize);
+                var displayRect = ViewModel.CurrentImageDisplayRect;
 
                 // Canvas 크기 설정
                 const double horizontalPadding = 10;
@@ -125,6 +128,65 @@ namespace SimpleOverlayEditor.Views
             catch (Exception ex)
             {
                 Logger.Instance.Error("MarkingView - UpdateImageDisplay 실패", ex);
+            }
+        }
+
+        /// <summary>
+        /// Ctrl + 마우스 휠로 줌 제어
+        /// </summary>
+        private void ImageScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Ctrl 키가 눌려있을 때만 줌 작동
+            if (Keyboard.Modifiers != ModifierKeys.Control)
+            {
+                return;
+            }
+
+            // 기본 스크롤 동작 방지
+            e.Handled = true;
+
+            if (ViewModel.SelectedDocument == null)
+            {
+                return;
+            }
+
+            // 줌 증감량 (휠 위로 = 줌 인, 아래로 = 줌 아웃)
+            const double zoomFactor = 0.1; // 10%씩 증감
+            double zoomDelta = e.Delta > 0 ? zoomFactor : -zoomFactor;
+
+            // 현재 줌 레벨 계산
+            double oldZoom = ViewModel.ZoomLevel;
+            double newZoom = oldZoom + zoomDelta;
+
+            // 마우스 위치를 중심으로 줌 (스크롤 위치 조정)
+            var mousePosition = e.GetPosition(ImageScrollViewer);
+            var scrollViewer = sender as ScrollViewer;
+            if (scrollViewer != null)
+            {
+                // 스크롤 위치 계산
+                double scrollX = scrollViewer.HorizontalOffset;
+                double scrollY = scrollViewer.VerticalOffset;
+
+                // 줌 레벨 변경
+                ViewModel.ZoomLevel = newZoom;
+
+                // 이미지 표시 영역 업데이트
+                var viewportWidth = ImageScrollViewer.ViewportWidth;
+                var viewportHeight = ImageScrollViewer.ViewportHeight;
+                if (viewportWidth > 0 && viewportHeight > 0)
+                {
+                    var availableSize = new Size(viewportWidth, viewportHeight);
+                    ViewModel.UpdateImageDisplayRect(availableSize);
+                    UpdateImageDisplay();
+
+                    // 마우스 위치를 중심으로 스크롤 조정
+                    double zoomRatio = newZoom / oldZoom;
+                    double newScrollX = (scrollX + mousePosition.X) * zoomRatio - mousePosition.X;
+                    double newScrollY = (scrollY + mousePosition.Y) * zoomRatio - mousePosition.Y;
+
+                    scrollViewer.ScrollToHorizontalOffset(Math.Max(0, newScrollX));
+                    scrollViewer.ScrollToVerticalOffset(Math.Max(0, newScrollY));
+                }
             }
         }
 

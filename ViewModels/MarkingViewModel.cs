@@ -16,6 +16,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
+using SimpleOverlayEditor.Utils;
 using SimpleOverlayEditor.Views;
 
 namespace SimpleOverlayEditor.ViewModels
@@ -43,6 +44,8 @@ namespace SimpleOverlayEditor.ViewModels
         private ObservableCollection<OmrSheetResult>? _sheetResults;
         private ICollectionView? _filteredSheetResults;
         private string _filterMode = "All";
+        private Rect _currentImageDisplayRect;
+        private double _zoomLevel = 1.0; // 줌 레벨 (1.0 = 100%)
 
         /// <summary>
         /// SheetResults 항목의 PropertyChanged 이벤트를 처리합니다.
@@ -121,6 +124,7 @@ namespace SimpleOverlayEditor.ViewModels
             _alignmentService = new ImageAlignmentService();
             _renderer = new Renderer();
             _markingAnalyzer = new MarkingAnalyzer();
+            _currentImageDisplayRect = new Rect();
 
             DetectMarkingsCommand = new RelayCommand(
                 OnDetectMarkings, 
@@ -378,6 +382,36 @@ namespace SimpleOverlayEditor.ViewModels
                     _filterMode = value;
                     OnPropertyChanged();
                     ApplyFilter();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 이미지 표시 영역 (줌 적용 후)
+        /// </summary>
+        public Rect CurrentImageDisplayRect
+        {
+            get => _currentImageDisplayRect;
+            set
+            {
+                _currentImageDisplayRect = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 이미지 줌 레벨 (1.0 = 100%, 최소 0.1, 최대 5.0)
+        /// </summary>
+        public double ZoomLevel
+        {
+            get => _zoomLevel;
+            set
+            {
+                var clampedValue = Math.Max(0.1, Math.Min(5.0, value));
+                if (Math.Abs(_zoomLevel - clampedValue) > 0.001)
+                {
+                    _zoomLevel = clampedValue;
+                    OnPropertyChanged();
                 }
             }
         }
@@ -1170,6 +1204,38 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Logger.Instance.Error("정렬된 이미지 캐시 저장 실패", ex);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 이미지 표시 영역을 업데이트합니다 (줌 레벨 적용).
+        /// </summary>
+        public void UpdateImageDisplayRect(Size availableSize)
+        {
+            if (SelectedDocument != null)
+            {
+                // 기본 표시 크기 계산 (줌 없이)
+                var baseRect = ZoomHelper.CalculateImageDisplayRect(
+                    SelectedDocument.ImageWidth,
+                    SelectedDocument.ImageHeight,
+                    availableSize,
+                    ZoomHelper.ImageAlignment.TopLeft);
+
+                // 줌 레벨을 적용하여 실제 표시 크기 계산
+                var newRect = new Rect(
+                    baseRect.X * ZoomLevel,
+                    baseRect.Y * ZoomLevel,
+                    baseRect.Width * ZoomLevel,
+                    baseRect.Height * ZoomLevel);
+
+                const double epsilon = 0.001;
+                if (Math.Abs(CurrentImageDisplayRect.X - newRect.X) > epsilon ||
+                    Math.Abs(CurrentImageDisplayRect.Y - newRect.Y) > epsilon ||
+                    Math.Abs(CurrentImageDisplayRect.Width - newRect.Width) > epsilon ||
+                    Math.Abs(CurrentImageDisplayRect.Height - newRect.Height) > epsilon)
+                {
+                    CurrentImageDisplayRect = newRect;
+                }
             }
         }
 

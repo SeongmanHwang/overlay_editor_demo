@@ -81,6 +81,85 @@
                                     <Run Text="높이:" FontWeight="Bold"/>
                                     <Run Text="{Binding SelectedDocument.ImageHeight}"/> <Run Text="px"/>
                                 </TextBlock>
+                                
+                                <!-- 정렬 정보 -->
+                                <Separator Margin="0,10,0,5"/>
+                                <TextBlock Text="정렬 정보" FontWeight="Bold" Margin="0,5,0,2"/>
+                                
+                                <!-- 정렬 상태 -->
+                                <TextBlock Margin="0,5,0,2">
+                                    <Run Text="정렬 상태:" FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.Success, Converter={StaticResource BoolToYesNoConverter}}">
+                                        <Run.Style>
+                                            <Style TargetType="Run">
+                                                <Setter Property="Foreground" Value="#666666"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedDocument.AlignmentInfo.Success}" Value="True">
+                                                        <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedDocument.AlignmentInfo.Success}" Value="False">
+                                                        <Setter Property="Foreground" Value="#F44336"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Run.Style>
+                                    </Run>
+                                </TextBlock>
+                                
+                                <!-- 신뢰도 (정렬 성공 시에만 표시) -->
+                                <TextBlock Margin="0,5,0,2" 
+                                          Visibility="{Binding SelectedDocument.AlignmentInfo.Success, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Run Text="신뢰도:" FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.Confidence, StringFormat=P0}">
+                                        <Run.Style>
+                                            <Style TargetType="Run">
+                                                <Setter Property="Foreground" Value="#F44336"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedDocument.AlignmentInfo.Confidence, Converter={StaticResource DoubleToBoolConverter}, ConverterParameter=0.8}" Value="True">
+                                                        <Setter Property="Foreground" Value="#4CAF50"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedDocument.AlignmentInfo.Confidence, Converter={StaticResource DoubleToBoolConverter}, ConverterParameter=0.7}" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF9800"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Run.Style>
+                                    </Run>
+                                    <Run Text=" ("/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.Confidence, StringFormat=F2}"/>
+                                    <Run Text=")"/>
+                                </TextBlock>
+                                
+                                <!-- 회전 (정렬 성공 시에만 표시) -->
+                                <TextBlock Margin="0,5,0,2" 
+                                          Visibility="{Binding SelectedDocument.AlignmentInfo.Success, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Run Text="회전:" FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.Rotation, StringFormat=F2}"/> <Run Text="°"/>
+                                </TextBlock>
+                                
+                                <!-- 스케일 (정렬 성공 시에만 표시) -->
+                                <TextBlock Margin="0,5,0,2" 
+                                          Visibility="{Binding SelectedDocument.AlignmentInfo.Success, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Run Text="스케일:" FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.ScaleX, StringFormat=F3}"/> <Run Text=" x "/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.ScaleY, StringFormat=F3}"/>
+                                </TextBlock>
+                                
+                                <!-- 이동 (정렬 성공 시에만 표시) -->
+                                <TextBlock Margin="0,5,0,2" 
+                                          Visibility="{Binding SelectedDocument.AlignmentInfo.Success, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Run Text="이동:" FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.TranslationX, StringFormat=F1}"/> <Run Text=", "/>
+                                    <Run Text="{Binding SelectedDocument.AlignmentInfo.TranslationY, StringFormat=F1}"/> <Run Text="px"/>
+                                </TextBlock>
+                                
+                                <!-- 정렬 안내 (정렬 정보가 없을 때) -->
+                                <TextBlock Text="정렬 정보가 없습니다." 
+                                          FontSize="10" 
+                                          Foreground="#999"
+                                          Margin="0,5,0,2"
+                                          TextWrapping="Wrap"
+                                          Visibility="{Binding SelectedDocument.AlignmentInfo, Converter={StaticResource InverseNullToVisibilityConverter}}"/>
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>
@@ -287,17 +366,12 @@
 
             <!-- 중앙: 오버레이 이미지 표시 -->
             <DockPanel Grid.Column="2" Background="#E0E0E0">
-            <StackPanel DockPanel.Dock="Top" Margin="10">
-                <TextBlock Text="오버레이 이미지" 
-                          FontWeight="Bold" 
-                          FontSize="18"
-                          Margin="0,10,0,10"/>
-            </StackPanel>
             <ScrollViewer x:Name="ImageScrollViewer"
                          HorizontalScrollBarVisibility="Auto"
                          VerticalScrollBarVisibility="Auto"
                          Background="#E0E0E0"
-                         VerticalContentAlignment="Top">
+                         VerticalContentAlignment="Top"
+                         PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel">
                 <Grid>
                     <!-- 안내 메시지 (마킹 리딩 전) -->
                     <TextBlock Text="이미지를 선택하고 마킹 리딩을 실행하세요." 

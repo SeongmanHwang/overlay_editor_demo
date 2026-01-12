@@ -158,6 +158,20 @@ namespace SimpleOverlayEditor.Utils
         }
     }
 
+    public class InverseNullToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            // null이면 Visible, null이 아니면 Collapsed (정렬 정보가 없을 때 메시지 표시)
+            return value == null ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public class InverseBoolToBoolConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -176,6 +190,47 @@ namespace SimpleOverlayEditor.Utils
                 return !boolValue;
             }
             return false;
+        }
+    }
+
+    public class BoolToYesNoConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is bool boolValue)
+            {
+                return boolValue ? "예" : "아니오";
+            }
+            return "아니오";
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is string strValue)
+            {
+                return strValue == "예";
+            }
+            return false;
+        }
+    }
+
+    public class DoubleToBoolConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is double doubleValue && parameter is string thresholdStr)
+            {
+                if (double.TryParse(thresholdStr, NumberStyles.Float, culture, out double threshold))
+                {
+                    return doubleValue >= threshold;
+                }
+            }
+            return false;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }

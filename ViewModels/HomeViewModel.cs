@@ -40,6 +40,11 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 _navigation.NavigateTo(Models.ApplicationMode.ScoringRule);
             });
+
+            NavigateToManualVerificationCommand = new RelayCommand(() =>
+            {
+                _navigation.NavigateTo(Models.ApplicationMode.ManualVerification);
+            });
         }
 
         /// <summary>
@@ -66,6 +71,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// 정답 및 배점 모드로 이동
         /// </summary>
         public ICommand NavigateToScoringRuleCommand { get; }
+
+        /// <summary>
+        /// 수기 검산 모드로 이동
+        /// </summary>
+        public ICommand NavigateToManualVerificationCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

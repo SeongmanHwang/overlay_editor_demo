@@ -478,19 +478,15 @@ namespace SimpleOverlayEditor.ViewModels
             _userHasSorted = true;
         }
 
-        private ICollectionView? _currentView; // 현재 view를 저장하여 정렬 적용 시 사용
-
         private void UpdateFilteredResults()
         {
             if (GradingResults == null)
             {
                 FilteredGradingResults = null;
-                _currentView = null;
                 return;
             }
 
             var view = CollectionViewSource.GetDefaultView(GradingResults);
-            _currentView = view;
             
             // 기본 정렬 적용: 사용자가 정렬을 변경하지 않은 경우에만
             // 컬렉션이 교체될 때마다 기본 정렬을 다시 적용

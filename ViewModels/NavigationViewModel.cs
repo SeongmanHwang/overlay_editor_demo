@@ -22,6 +22,7 @@ namespace SimpleOverlayEditor.ViewModels
             NavigateToRegistryCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Registry));
             NavigateToGradingCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Grading));
             NavigateToScoringRuleCommand = new RelayCommand(() => NavigateTo(ApplicationMode.ScoringRule));
+            NavigateToManualVerificationCommand = new RelayCommand(() => NavigateTo(ApplicationMode.ManualVerification));
         }
 
         /// <summary>
@@ -89,6 +90,11 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand NavigateToScoringRuleCommand { get; }
 
         /// <summary>
+        /// 수기 검산 모드로 이동
+        /// </summary>
+        public ICommand NavigateToManualVerificationCommand { get; }
+
+        /// <summary>
         /// 특정 모드로 이동합니다.
         /// </summary>
         public void NavigateTo(ApplicationMode mode)
@@ -132,6 +138,12 @@ namespace SimpleOverlayEditor.ViewModels
             else if (mode == ApplicationMode.ScoringRule)
             {
                 // ScoringRule 모드는 외부에서 ViewModel을 설정하도록 함
+                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
+                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
+            }
+            else if (mode == ApplicationMode.ManualVerification)
+            {
+                // ManualVerification 모드는 외부에서 ViewModel을 설정하도록 함
                 // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
                 CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
             }
@@ -242,6 +254,23 @@ namespace SimpleOverlayEditor.ViewModels
             else
             {
                 Services.Logger.Instance.Warning($"SetScoringRuleViewModel 실패: CurrentMode가 ScoringRule이 아님 (CurrentMode: {CurrentMode})");
+            }
+        }
+
+        /// <summary>
+        /// 외부에서 ManualVerificationViewModel을 설정할 수 있도록 합니다.
+        /// </summary>
+        public void SetManualVerificationViewModel(object viewModel)
+        {
+            Services.Logger.Instance.Info($"SetManualVerificationViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (CurrentMode == ApplicationMode.ManualVerification)
+            {
+                CurrentViewModel = viewModel;
+                Services.Logger.Instance.Info($"SetManualVerificationViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
+            }
+            else
+            {
+                Services.Logger.Instance.Warning($"SetManualVerificationViewModel 실패: CurrentMode가 ManualVerification이 아님 (CurrentMode: {CurrentMode})");
             }
         }
 

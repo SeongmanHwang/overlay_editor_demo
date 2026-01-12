@@ -11,10 +11,12 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 상단 도구바 -->
+        <!-- 헤더 -->
         <Border Grid.Row="0" 
-                Background="#2196F3" 
-                Padding="15">
+                Background="#2E7D32"
+                Padding="30,25"
+                BorderThickness="0,0,0,2"
+                BorderBrush="#1B5E20">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -24,18 +26,17 @@
                           FontSize="24" 
                           FontWeight="Bold" 
                           Foreground="White" 
-                          VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                          VerticalAlignment="Center"
+                          TextOptions.TextRenderingMode="ClearType"
+                          TextOptions.TextFormattingMode="Display"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- 수험생 명부 탭일 때만 표시 -->
                     <Button Content="양식 내보내기" 
                            Command="{Binding ExportStudentRegistryTemplateCommand}"
-                           Padding="12,5"
                            Background="#FF9800"
-                           Foreground="White"
-                           FontWeight="Bold"
                            Margin="0,0,10,0">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <Style TargetType="Button" BasedOn="{StaticResource CleanButton}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsStudentTabSelected}" Value="True">
@@ -49,13 +50,10 @@
                     <!-- 면접위원 명부 탭일 때만 표시 -->
                     <Button Content="양식 내보내기" 
                            Command="{Binding ExportInterviewerRegistryTemplateCommand}"
-                           Padding="12,5"
                            Background="#FF9800"
-                           Foreground="White"
-                           FontWeight="Bold"
                            Margin="0,0,10,0">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <Style TargetType="Button" BasedOn="{StaticResource CleanButton}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsInterviewerTabSelected}" Value="True">
@@ -69,13 +67,10 @@
                     <!-- 수험생 명부 탭일 때만 표시 -->
                     <Button Content="파일 불러오기" 
                            Command="{Binding LoadStudentRegistryCommand}"
-                           Padding="12,5"
                            Background="#4CAF50"
-                           Foreground="White"
-                           FontWeight="Bold"
                            Margin="0,0,10,0">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <Style TargetType="Button" BasedOn="{StaticResource CleanButton}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsStudentTabSelected}" Value="True">
@@ -89,13 +84,10 @@
                     <!-- 면접위원 명부 탭일 때만 표시 -->
                     <Button Content="파일 불러오기" 
                            Command="{Binding LoadInterviewerRegistryCommand}"
-                           Padding="12,5"
                            Background="#4CAF50"
-                           Foreground="White"
-                           FontWeight="Bold"
                            Margin="0,0,10,0">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <Style TargetType="Button" BasedOn="{StaticResource CleanButton}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsInterviewerTabSelected}" Value="True">
@@ -109,13 +101,10 @@
                     <!-- 수험생 명부 탭일 때만 표시 -->
                     <Button Content="저장" 
                            Command="{Binding SaveStudentRegistryCommand}"
-                           Padding="12,5"
-                           Background="#2196F3"
-                           Foreground="White"
-                           FontWeight="Bold"
+                           Background="#1976D2"
                            Margin="0,0,10,0">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <Style TargetType="Button" BasedOn="{StaticResource CleanButton}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsStudentTabSelected}" Value="True">
@@ -129,13 +118,10 @@
                     <!-- 면접위원 명부 탭일 때만 표시 -->
                     <Button Content="저장" 
                            Command="{Binding SaveInterviewerRegistryCommand}"
-                           Padding="12,5"
-                           Background="#2196F3"
-                           Foreground="White"
-                           FontWeight="Bold"
+                           Background="#1976D2"
                            Margin="0,0,10,0">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <Style TargetType="Button" BasedOn="{StaticResource CleanButton}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsInterviewerTabSelected}" Value="True">
@@ -148,19 +134,23 @@
                     
                     <Button Content="홈으로" 
                            Command="{Binding NavigateToHomeCommand}"
-                           Padding="20,12"
-                           Background="#757575"
-                           Foreground="White"
-                           FontSize="14"
-                           FontWeight="Bold"/>
+                           Style="{StaticResource CleanButton}"
+                           Background="#616161"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- 탭 컨트롤: 수험생/면접위원 명부 -->
-        <TabControl Grid.Row="1" 
-                   Margin="10"
-                   SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+        <Border Grid.Row="1" 
+                Background="White"
+                Margin="20,20,20,20"
+                CornerRadius="12"
+                Padding="20">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="15" ShadowDepth="2"/>
+            </Border.Effect>
+            <TabControl SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
+                      BorderThickness="0">
             <!-- 수험생 명부 탭 -->
             <TabItem Header="수험생 명부">
                 <DataGrid ItemsSource="{Binding StudentRegistry.Students}"
@@ -205,5 +195,6 @@
                 </DataGrid>
             </TabItem>
         </TabControl>
+        </Border>
     </Grid>
 </UserControl>

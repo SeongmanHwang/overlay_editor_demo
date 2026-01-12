@@ -13,7 +13,11 @@
         </Grid.RowDefinitions>
 
         <!-- 상단 헤더 -->
-        <Border Grid.Row="0" Background="#2196F3" Padding="15">
+        <Border Grid.Row="0" 
+                Background="#C62828"
+                Padding="30,25"
+                BorderThickness="0,0,0,2"
+                BorderBrush="#B71C1C">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -23,15 +27,14 @@
                           FontSize="24" 
                           FontWeight="Bold" 
                           Foreground="White" 
-                          VerticalAlignment="Center"/>
+                          VerticalAlignment="Center"
+                          TextOptions.TextRenderingMode="ClearType"
+                          TextOptions.TextFormattingMode="Display"/>
                 <Button Grid.Column="1"
                        Content="홈으로"
                        Command="{Binding NavigateToHomeCommand}"
-                       Padding="20,12"
-                       Background="#757575"
-                       Foreground="White"
-                       FontSize="14"
-                       FontWeight="Bold"
+                       Style="{StaticResource CleanButton}"
+                       Background="#616161"
                        Margin="10,0,0,0"/>
             </Grid>
         </Border>

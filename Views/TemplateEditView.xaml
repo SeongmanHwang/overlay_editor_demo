@@ -10,9 +10,11 @@
              d:DesignHeight="600" d:DesignWidth="1200">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240"/>  <!-- 왼쪽: 정보 패널 -->
+            <ColumnDefinition Width="240" MinWidth="180"/>  <!-- 왼쪽: 정보 패널 -->
+            <ColumnDefinition Width="5"/>  <!-- Splitter -->
             <ColumnDefinition Width="*"/>    <!-- 중앙: 이미지 뷰 -->
-            <ColumnDefinition Width="180"/>  <!-- 오른쪽: 샘플 이미지 정보 -->
+            <ColumnDefinition Width="5"/>  <!-- Splitter -->
+            <ColumnDefinition Width="180" MinWidth="150"/>  <!-- 오른쪽: 샘플 이미지 정보 -->
         </Grid.ColumnDefinitions>
 
         <!-- 왼쪽: 정보 패널 -->
@@ -68,8 +70,17 @@
             </ScrollViewer>
         </DockPanel>
 
+        <!-- 왼쪽 Splitter -->
+        <GridSplitter Grid.Column="1"
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Stretch"
+                     Width="5"
+                     Background="#E0E0E0"
+                     ShowsPreview="False"
+                     ResizeDirection="Columns"/>
+
         <!-- 중앙: 이미지 뷰 + 도구바 -->
-        <DockPanel Grid.Column="1">
+        <DockPanel Grid.Column="2">
             <!-- 상단 도구바 -->
             <StackPanel DockPanel.Dock="Top" 
                        Orientation="Horizontal" 
@@ -177,8 +188,17 @@
             </ScrollViewer>
         </DockPanel>
 
+        <!-- 오른쪽 Splitter -->
+        <GridSplitter Grid.Column="3"
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Stretch"
+                     Width="5"
+                     Background="#E0E0E0"
+                     ShowsPreview="False"
+                     ResizeDirection="Columns"/>
+
         <!-- 오른쪽: 샘플 이미지 정보 -->
-        <DockPanel Grid.Column="2" Background="#F5F5F5">
+        <DockPanel Grid.Column="4" Background="#F5F5F5">
             <StackPanel DockPanel.Dock="Top" Margin="10">
                 <TextBlock Text="샘플 이미지" 
                           FontWeight="Bold" 
@@ -186,19 +206,14 @@
                           Margin="0,10,0,10"/>
                 <Button Content="홈으로" 
                        Command="{Binding NavigateToHomeCommand}"
-                       Margin="0,0,0,10"
-                       Padding="20,12"
-                       Background="#757575"
-                       Foreground="White"
-                       FontSize="14"
-                       FontWeight="Bold"/>
+                       Style="{StaticResource CleanButton}"
+                       Background="#616161"
+                       Margin="0,0,0,10"/>
                 <Button Content="이미지 로드" 
                        Command="{Binding LoadSampleImageCommand}"
-                       Margin="0,0,0,10"
-                       Padding="8,5"
+                       Style="{StaticResource CleanButton}"
                        Background="#4CAF50"
-                       Foreground="White"
-                       FontWeight="Bold"/>
+                       Margin="0,0,0,10"/>
             </StackPanel>
             <StackPanel Margin="10">
                 <GroupBox Header="이미지 정보" Margin="0,0,0,10">

@@ -84,6 +84,12 @@ namespace SimpleOverlayEditor.Views
                         var scoringRuleViewModel = new ScoringRuleViewModel(_navigation);
                         _navigation.SetScoringRuleViewModel(scoringRuleViewModel);
                     }
+                    else if (_navigation.CurrentMode == ApplicationMode.ManualVerification && _navigation.CurrentViewModel == null)
+                    {
+                        // ManualVerification 모드로 전환 시 ViewModel 생성
+                        var manualVerificationViewModel = new ManualVerificationViewModel(_navigation);
+                        _navigation.SetManualVerificationViewModel(manualVerificationViewModel);
+                    }
                 }
             };
 
@@ -220,6 +226,13 @@ namespace SimpleOverlayEditor.Views
                             var scoringRuleViewModel = new ScoringRuleViewModel(_navigation);
                             _navigation.SetScoringRuleViewModel(scoringRuleViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: ScoringRuleViewModel 생성 완료");
+                        }
+                        else if (_navigation.CurrentMode == ApplicationMode.ManualVerification)
+                        {
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: ManualVerificationViewModel 생성 시작");
+                            var manualVerificationViewModel = new ManualVerificationViewModel(_navigation);
+                            _navigation.SetManualVerificationViewModel(manualVerificationViewModel);
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: ManualVerificationViewModel 생성 완료");
                         }
                     }
                 }

@@ -12,59 +12,57 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 상단 도구바 -->
+        <!-- 헤더 -->
         <Border Grid.Row="0" 
-                Background="#2196F3" 
-                Padding="15">
+                Background="#E65100"
+                Padding="30,25"
+                BorderThickness="0,0,0,2"
+                BorderBrush="#BF360C">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="정답 및 배점" 
+                <TextBlock Text="문항 배점 입력" 
                           FontSize="24" 
                           FontWeight="Bold" 
                           Foreground="White" 
-                          VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                          VerticalAlignment="Center"
+                          TextOptions.TextRenderingMode="ClearType"
+                          TextOptions.TextFormattingMode="Display"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="양식 내보내기" 
                            Command="{Binding ExportTemplateCommand}"
-                           Padding="12,5"
+                           Style="{StaticResource CleanButton}"
                            Background="#FF9800"
-                           Foreground="White"
-                           FontWeight="Bold"
                            Margin="0,0,10,0"/>
                     <Button Content="파일 불러오기" 
                            Command="{Binding LoadFromFileCommand}"
-                           Padding="12,5"
+                           Style="{StaticResource CleanButton}"
                            Background="#4CAF50"
-                           Foreground="White"
-                           FontWeight="Bold"
                            Margin="0,0,10,0"/>
                     <Button Content="저장" 
                            Command="{Binding SaveCommand}"
-                           Padding="12,5"
-                           Background="#2196F3"
-                           Foreground="White"
-                           FontWeight="Bold"
+                           Style="{StaticResource CleanButton}"
+                           Background="#1976D2"
                            Margin="0,0,10,0"/>
                     <Button Content="홈으로" 
                            Command="{Binding NavigateToHomeCommand}"
-                           Padding="20,12"
-                           Background="#757575"
-                           Foreground="White"
-                           FontSize="14"
-                           FontWeight="Bold"/>
+                           Style="{StaticResource CleanButton}"
+                           Background="#616161"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- 점수 이름 입력 영역 -->
         <Border Grid.Row="1" 
-                Background="#E3F2FD" 
-                Padding="10"
-                BorderBrush="#BBDEFB"
-                BorderThickness="0,0,0,1">
+                Background="White"
+                Padding="20,15"
+                Margin="20,20,20,0"
+                CornerRadius="12,12,0,0">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" Opacity="0.05" BlurRadius="10" ShadowDepth="1"/>
+            </Border.Effect>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="80"/>
@@ -151,17 +149,25 @@
         </Border>
 
         <!-- DataGrid -->
-        <DataGrid Grid.Row="2"
-                  ItemsSource="{Binding ScoringRule.Questions}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  IsReadOnly="True"
-                  SelectionMode="Single"
-                  GridLinesVisibility="All"
-                  HeadersVisibility="Column"
-                  AlternatingRowBackground="#F5F5F5"
-                  Margin="10,0,10,10">
+        <Border Grid.Row="2"
+                Background="White"
+                Margin="20,0,20,20"
+                CornerRadius="0,0,12,12"
+                Padding="0,0,0,20">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="15" ShadowDepth="2"/>
+            </Border.Effect>
+            <DataGrid ItemsSource="{Binding ScoringRule.Questions}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      GridLinesVisibility="All"
+                      HeadersVisibility="Column"
+                      AlternatingRowBackground="#F5F5F5"
+                      BorderThickness="0"
+                      Background="White">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="문항" 
                                    Binding="{Binding QuestionNumber}" 
@@ -259,6 +265,7 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
             </DataGrid.Columns>
-        </DataGrid>
+            </DataGrid>
+        </Border>
     </Grid>
 </UserControl>

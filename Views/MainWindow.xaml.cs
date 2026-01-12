@@ -72,6 +72,12 @@ namespace SimpleOverlayEditor.Views
                         var registryViewModel = new RegistryViewModel(_navigation);
                         _navigation.SetRegistryViewModel(registryViewModel);
                     }
+                    else if (_navigation.CurrentMode == ApplicationMode.Grading && _navigation.CurrentViewModel == null)
+                    {
+                        // Grading 모드로 전환 시 ViewModel 생성
+                        var gradingViewModel = new GradingViewModel(_navigation);
+                        _navigation.SetGradingViewModel(gradingViewModel);
+                    }
                 }
             };
 
@@ -194,6 +200,13 @@ namespace SimpleOverlayEditor.Views
                             var registryViewModel = new RegistryViewModel(_navigation);
                             _navigation.SetRegistryViewModel(registryViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: RegistryViewModel 생성 완료");
+                        }
+                        else if (_navigation.CurrentMode == ApplicationMode.Grading)
+                        {
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: GradingViewModel 생성 시작");
+                            var gradingViewModel = new GradingViewModel(_navigation);
+                            _navigation.SetGradingViewModel(gradingViewModel);
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: GradingViewModel 생성 완료");
                         }
                     }
                 }

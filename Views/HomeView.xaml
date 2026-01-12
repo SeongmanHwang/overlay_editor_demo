@@ -38,14 +38,19 @@
                    Command="{Binding NavigateToTemplateEditCommand}"
                    Style="{StaticResource HomeModeButton}"/>
 
+            <!-- 수험생 명렬 관리 버튼 -->
+            <Button Content="수험생 명렬 관리" 
+                   Command="{Binding NavigateToRegistryCommand}"
+                   Style="{StaticResource HomeModeButton}"/>
+
             <!-- 마킹 리딩 버튼 -->
             <Button Content="마킹 리딩" 
                    Command="{Binding NavigateToMarkingCommand}"
                    Style="{StaticResource HomeModeButton}"/>
 
-            <!-- 수험생 명렬 관리 버튼 -->
-            <Button Content="수험생 명렬 관리" 
-                   Command="{Binding NavigateToRegistryCommand}"
+            <!-- 채점 및 성적 처리 버튼 -->
+            <Button Content="채점 및 성적 처리" 
+                   Command="{Binding NavigateToGradingCommand}"
                    Style="{StaticResource HomeModeButton}"/>
         </StackPanel>
     </Grid>

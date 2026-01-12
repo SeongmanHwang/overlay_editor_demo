@@ -20,6 +20,7 @@ namespace SimpleOverlayEditor.ViewModels
             NavigateToTemplateEditCommand = new RelayCommand(() => NavigateTo(ApplicationMode.TemplateEdit));
             NavigateToMarkingCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Marking));
             NavigateToRegistryCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Registry));
+            NavigateToGradingCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Grading));
         }
 
         /// <summary>
@@ -77,6 +78,11 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand NavigateToRegistryCommand { get; }
 
         /// <summary>
+        /// 채점 및 성적 처리 모드로 이동
+        /// </summary>
+        public ICommand NavigateToGradingCommand { get; }
+
+        /// <summary>
         /// 특정 모드로 이동합니다.
         /// </summary>
         public void NavigateTo(ApplicationMode mode)
@@ -108,6 +114,12 @@ namespace SimpleOverlayEditor.ViewModels
             else if (mode == ApplicationMode.Registry)
             {
                 // Registry 모드는 외부에서 ViewModel을 설정하도록 함
+                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
+                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
+            }
+            else if (mode == ApplicationMode.Grading)
+            {
+                // Grading 모드는 외부에서 ViewModel을 설정하도록 함
                 // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
                 CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
             }
@@ -184,6 +196,23 @@ namespace SimpleOverlayEditor.ViewModels
             else
             {
                 Services.Logger.Instance.Warning($"SetRegistryViewModel 실패: CurrentMode가 Registry가 아님 (CurrentMode: {CurrentMode})");
+            }
+        }
+
+        /// <summary>
+        /// 외부에서 GradingViewModel을 설정할 수 있도록 합니다.
+        /// </summary>
+        public void SetGradingViewModel(object viewModel)
+        {
+            Services.Logger.Instance.Info($"SetGradingViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (CurrentMode == ApplicationMode.Grading)
+            {
+                CurrentViewModel = viewModel;
+                Services.Logger.Instance.Info($"SetGradingViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
+            }
+            else
+            {
+                Services.Logger.Instance.Warning($"SetGradingViewModel 실패: CurrentMode가 Grading이 아님 (CurrentMode: {CurrentMode})");
             }
         }
 

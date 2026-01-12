@@ -30,6 +30,11 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 _navigation.NavigateTo(Models.ApplicationMode.Registry);
             });
+
+            NavigateToGradingCommand = new RelayCommand(() =>
+            {
+                _navigation.NavigateTo(Models.ApplicationMode.Grading);
+            });
         }
 
         /// <summary>
@@ -46,6 +51,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// 수험생 명렬 관리 모드로 이동
         /// </summary>
         public ICommand NavigateToRegistryCommand { get; }
+
+        /// <summary>
+        /// 채점 및 성적 처리 모드로 이동
+        /// </summary>
+        public ICommand NavigateToGradingCommand { get; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

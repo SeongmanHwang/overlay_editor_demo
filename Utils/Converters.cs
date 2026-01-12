@@ -139,7 +139,7 @@ namespace SimpleOverlayEditor.Utils
         {
             if (value is bool boolValue && boolValue)
             {
-                return parameter?.ToString();
+                return parameter?.ToString() ?? string.Empty;
             }
             return Binding.DoNothing;
         }

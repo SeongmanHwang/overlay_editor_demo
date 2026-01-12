@@ -7,7 +7,8 @@
              xmlns:models="clr-namespace:SimpleOverlayEditor.Models"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1200">
+             d:DesignHeight="600" d:DesignWidth="1200"
+             PreviewKeyDown="Root_PreviewKeyDown">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="240" MinWidth="180"/>  <!-- 왼쪽: 정보 패널 -->
@@ -53,17 +54,43 @@
                     <GroupBox Header="선택된 사각형 편집" Margin="0,0,0,10">
                         <StackPanel Margin="5" IsEnabled="{Binding SelectedOverlay, Converter={StaticResource NullToBoolConverter}}">
                             <TextBlock Text="X:" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.X, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                            <TextBox Text="{Binding SelectedOverlay.X, UpdateSourceTrigger=PropertyChanged}"
+                                    GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     Margin="0,0,0,5"/>
                             <TextBlock Text="Y:" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.Y, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                            <TextBox Text="{Binding SelectedOverlay.Y, UpdateSourceTrigger=PropertyChanged}"
+                                    GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     Margin="0,0,0,5"/>
                             <TextBlock Text="너비 (W):" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.Width, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                            <TextBox Text="{Binding SelectedOverlay.Width, UpdateSourceTrigger=PropertyChanged}"
+                                    GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     Margin="0,0,0,5"/>
                             <TextBlock Text="높이 (H):" Margin="0,5,0,2"/>
-                            <TextBox Text="{Binding SelectedOverlay.Height, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}"
+                            <TextBox Text="{Binding SelectedOverlay.Height, UpdateSourceTrigger=PropertyChanged}"
+                                    GotKeyboardFocus="NumericTextBox_GotKeyboardFocus"
                                     Margin="0,0,0,5"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- 사용법 안내 -->
+                    <GroupBox Header="사용법" Margin="0,0,0,10">
+                        <StackPanel Margin="5">
+                            <TextBlock TextWrapping="Wrap" FontSize="10" LineHeight="18">
+                                <Run Text="키보드 단축키:" FontWeight="Bold"/>
+                                <LineBreak/>
+                                <Run Text="• 방향키: 위치 조정 (1px)"/>
+                                <LineBreak/>
+                                <Run Text="• Shift + 방향키: 크기 조정 (1px)"/>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Text="오버레이 추가:" FontWeight="Bold"/>
+                                <LineBreak/>
+                                <Run Text="1. 오른쪽 '이미지 로드' 클릭"/>
+                                <LineBreak/>
+                                <Run Text="2. '➕ 추가 모드' 활성화"/>
+                                <LineBreak/>
+                                <Run Text="3. 캔버스 클릭으로 추가"/>
+                            </TextBlock>
                         </StackPanel>
                     </GroupBox>
                 </StackPanel>
@@ -207,19 +234,51 @@
                          VerticalScrollBarVisibility="Auto"
                          Background="#E0E0E0"
                          VerticalContentAlignment="Top">
-                <Canvas x:Name="ImageCanvas" 
-                       MouseLeftButtonDown="ImageCanvas_MouseLeftButtonDown"
-                       Background="White"
-                       SizeChanged="ImageCanvas_SizeChanged"
-                       VerticalAlignment="Top"
-                       HorizontalAlignment="Left">
-                    <Image x:Name="SourceImage" 
-                          Source="{Binding SelectedDocument.SourcePath}"
-                          Stretch="Uniform"
-                          RenderOptions.BitmapScalingMode="HighQuality"
-                          IsHitTestVisible="False"/>
-                    <!-- 오버레이는 코드비하인드에서 동적으로 그리기 -->
-                </Canvas>
+                <Grid x:Name="ImageContainer"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      SizeChanged="ImageContainer_SizeChanged">
+                    <Canvas x:Name="ImageCanvas" 
+                           MouseLeftButtonDown="ImageCanvas_MouseLeftButtonDown"
+                           Background="White"
+                           SizeChanged="ImageCanvas_SizeChanged"
+                           VerticalAlignment="Top"
+                           HorizontalAlignment="Left">
+                        <Image x:Name="SourceImage" 
+                              Source="{Binding SelectedDocument.SourcePath}"
+                              Stretch="Uniform"
+                              RenderOptions.BitmapScalingMode="HighQuality"
+                              IsHitTestVisible="False"/>
+                        <!-- 오버레이는 코드비하인드에서 동적으로 그리기 -->
+                    </Canvas>
+                    
+                    <!-- 이미지가 없을 때 표시할 안내 메시지 -->
+                    <Border x:Name="NoImageHint"
+                            Background="#F5F5F5"
+                            BorderBrush="#CCCCCC"
+                            BorderThickness="1"
+                            CornerRadius="5"
+                            Padding="20"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="📷" 
+                                      FontSize="48" 
+                                      HorizontalAlignment="Center" 
+                                      Margin="0,0,0,10"/>
+                            <TextBlock Text="이미지를 먼저 로드해주세요" 
+                                      FontSize="14" 
+                                      FontWeight="Bold"
+                                      HorizontalAlignment="Center"
+                                      Margin="0,0,0,5"/>
+                            <TextBlock Text="오른쪽 패널의 '이미지 로드' 버튼을 클릭하세요" 
+                                      FontSize="11" 
+                                      Foreground="#666666"
+                                      HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </ScrollViewer>
         </DockPanel>
 

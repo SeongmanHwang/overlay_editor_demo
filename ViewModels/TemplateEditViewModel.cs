@@ -131,8 +131,17 @@ namespace SimpleOverlayEditor.ViewModels
             get => _selectedOverlay;
             set
             {
-                _selectedOverlay = value;
-                OnPropertyChanged();
+                if (_selectedOverlay != value)
+                {
+                    _selectedOverlay = value;
+                    OnPropertyChanged();
+                    
+                    // 오버레이 선택 시 추가 모드 해제
+                    if (_selectedOverlay != null)
+                    {
+                        IsAddMode = false;
+                    }
+                }
             }
         }
 
@@ -175,8 +184,17 @@ namespace SimpleOverlayEditor.ViewModels
             get => _isAddMode;
             set
             {
-                _isAddMode = value;
-                OnPropertyChanged();
+                if (_isAddMode != value)
+                {
+                    _isAddMode = value;
+                    OnPropertyChanged();
+                    
+                    // 추가 모드 활성화 시 선택 해제
+                    if (_isAddMode)
+                    {
+                        SelectedOverlay = null;
+                    }
+                }
             }
         }
 
@@ -484,11 +502,6 @@ namespace SimpleOverlayEditor.ViewModels
                     // 템플릿 편집 모드에서는 SelectedDocument만 사용
 
                     Logger.Instance.Info($"샘플 이미지 로드 완료: {imagePath}");
-                    MessageBox.Show(
-                        "샘플 이미지가 로드되었습니다.\n이제 오버레이를 편집할 수 있습니다.",
-                        "로드 완료",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)

@@ -40,7 +40,7 @@
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="1.2*"/>
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
@@ -106,7 +106,7 @@
                            VerticalAlignment="Stretch"/>
                 </Grid>
 
-                <!-- 3열: 마킹 리딩 -->
+                <!-- 3열: 마킹 리딩 (강조) -->
                 <Grid Grid.Column="4" Grid.Row="0" Grid.RowSpan="3">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -115,15 +115,15 @@
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0"
                               Text="OMR 스캔" 
-                              FontSize="16" 
+                              FontSize="18" 
                               FontWeight="Bold" 
-                              Foreground="#212121"
+                              Foreground="#1565C0"
                               TextOptions.TextRenderingMode="ClearType"
                               Margin="0,0,0,10"/>
                     <Button Grid.Row="2"
                            Content="마킹 리딩" 
                            Command="{Binding NavigateToMarkingCommand}"
-                           Style="{StaticResource CleanButton}"
+                           Style="{StaticResource CleanButtonEmphasized}"
                            Background="#1565C0"
                            MinHeight="180"
                            HorizontalAlignment="Stretch"

@@ -11,7 +11,7 @@
              Focusable="True"
              PreviewKeyDown="Root_PreviewKeyDown">
     <UserControl.InputBindings>
-        <KeyBinding Key="Z" Modifiers="Ctrl" Command="{Binding UndoCommand}"/>
+        <KeyBinding Key="Z" Modifiers="Ctrl" Command="{Binding UndoCommand, FallbackValue={x:Null}}"/>
     </UserControl.InputBindings>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -40,39 +40,87 @@
                                  CanUserAddRows="False"
                                  CanUserDeleteRows="False"
                                  SelectionMode="Extended"
+                                 SelectionUnit="FullRow"
                                  HeadersVisibility="Column"
                                  LoadingRow="DataGrid_LoadingRow"
                                  SelectionChanged="DataGrid_SelectionChanged"
-                                 MaxHeight="200">
+                                 MaxHeight="200"
+                                 EnableRowVirtualization="False">
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow">
+                                    <!-- 기본 스타일: 흰색 배경, 테두리 없음 -->
+                                    <Setter Property="Background" Value="White"/>
+                                    <Setter Property="Foreground" Value="Black"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                    
                                     <Style.Triggers>
+                                        <!-- 호버 효과 (선택되지 않은 행만) -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsMouseOver" Value="True"/>
+                                                <Condition Property="IsSelected" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="#F0F0F0"/>
+                                        </MultiTrigger>
+                                        
+                                        <!-- 선택된 행: 캔버스와 동일한 파란색 계열 -->
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#FF0078D7"/>
-                                            <Setter Property="Foreground" Value="White"/>
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Setter Property="Foreground" Value="Black"/>
                                         </Trigger>
+                                        
+                                        <!-- 선택 + 호버 -->
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True"/>
+                                                <Condition Property="IsMouseOver" Value="True"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                        </MultiTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </DataGrid.RowStyle>
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <!-- 셀이 시스템 Highlight로 칠하지 못하게 막기 -->
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="Black"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.CellStyle>
+                            <DataGrid.RowHeaderStyle>
+                                <Style TargetType="DataGridRowHeader">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Setter Property="Foreground" Value="Black"/>
+                                    <!-- DataTrigger 제거: RelativeSource로 인한 null 키 문제 방지 -->
+                                    <!-- RowStyle에서 이미 선택 상태를 처리하므로 중복 제거 -->
+                                </Style>
+                            </DataGrid.RowHeaderStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="번호" Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Header}" Width="50" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="타입" Binding="{Binding OverlayType}" Width="80"/>
-                                <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F1}" Width="50"/>
-                                <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F1}" Width="50"/>
-                                <DataGridTextColumn Header="W" Binding="{Binding Width, StringFormat=F1}" Width="50"/>
-                                <DataGridTextColumn Header="H" Binding="{Binding Height, StringFormat=F1}" Width="50"/>
+                                <!-- 번호 컬럼 제거: RowHeader에 이미 표시되므로 중복 제거 -->
+                                <DataGridTextColumn Header="타입" Binding="{Binding OverlayType, FallbackValue=''}" Width="80"/>
+                                <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F1, FallbackValue=0}" Width="50"/>
+                                <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F1, FallbackValue=0}" Width="50"/>
+                                <DataGridTextColumn Header="W" Binding="{Binding Width, StringFormat=F1, FallbackValue=0}" Width="50"/>
+                                <DataGridTextColumn Header="H" Binding="{Binding Height, StringFormat=F1, FallbackValue=0}" Width="50"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </GroupBox>
 
                     <!-- 선택된 오버레이 상세 편집 -->
                     <GroupBox Header="선택된 사각형 편집" Margin="0,0,0,10">
-                        <StackPanel Margin="5" IsEnabled="{Binding SelectionVM.IsEmpty, Converter={StaticResource InverseBoolToBoolConverter}}">
+                        <StackPanel Margin="5" IsEnabled="{Binding SelectionVM.IsEmpty, Converter={StaticResource InverseBoolToBoolConverter}, FallbackValue=True}">
                             <!-- 다중 선택 표시 -->
                             <TextBlock Text="{Binding SelectionVM.Count, StringFormat='선택: {0}개'}"
                                       FontWeight="Bold"
                                       Margin="0,0,0,5"
-                                      Visibility="{Binding SelectionVM.IsMulti, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                      Visibility="{Binding SelectionVM.IsMulti, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
                             
                             <TextBlock Text="X:" Margin="0,5,0,2"/>
                             <TextBox x:Name="XTextBox"
@@ -108,8 +156,8 @@
                     <!-- 정렬 도구 -->
                     <GroupBox Header="정렬" Margin="0,0,0,10">
                         <StackPanel Margin="5">
-                            <Button Content="왼쪽에 맞추기" Command="{Binding AlignLeftCommand}" Margin="2" Padding="6,3" FontSize="10"/>
-                            <Button Content="위쪽에 맞추기" Command="{Binding AlignTopCommand}" Margin="2" Padding="6,3" FontSize="10"/>
+                            <Button Content="왼쪽에 맞추기" Command="{Binding AlignLeftCommand, FallbackValue={x:Null}}" Margin="2" Padding="6,3" FontSize="10"/>
+                            <Button Content="위쪽에 맞추기" Command="{Binding AlignTopCommand, FallbackValue={x:Null}}" Margin="2" Padding="6,3" FontSize="10"/>
                         </StackPanel>
                     </GroupBox>
 
@@ -156,7 +204,7 @@
                        Margin="3"
                        Height="36">
                 <!-- 오버레이 추가 모드 토글 버튼 -->
-                <Button Command="{Binding ToggleAddModeCommand}"
+                <Button Command="{Binding ToggleAddModeCommand, FallbackValue={x:Null}}"
                        Margin="2"
                        Padding="8,4"
                        MinWidth="120"
@@ -172,7 +220,7 @@
                             <Setter Property="FontWeight" Value="Normal"/>
                             <Setter Property="Content" Value="➕ 추가 모드"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsAddMode}" Value="True">
+                                <DataTrigger Binding="{Binding IsAddMode, TargetNullValue=False}" Value="True">
                                     <Setter Property="Background" Value="#4CAF50"/>
                                     <Setter Property="BorderThickness" Value="3"/>
                                     <Setter Property="BorderBrush" Value="#2E7D32"/>
@@ -191,7 +239,7 @@
                     </Button.Style>
                 </Button>
                 <Separator Margin="5,0"/>
-                <ComboBox SelectedItem="{Binding CurrentOverlayType, Mode=TwoWay}"
+                <ComboBox SelectedItem="{Binding CurrentOverlayType, Mode=TwoWay, FallbackValue={x:Null}}"
                          Margin="3,0"
                          VerticalAlignment="Center"
                          MinWidth="100"
@@ -209,13 +257,13 @@
                           VerticalAlignment="Center" 
                           Margin="3,0" 
                           FontSize="11"
-                          Visibility="{Binding IsQuestionNumberVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                <ComboBox SelectedItem="{Binding CurrentQuestionNumber, Mode=TwoWay}"
+                          Visibility="{Binding IsQuestionNumberVisible, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                <ComboBox SelectedItem="{Binding CurrentQuestionNumber, Mode=TwoWay, FallbackValue={x:Null}}"
                          Margin="3,0"
                          VerticalAlignment="Center"
                          MinWidth="60"
                          FontSize="11"
-                         Visibility="{Binding IsQuestionNumberVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                         Visibility="{Binding IsQuestionNumberVisible, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                     <ComboBox.ItemsSource>
                         <x:Array Type="{x:Type sys:Int32}">
                             <sys:Int32>1</sys:Int32>
@@ -227,20 +275,20 @@
                 </ComboBox>
                 <Separator Margin="5,0"/>
                 <Button Content="선택 삭제" 
-                       Command="{Binding DeleteSelectedCommand}"
+                       Command="{Binding DeleteSelectedCommand, FallbackValue={x:Null}}"
                        Margin="2"
                        Padding="6,3"
                        MinWidth="65"
                        FontSize="11"/>
                 <Button Content="전체 삭제" 
-                       Command="{Binding ClearAllCommand}"
+                       Command="{Binding ClearAllCommand, FallbackValue={x:Null}}"
                        Margin="2"
                        Padding="6,3"
                        MinWidth="65"
                        FontSize="11"/>
                 <Separator Margin="5,0"/>
                 <Button Content="템플릿 저장" 
-                       Command="{Binding SaveTemplateCommand}"
+                       Command="{Binding SaveTemplateCommand, FallbackValue={x:Null}}"
                        Margin="2"
                        Padding="6,3"
                        MinWidth="80"
@@ -250,7 +298,7 @@
                        FontSize="11"/>
                 <Separator Margin="5,0"/>
                 <Button Content="템플릿 내보내기" 
-                       Command="{Binding TemplateViewModel.ExportTemplateCommand}"
+                       Command="{Binding TemplateViewModel.ExportTemplateCommand, FallbackValue={x:Null}}"
                        Margin="2"
                        Padding="6,3"
                        MinWidth="100"
@@ -259,7 +307,7 @@
                        FontSize="11"
                        ToolTip="현재 템플릿을 JSON 파일로 내보냅니다."/>
                 <Button Content="템플릿 가져오기" 
-                       Command="{Binding TemplateViewModel.ImportTemplateCommand}"
+                       Command="{Binding TemplateViewModel.ImportTemplateCommand, FallbackValue={x:Null}}"
                        Margin="2"
                        Padding="6,3"
                        MinWidth="100"
@@ -290,7 +338,7 @@
                            VerticalAlignment="Top"
                            HorizontalAlignment="Left">
                         <Image x:Name="SourceImage" 
-                              Source="{Binding SelectedDocument.SourcePath}"
+                              Source="{Binding SelectedDocument.SourcePath, FallbackValue={x:Null}}"
                               Stretch="Uniform"
                               RenderOptions.BitmapScalingMode="HighQuality"
                               IsHitTestVisible="False"/>
@@ -344,32 +392,32 @@
                           FontSize="14"
                           Margin="0,10,0,10"/>
                 <Button Content="홈으로" 
-                       Command="{Binding NavigateToHomeCommand}"
+                       Command="{Binding NavigateToHomeCommand, FallbackValue={x:Null}}"
                        Style="{StaticResource CleanButton}"
                        Background="#616161"
                        Margin="0,0,0,10"/>
                 <Button Content="이미지 로드" 
-                       Command="{Binding LoadSampleImageCommand}"
+                       Command="{Binding LoadSampleImageCommand, FallbackValue={x:Null}}"
                        Style="{StaticResource CleanButton}"
                        Background="#4CAF50"
                        Margin="0,0,0,10"/>
             </StackPanel>
             <StackPanel Margin="10">
                 <GroupBox Header="이미지 정보" Margin="0,0,0,10">
-                    <StackPanel Margin="5" IsEnabled="{Binding SelectedDocument, Converter={StaticResource NullToBoolConverter}}">
+                    <StackPanel Margin="5" IsEnabled="{Binding SelectedDocument, Converter={StaticResource NullToBoolConverter}, FallbackValue=False}">
                         <TextBlock Margin="0,5,0,2" TextWrapping="Wrap">
                             <Run Text="파일명:" FontWeight="Bold"/>
                             <LineBreak/>
-                            <Run Text="{Binding SelectedDocument.SourcePath, Converter={StaticResource FileNameConverter}}" 
+                            <Run Text="{Binding SelectedDocument.SourcePath, Converter={StaticResource FileNameConverter}, FallbackValue=''}" 
                                  FontSize="11"/>
                         </TextBlock>
                         <TextBlock Margin="0,10,0,2">
                             <Run Text="너비:" FontWeight="Bold"/>
-                            <Run Text="{Binding SelectedDocument.ImageWidth}"/> <Run Text="px"/>
+                            <Run Text="{Binding SelectedDocument.ImageWidth, FallbackValue=0}"/> <Run Text="px"/>
                         </TextBlock>
                         <TextBlock Margin="0,5,0,2">
                             <Run Text="높이:" FontWeight="Bold"/>
-                            <Run Text="{Binding SelectedDocument.ImageHeight}"/> <Run Text="px"/>
+                            <Run Text="{Binding SelectedDocument.ImageHeight, FallbackValue=0}"/> <Run Text="px"/>
                         </TextBlock>
                     </StackPanel>
                 </GroupBox>

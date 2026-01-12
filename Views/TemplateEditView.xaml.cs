@@ -21,7 +21,7 @@ namespace SimpleOverlayEditor.Views
     /// </summary>
     public partial class TemplateEditView : UserControl
     {
-        private TemplateEditViewModel ViewModel => (TemplateEditViewModel)DataContext;
+        private TemplateEditViewModel? ViewModel => DataContext as TemplateEditViewModel;
         private bool _isUpdatingCanvas = false;
         private Models.ImageDocument? _currentSubscribedDocument;
         private PropertyChangedEventHandler? _documentPropertyChangedHandler;
@@ -49,11 +49,17 @@ namespace SimpleOverlayEditor.Views
 
         private void TemplateEditView_Loaded(object sender, RoutedEventArgs e)
         {
-            if (ViewModel != null)
+            if (ViewModel == null)
             {
-                ViewModel.PropertyChanged += ViewModel_PropertyChanged;
-                
-                // SelectionVM 변경 감지
+                Logger.Instance.Warning("TemplateEditView - ViewModel이 Loaded 이벤트에서 null입니다");
+                return;
+            }
+
+            ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+            
+            // SelectionVM 변경 감지
+            if (ViewModel.SelectionVM != null)
+            {
                 ViewModel.SelectionVM.PropertyChanged += (s, args) =>
                 {
                     if (args.PropertyName == nameof(OverlaySelectionViewModel.Selected))
@@ -62,26 +68,28 @@ namespace SimpleOverlayEditor.Views
                         DrawOverlays();
                     }
                 };
-                
-                if (ViewModel.Workspace?.Template != null)
-                {
-                    ViewModel.Workspace.Template.TimingMarks.CollectionChanged += (s, args) => DrawOverlays();
-                    ViewModel.Workspace.Template.ScoringAreas.CollectionChanged += (s, args) => DrawOverlays();
-                    ViewModel.Workspace.Template.BarcodeAreas.CollectionChanged += (s, args) => DrawOverlays();
-                }
-
-                // 초기 로드 시 안내 메시지 상태 업데이트
-                UpdateNoImageHintVisibility();
-                
-                // 초기 커서 설정
-                UpdateCursor();
             }
+            
+            if (ViewModel.Workspace?.Template != null)
+            {
+                ViewModel.Workspace.Template.TimingMarks.CollectionChanged += (s, args) => DrawOverlays();
+                ViewModel.Workspace.Template.ScoringAreas.CollectionChanged += (s, args) => DrawOverlays();
+                ViewModel.Workspace.Template.BarcodeAreas.CollectionChanged += (s, args) => DrawOverlays();
+            }
+
+            // 초기 로드 시 안내 메시지 상태 업데이트
+            UpdateNoImageHintVisibility();
+            
+            // 초기 커서 설정
+            UpdateCursor();
         }
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             try
             {
+                if (ViewModel == null) return;
+                
                 Logger.Instance.Debug($"TemplateEditView - ViewModel_PropertyChanged: {e.PropertyName}");
 
                 if (e.PropertyName == nameof(ViewModel.SelectedDocument))
@@ -182,7 +190,7 @@ namespace SimpleOverlayEditor.Views
         {
             try
             {
-                if (ViewModel.SelectedDocument == null)
+                if (ViewModel == null || ViewModel.SelectedDocument == null)
                 {
                     SourceImage.Source = null;
                     // Canvas 크기 초기화
@@ -257,6 +265,8 @@ namespace SimpleOverlayEditor.Views
         {
             try
             {
+                if (ViewModel == null) return;
+                
                 // 기존 오버레이 제거
                 var overlaysToRemove = ImageCanvas.Children.OfType<Rectangle>().ToList();
                 foreach (var rect in overlaysToRemove)
@@ -311,7 +321,8 @@ namespace SimpleOverlayEditor.Views
                         bool isSelected = selectedOverlays.Contains(overlay);
                         if (isSelected)
                         {
-                            rect.Stroke = Brushes.Blue;
+                            // DataGrid와 동일한 파란색 계열 사용 (#2196F3)
+                            rect.Stroke = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3));
                             rect.StrokeThickness = (overlay.StrokeThickness + 2) * Math.Min(scaleX, scaleY);
                         }
 
@@ -375,6 +386,8 @@ namespace SimpleOverlayEditor.Views
         {
             try
             {
+                if (ViewModel == null) return;
+                
                 var position = e.GetPosition(ImageCanvas);
                 var canvasSize = new Size(ImageCanvas.ActualWidth, ImageCanvas.ActualHeight);
 
@@ -463,6 +476,8 @@ namespace SimpleOverlayEditor.Views
 
         private void ImageCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            if (ViewModel == null) return;
+            
             // 커서 업데이트 (추가 모드 여부에 따라)
             UpdateCursor();
             
@@ -500,6 +515,8 @@ namespace SimpleOverlayEditor.Views
 
         private void ImageCanvas_MouseLeave(object sender, MouseEventArgs e)
         {
+            if (ViewModel == null) return;
+            
             // 마우스가 캔버스를 떠날 때 커서 복원
             if (!ViewModel.IsAddMode)
             {
@@ -509,7 +526,7 @@ namespace SimpleOverlayEditor.Views
 
         private void UpdateCursor()
         {
-            if (ImageCanvas == null) return;
+            if (ImageCanvas == null || ViewModel == null) return;
 
             if (ViewModel.IsAddMode)
             {
@@ -542,7 +559,7 @@ namespace SimpleOverlayEditor.Views
 
         private RectangleOverlay? FindOverlayAtPosition(Point position, Size canvasSize)
         {
-            if (ViewModel.SelectedDocument == null || ViewModel.Workspace?.Template == null)
+            if (ViewModel == null || ViewModel.SelectedDocument == null || ViewModel.Workspace?.Template == null)
                 return null;
 
             var displayRect = ViewModel.CurrentImageDisplayRect;
@@ -582,7 +599,7 @@ namespace SimpleOverlayEditor.Views
 
         private void SelectOverlaysInBox(Rect box)
         {
-            if (ViewModel.SelectedDocument == null || ViewModel.Workspace?.Template == null)
+            if (ViewModel == null || ViewModel.SelectedDocument == null || ViewModel.Workspace?.Template == null)
                 return;
 
             var displayRect = ViewModel.CurrentImageDisplayRect;
@@ -638,6 +655,8 @@ namespace SimpleOverlayEditor.Views
         {
             if (_isSyncingDataGrid) return; // 동기화 중이면 무시 (무한 루프 방지)
             
+            if (ViewModel == null) return;
+            
             if (sender is System.Windows.Controls.DataGrid dg)
             {
                 // DataGrid 선택 변경 시 SelectionVM 동기화
@@ -648,7 +667,7 @@ namespace SimpleOverlayEditor.Views
 
         private void SyncDataGridSelection()
         {
-            if (OverlayDataGrid == null) return;
+            if (OverlayDataGrid == null || ViewModel?.SelectionVM == null) return;
             if (_isSyncingDataGrid) return; // 이미 동기화 중이면 무시
 
             try
@@ -703,6 +722,8 @@ namespace SimpleOverlayEditor.Views
 
         private void ApplyTextBoxValue(object sender)
         {
+            if (ViewModel?.SelectionVM == null) return;
+            
             if (sender is TextBox tb)
             {
                 // "다중 선택" 문자열을 파싱하여 숫자로 변환
@@ -743,7 +764,7 @@ namespace SimpleOverlayEditor.Views
             // 기본 스크롤 동작 방지
             e.Handled = true;
 
-            if (ViewModel.SelectedDocument == null)
+            if (ViewModel?.SelectedDocument == null)
             {
                 return;
             }
@@ -856,7 +877,7 @@ namespace SimpleOverlayEditor.Views
                 return;
             }
 
-            if (ViewModel.SelectionVM.IsEmpty) return;
+            if (ViewModel?.SelectionVM == null || ViewModel.SelectionVM.IsEmpty) return;
 
             // TextBox에서 편집 중이면 기본 커서 이동을 존중
             if (Keyboard.FocusedElement is TextBox) return;

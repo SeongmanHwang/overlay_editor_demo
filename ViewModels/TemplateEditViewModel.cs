@@ -200,6 +200,7 @@ namespace SimpleOverlayEditor.ViewModels
 
         /// <summary>
         /// 현재 선택된 이미지에 표시할 모든 오버레이를 반환합니다.
+        /// ScoringAreas는 Questions.Options에서 자동으로 동기화되므로 ScoringAreas를 사용합니다.
         /// </summary>
         public System.Collections.Generic.IEnumerable<RectangleOverlay> DisplayOverlays
         {
@@ -210,6 +211,8 @@ namespace SimpleOverlayEditor.ViewModels
                     return Enumerable.Empty<RectangleOverlay>();
                 }
 
+                // ScoringAreas는 Questions.Options에서 자동으로 동기화되므로
+                // 표시용으로는 ScoringAreas를 사용 (편집은 Questions.Options에서 수행)
                 return _workspace.Template.TimingMarks
                     .Concat(_workspace.Template.ScoringAreas)
                     .Concat(_workspace.Template.BarcodeAreas);
@@ -333,22 +336,40 @@ namespace SimpleOverlayEditor.ViewModels
         {
             if (SelectedOverlay != null)
             {
+                bool removed = false;
+
+                // TimingMarks와 BarcodeAreas는 직접 삭제
                 if (_workspace.Template.TimingMarks.Contains(SelectedOverlay))
                 {
                     _workspace.Template.TimingMarks.Remove(SelectedOverlay);
-                }
-                else if (_workspace.Template.ScoringAreas.Contains(SelectedOverlay))
-                {
-                    _workspace.Template.ScoringAreas.Remove(SelectedOverlay);
+                    removed = true;
                 }
                 else if (_workspace.Template.BarcodeAreas.Contains(SelectedOverlay))
                 {
                     _workspace.Template.BarcodeAreas.Remove(SelectedOverlay);
+                    removed = true;
+                }
+                // ScoringAreas는 Questions.Options에서 삭제해야 함 (ScoringAreas는 자동 동기화됨)
+                else if (_workspace.Template.ScoringAreas.Contains(SelectedOverlay))
+                {
+                    // Questions의 Options에서 찾아서 삭제
+                    foreach (var question in _workspace.Template.Questions)
+                    {
+                        if (question.Options.Contains(SelectedOverlay))
+                        {
+                            question.Options.Remove(SelectedOverlay);
+                            removed = true;
+                            break; // ScoringAreas는 자동으로 동기화됨
+                        }
+                    }
                 }
 
-                SelectedOverlay = null;
-                OnPropertyChanged(nameof(DisplayOverlays));
-                OnPropertyChanged(nameof(CurrentOverlayCollection));
+                if (removed)
+                {
+                    SelectedOverlay = null;
+                    OnPropertyChanged(nameof(DisplayOverlays));
+                    OnPropertyChanged(nameof(CurrentOverlayCollection));
+                }
             }
         }
 

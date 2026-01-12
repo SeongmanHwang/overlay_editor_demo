@@ -107,13 +107,18 @@ namespace SimpleOverlayEditor.ViewModels
                     {
                         // 현재 템플릿 초기화
                         Template.TimingMarks.Clear();
-                        Template.ScoringAreas.Clear();
                         Template.BarcodeAreas.Clear();
+                        // Questions를 먼저 초기화하면 ScoringAreas도 자동으로 초기화됨
+                        foreach (var question in Template.Questions)
+                        {
+                            question.Options.Clear();
+                        }
 
                         // 가져온 템플릿 적용
                         Template.ReferenceWidth = importedTemplate.ReferenceWidth;
                         Template.ReferenceHeight = importedTemplate.ReferenceHeight;
                         
+                        // TimingMarks 복원
                         foreach (var overlay in importedTemplate.TimingMarks)
                         {
                             Template.TimingMarks.Add(new RectangleOverlay
@@ -127,19 +132,66 @@ namespace SimpleOverlayEditor.ViewModels
                             });
                         }
                         
-                        foreach (var overlay in importedTemplate.ScoringAreas)
+                        // Questions 복원 (중요: ScoringAreas는 자동으로 동기화됨)
+                        foreach (var importedQuestion in importedTemplate.Questions)
                         {
-                            Template.ScoringAreas.Add(new RectangleOverlay
+                            var question = Template.Questions.FirstOrDefault(q => q.QuestionNumber == importedQuestion.QuestionNumber);
+                            if (question == null)
                             {
-                                X = overlay.X,
-                                Y = overlay.Y,
-                                Width = overlay.Width,
-                                Height = overlay.Height,
-                                StrokeThickness = overlay.StrokeThickness,
-                                OverlayType = overlay.OverlayType
-                            });
+                                // 문항이 없으면 새로 생성 (일반적으로는 4개가 이미 있음)
+                                question = new Question { QuestionNumber = importedQuestion.QuestionNumber };
+                                Template.Questions.Add(question);
+                            }
+
+                            // Options 복원
+                            foreach (var overlay in importedQuestion.Options)
+                            {
+                                question.Options.Add(new RectangleOverlay
+                                {
+                                    X = overlay.X,
+                                    Y = overlay.Y,
+                                    Width = overlay.Width,
+                                    Height = overlay.Height,
+                                    StrokeThickness = overlay.StrokeThickness,
+                                    OverlayType = overlay.OverlayType
+                                });
+                            }
+                        }
+                        // 하위 호환성: Questions가 없고 ScoringAreas만 있는 경우 처리
+                        if (importedTemplate.Questions.Count == 0 && importedTemplate.ScoringAreas.Count > 0)
+                        {
+                            // ScoringAreas를 4문항 × 12선택지로 분할
+                            const int questionsCount = 4;
+                            const int optionsPerQuestion = 12;
+                            var scoringAreasList = importedTemplate.ScoringAreas.ToList();
+                            
+                            for (int q = 0; q < questionsCount; q++)
+                            {
+                                var question = Template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
+                                if (question == null)
+                                {
+                                    question = new Question { QuestionNumber = q + 1 };
+                                    Template.Questions.Add(question);
+                                }
+
+                                int startIndex = q * optionsPerQuestion;
+                                for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
+                                {
+                                    var overlay = scoringAreasList[startIndex + o];
+                                    question.Options.Add(new RectangleOverlay
+                                    {
+                                        X = overlay.X,
+                                        Y = overlay.Y,
+                                        Width = overlay.Width,
+                                        Height = overlay.Height,
+                                        StrokeThickness = overlay.StrokeThickness,
+                                        OverlayType = overlay.OverlayType
+                                    });
+                                }
+                            }
                         }
 
+                        // BarcodeAreas 복원
                         foreach (var overlay in importedTemplate.BarcodeAreas)
                         {
                             Template.BarcodeAreas.Add(new RectangleOverlay

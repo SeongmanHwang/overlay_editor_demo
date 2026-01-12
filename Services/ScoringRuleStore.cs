@@ -76,7 +76,7 @@ namespace SimpleOverlayEditor.Services
                     }
                     
                     // 12개가 안 되면 빈 문자열로 채움
-                    while (scoringRule.ScoreNames.Count < 12)
+                    while (scoringRule.ScoreNames.Count < OmrConstants.OptionsPerQuestion)
                     {
                         scoringRule.ScoreNames.Add(string.Empty);
                     }
@@ -102,8 +102,8 @@ namespace SimpleOverlayEditor.Services
                                 question.Scores.Add(scoreElem.GetDouble());
                             }
                             
-                            // 12개가 안 되면 0으로 채움
-                            while (question.Scores.Count < 12)
+                            // {OmrConstants.OptionsPerQuestion}개가 안 되면 0으로 채움
+                            while (question.Scores.Count < OmrConstants.OptionsPerQuestion)
                             {
                                 question.Scores.Add(0);
                             }
@@ -149,23 +149,26 @@ namespace SimpleOverlayEditor.Services
                 scoringRule.ScoreNames.Clear();
 
                 // 두 번째 행(점수 이름 행) 읽기
-                for (int col = 2; col <= 13; col++) // 2열부터 13열까지 (1번~12번 선택지)
+                int lastScoreCol = OmrConstants.OptionsPerQuestion + 1; // 2열부터 (OptionsPerQuestion+1)열까지 (1번~{OmrConstants.OptionsPerQuestion}번 선택지)
+                for (int col = 2; col <= lastScoreCol; col++)
                 {
                     var nameCell = worksheet.Cell(2, col);
                     var name = nameCell.GetString().Trim();
                     scoringRule.ScoreNames.Add(name);
                 }
 
-                // 3행부터 시작 (문항1~4)
-                for (int row = 3; row <= Math.Min(lastRow, 6); row++) // 최대 4개 문항
+                // 3행부터 시작 (문항1~{OmrConstants.QuestionsCount})
+                int lastQuestionRow = OmrConstants.QuestionsCount + 2; // 최대 {OmrConstants.QuestionsCount}개 문항 (헤더 2행 + 문항 수)
+                for (int row = 3; row <= Math.Min(lastRow, lastQuestionRow); row++)
                 {
-                    var questionNumber = row - 2; // 1~4 (3행=문항1, 4행=문항2, ...)
+                    var questionNumber = row - 2; // 1~{OmrConstants.QuestionsCount} (3행=문항1, 4행=문항2, ...)
                     
                     var question = new QuestionScoringRule { QuestionNumber = questionNumber };
-                    question.Scores.Clear(); // 기존 12개 0점 제거
+                    question.Scores.Clear(); // 기존 {OmrConstants.OptionsPerQuestion}개 0점 제거
                     
-                    // 2열부터 13열까지 (1번~12번 선택지의 배점)
-                    for (int col = 2; col <= 13; col++)
+                    // 2열부터 (OptionsPerQuestion+1)열까지 (1번~{OmrConstants.OptionsPerQuestion}번 선택지의 배점)
+                    // lastScoreCol은 위에서 이미 선언됨
+                    for (int col = 2; col <= lastScoreCol; col++)
                     {
                         var scoreCell = worksheet.Cell(row, col);
                         var score = 0.0;
@@ -208,46 +211,48 @@ namespace SimpleOverlayEditor.Services
                 var worksheet = workbook.Worksheets.Add("정답 및 배점");
 
                 // 헤더 행 (1행)
+                int exportMaxScoreCol = OmrConstants.OptionsPerQuestion + 1;
                 worksheet.Cell(1, 1).Value = "문항";
-                for (int col = 2; col <= 13; col++)
+                for (int col = 2; col <= exportMaxScoreCol; col++)
                 {
                     worksheet.Cell(1, col).Value = $"{col - 1}번";
                 }
 
                 // 점수 이름 행 (2행)
                 worksheet.Cell(2, 1).Value = "점수";
-                for (int col = 2; col <= 13; col++)
+                for (int col = 2; col <= exportMaxScoreCol; col++)
                 {
                     worksheet.Cell(2, col).Value = ""; // 빈 값으로 시작
                 }
 
-                // 문항 행 (3~6행)
-                for (int row = 3; row <= 6; row++)
+                // 문항 행 (3~{OmrConstants.QuestionsCount+2}행)
+                int exportMaxQuestionRow = OmrConstants.QuestionsCount + 2;
+                for (int row = 3; row <= exportMaxQuestionRow; row++)
                 {
-                    var questionNumber = row - 2; // 1~4
+                    var questionNumber = row - 2; // 1~{OmrConstants.QuestionsCount}
                     worksheet.Cell(row, 1).Value = $"문항{questionNumber}";
                     
                     // 배점은 0으로 초기화
-                    for (int col = 2; col <= 13; col++)
+                    for (int col = 2; col <= exportMaxScoreCol; col++)
                     {
                         worksheet.Cell(row, col).Value = 0;
                     }
                 }
 
                 // 스타일 적용
-                var headerRange = worksheet.Range(1, 1, 1, 13);
+                var headerRange = worksheet.Range(1, 1, 1, exportMaxScoreCol);
                 headerRange.Style.Font.Bold = true;
                 headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
                 headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-                var scoreNameRange = worksheet.Range(2, 1, 2, 13);
+                var scoreNameRange = worksheet.Range(2, 1, 2, exportMaxScoreCol);
                 scoreNameRange.Style.Font.Bold = true;
                 scoreNameRange.Style.Fill.BackgroundColor = XLColor.LightBlue;
                 scoreNameRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
                 // 열 너비 조정
                 worksheet.Column(1).Width = 10;
-                for (int col = 2; col <= 13; col++)
+                for (int col = 2; col <= exportMaxScoreCol; col++)
                 {
                     worksheet.Column(col).Width = 8;
                 }

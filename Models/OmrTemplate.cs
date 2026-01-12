@@ -19,8 +19,8 @@ namespace SimpleOverlayEditor.Models
 
         public OmrTemplate()
         {
-            // Questions 초기화 (4개 문항)
-            for (int i = 1; i <= 4; i++)
+            // Questions 초기화 ({OmrConstants.QuestionsCount}개 문항)
+            for (int i = 1; i <= OmrConstants.QuestionsCount; i++)
             {
                 var question = new Question { QuestionNumber = i };
                 question.Options.CollectionChanged += (s, e) => SyncQuestionsToScoringAreas();
@@ -70,7 +70,7 @@ namespace SimpleOverlayEditor.Models
         }
 
         /// <summary>
-        /// 문항 목록 (4개 문항, 각 12개 선택지)
+        /// 문항 목록 ({OmrConstants.QuestionsCount}개 문항, 각 {OmrConstants.OptionsPerQuestion}개 선택지)
         /// </summary>
         public ObservableCollection<Question> Questions
         {
@@ -142,15 +142,20 @@ namespace SimpleOverlayEditor.Models
 
         /// <summary>
         /// Questions의 변경사항을 ScoringAreas에 동기화합니다.
+        /// 배치된 슬롯(IsPlaced == true)만 ScoringAreas에 추가합니다.
         /// </summary>
         private void SyncQuestionsToScoringAreas()
         {
             _scoringAreas.Clear();
             foreach (var question in _questions.OrderBy(q => q.QuestionNumber))
             {
-                foreach (var option in question.Options)
+                foreach (var option in question.Options.OrderBy(o => o.OptionNumber))
                 {
-                    _scoringAreas.Add(option);
+                    // 배치된 슬롯만 추가 (빈 슬롯은 제외)
+                    if (option.IsPlaced)
+                    {
+                        _scoringAreas.Add(option);
+                    }
                 }
             }
             OnPropertyChanged(nameof(ScoringAreas));

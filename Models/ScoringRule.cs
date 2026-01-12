@@ -7,7 +7,7 @@ namespace SimpleOverlayEditor.Models
 {
     /// <summary>
     /// 정답 및 배점 정보를 나타냅니다.
-    /// 4문항 × 12선택지의 배점 정보를 저장합니다.
+    /// {OmrConstants.QuestionsCount}문항 × {OmrConstants.OptionsPerQuestion}선택지의 배점 정보를 저장합니다.
     /// </summary>
     public class ScoringRule : INotifyPropertyChanged
     {
@@ -19,21 +19,21 @@ namespace SimpleOverlayEditor.Models
             _questions = new ObservableCollection<QuestionScoringRule>();
             _scoreNames = new ObservableCollection<string>();
             
-            // 4개 문항 초기화
-            for (int i = 1; i <= 4; i++)
+            // {OmrConstants.QuestionsCount}개 문항 초기화
+            for (int i = 1; i <= OmrConstants.QuestionsCount; i++)
             {
                 _questions.Add(new QuestionScoringRule { QuestionNumber = i });
             }
             
-            // 12개 선택지에 대한 점수 이름 초기화 (기본값: 빈 문자열)
-            for (int i = 0; i < 12; i++)
+            // {OmrConstants.OptionsPerQuestion}개 선택지에 대한 점수 이름 초기화 (기본값: 빈 문자열)
+            for (int i = 0; i < OmrConstants.OptionsPerQuestion; i++)
             {
                 _scoreNames.Add(string.Empty);
             }
         }
 
         /// <summary>
-        /// 문항별 배점 정보 (4개 문항)
+        /// 문항별 배점 정보 ({OmrConstants.QuestionsCount}개 문항)
         /// </summary>
         public ObservableCollection<QuestionScoringRule> Questions
         {
@@ -65,7 +65,7 @@ namespace SimpleOverlayEditor.Models
         public double GetScore(int questionNumber, int optionNumber)
         {
             var question = Questions.FirstOrDefault(q => q.QuestionNumber == questionNumber);
-            if (question == null || optionNumber < 1 || optionNumber > 12)
+            if (question == null || optionNumber < 1 || optionNumber > OmrConstants.OptionsPerQuestion)
                 return 0;
 
             return question.GetScore(optionNumber);
@@ -79,7 +79,7 @@ namespace SimpleOverlayEditor.Models
     }
 
     /// <summary>
-    /// 한 문항의 배점 정보 (12개 선택지)
+    /// 한 문항의 배점 정보 ({OmrConstants.OptionsPerQuestion}개 선택지)
     /// </summary>
     public class QuestionScoringRule : INotifyPropertyChanged
     {
@@ -90,8 +90,8 @@ namespace SimpleOverlayEditor.Models
         {
             _scores = new ObservableCollection<double>();
             
-            // 12개 선택지 초기화 (모두 0점)
-            for (int i = 0; i < 12; i++)
+            // {OmrConstants.OptionsPerQuestion}개 선택지 초기화 (모두 0점)
+            for (int i = 0; i < OmrConstants.OptionsPerQuestion; i++)
             {
                 _scores.Add(0);
             }
@@ -121,11 +121,11 @@ namespace SimpleOverlayEditor.Models
         }
 
         /// <summary>
-        /// 특정 선택지 번호(1~12)의 배점을 가져옵니다.
+        /// 특정 선택지 번호(1~{OmrConstants.OptionsPerQuestion})의 배점을 가져옵니다.
         /// </summary>
         public double GetScore(int optionNumber)
         {
-            if (optionNumber < 1 || optionNumber > 12)
+            if (optionNumber < 1 || optionNumber > OmrConstants.OptionsPerQuestion)
                 return 0;
             
             int index = optionNumber - 1;
@@ -136,11 +136,11 @@ namespace SimpleOverlayEditor.Models
         }
 
         /// <summary>
-        /// 특정 선택지 번호(1~12)의 배점을 설정합니다.
+        /// 특정 선택지 번호(1~{OmrConstants.OptionsPerQuestion})의 배점을 설정합니다.
         /// </summary>
         public void SetScore(int optionNumber, double score)
         {
-            if (optionNumber < 1 || optionNumber > 12)
+            if (optionNumber < 1 || optionNumber > OmrConstants.OptionsPerQuestion)
                 return;
             
             int index = optionNumber - 1;

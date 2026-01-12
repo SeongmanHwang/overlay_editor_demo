@@ -11,9 +11,6 @@ namespace SimpleOverlayEditor.Services
     /// </summary>
     public class MarkingAnalyzer
     {
-        private const int QuestionsCount = 4; // 문항 수
-        private const int OptionsPerQuestion = 12; // 문항당 선택지 수
-
         /// <summary>
         /// 마킹 결과와 바코드 결과를 결합하여 OmrSheetResult를 생성합니다.
         /// </summary>
@@ -21,9 +18,13 @@ namespace SimpleOverlayEditor.Services
             ImageDocument document,
             List<MarkingResult>? markingResults,
             List<BarcodeResult>? barcodeResults,
-            int questionsCount = QuestionsCount,
-            int optionsPerQuestion = OptionsPerQuestion)
+            int questionsCount = -1,
+            int optionsPerQuestion = -1)
         {
+            // 기본값을 OmrConstants에서 가져옴
+            if (questionsCount < 0) questionsCount = OmrConstants.QuestionsCount;
+            if (optionsPerQuestion < 0) optionsPerQuestion = OmrConstants.OptionsPerQuestion;
+
             var result = new OmrSheetResult
             {
                 ImageId = document.ImageId,
@@ -116,6 +117,8 @@ namespace SimpleOverlayEditor.Services
                         case 4:
                             result.Question4Marking = marking;
                             break;
+                        // OmrConstants.QuestionsCount가 4보다 큰 경우를 대비한 확장 가능성
+                        // 현재는 OmrSheetResult가 하드코딩된 4개 속성을 가지므로 그대로 유지
                     }
 
                     if (errorMessage != null)
@@ -169,9 +172,13 @@ namespace SimpleOverlayEditor.Services
         /// </summary>
         public List<OmrSheetResult> AnalyzeAllSheets(
             Session session,
-            int questionsCount = QuestionsCount,
-            int optionsPerQuestion = OptionsPerQuestion)
+            int questionsCount = -1,
+            int optionsPerQuestion = -1)
         {
+            // 기본값을 OmrConstants에서 가져옴
+            if (questionsCount < 0) questionsCount = OmrConstants.QuestionsCount;
+            if (optionsPerQuestion < 0) optionsPerQuestion = OmrConstants.OptionsPerQuestion;
+
             var results = new List<OmrSheetResult>();
 
             foreach (var document in session.Documents)

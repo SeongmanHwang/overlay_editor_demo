@@ -165,8 +165,8 @@ namespace SimpleOverlayEditor.ViewModels
                         if (importedTemplate.Questions.Count == 0 && importedTemplate.ScoringAreas.Count > 0)
                         {
                             // ScoringAreas를 4문항 × 12선택지로 분할
-                            const int questionsCount = 4;
-                            const int optionsPerQuestion = 12;
+                            int questionsCount = OmrConstants.QuestionsCount;
+                            int optionsPerQuestion = OmrConstants.OptionsPerQuestion;
                             var scoringAreasList = importedTemplate.ScoringAreas.ToList();
                             
                             for (int q = 0; q < questionsCount; q++)

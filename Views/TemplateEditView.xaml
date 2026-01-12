@@ -103,7 +103,8 @@
                                 </Style>
                             </DataGrid.RowHeaderStyle>
                             <DataGrid.Columns>
-                                <!-- 번호 컬럼 제거: RowHeader에 이미 표시되므로 중복 제거 -->
+                                <!-- 번호 컬럼: OptionNumber (IdentityIndex) 표시 -->
+                                <DataGridTextColumn Header="번호" Binding="{Binding OptionNumber, FallbackValue='-'}" Width="50" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="타입" Binding="{Binding OverlayType, FallbackValue=''}" Width="80"/>
                                 <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F1, FallbackValue=0}" Width="50"/>
                                 <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F1, FallbackValue=0}" Width="50"/>
@@ -265,12 +266,7 @@
                          FontSize="11"
                          Visibility="{Binding IsQuestionNumberVisible, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                     <ComboBox.ItemsSource>
-                        <x:Array Type="{x:Type sys:Int32}">
-                            <sys:Int32>1</sys:Int32>
-                            <sys:Int32>2</sys:Int32>
-                            <sys:Int32>3</sys:Int32>
-                            <sys:Int32>4</sys:Int32>
-                        </x:Array>
+                        <Binding Path="QuestionNumbers"/>
                     </ComboBox.ItemsSource>
                 </ComboBox>
                 <Separator Margin="5,0"/>

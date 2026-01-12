@@ -258,8 +258,8 @@ namespace SimpleOverlayEditor.Services
                                 scoringAreasList.Add(overlay);
                             }
 
-                            const int questionsCount = 4;
-                            const int optionsPerQuestion = 12;
+                            int questionsCount = OmrConstants.QuestionsCount;
+                            int optionsPerQuestion = OmrConstants.OptionsPerQuestion;
                             for (int q = 0; q < questionsCount; q++)
                             {
                                 var question = template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
@@ -272,7 +272,27 @@ namespace SimpleOverlayEditor.Services
                                 int startIndex = q * optionsPerQuestion;
                                 for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
                                 {
-                                    question.Options.Add(scoringAreasList[startIndex + o]);
+                                    var overlay = scoringAreasList[startIndex + o];
+                                    // OptionNumber와 QuestionNumber 부여
+                                    overlay.OptionNumber = o + 1;
+                                    overlay.QuestionNumber = q + 1;
+                                    
+                                    // 기존 슬롯에 배치
+                                    var slot = question.Options.FirstOrDefault(s => s.OptionNumber == o + 1);
+                                    if (slot != null)
+                                    {
+                                        slot.X = overlay.X;
+                                        slot.Y = overlay.Y;
+                                        slot.Width = overlay.Width;
+                                        slot.Height = overlay.Height;
+                                        slot.StrokeThickness = overlay.StrokeThickness;
+                                        slot.OverlayType = overlay.OverlayType;
+                                    }
+                                    else
+                                    {
+                                        // 슬롯이 없으면 추가 (이론적으로는 발생하지 않아야 함)
+                                        question.Options.Add(overlay);
+                                    }
                                 }
                             }
                         }
@@ -533,9 +553,9 @@ namespace SimpleOverlayEditor.Services
                         scoringAreasList.Add(overlay);
                     }
 
-                    // 48개를 4문항 × 12선택지로 분할
-                    const int questionsCount = 4;
-                    const int optionsPerQuestion = 12;
+                    // {OmrConstants.TotalScoringAreas}개를 {OmrConstants.QuestionsCount}문항 × {OmrConstants.OptionsPerQuestion}선택지로 분할
+                    int questionsCount = OmrConstants.QuestionsCount;
+                    int optionsPerQuestion = OmrConstants.OptionsPerQuestion;
                     for (int q = 0; q < questionsCount; q++)
                     {
                         var question = template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
@@ -548,7 +568,27 @@ namespace SimpleOverlayEditor.Services
                         int startIndex = q * optionsPerQuestion;
                         for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
                         {
-                            question.Options.Add(scoringAreasList[startIndex + o]);
+                            var overlay = scoringAreasList[startIndex + o];
+                            // OptionNumber와 QuestionNumber 부여
+                            overlay.OptionNumber = o + 1;
+                            overlay.QuestionNumber = q + 1;
+                            
+                            // 기존 슬롯에 배치
+                            var slot = question.Options.FirstOrDefault(s => s.OptionNumber == o + 1);
+                            if (slot != null)
+                            {
+                                slot.X = overlay.X;
+                                slot.Y = overlay.Y;
+                                slot.Width = overlay.Width;
+                                slot.Height = overlay.Height;
+                                slot.StrokeThickness = overlay.StrokeThickness;
+                                slot.OverlayType = overlay.OverlayType;
+                            }
+                            else
+                            {
+                                // 슬롯이 없으면 추가 (이론적으로는 발생하지 않아야 함)
+                                question.Options.Add(overlay);
+                            }
                         }
                     }
                 }

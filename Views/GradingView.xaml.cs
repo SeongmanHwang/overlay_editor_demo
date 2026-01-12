@@ -30,6 +30,9 @@ namespace SimpleOverlayEditor.Views
             var key = e.Column.SortMemberPath;
             if (string.IsNullOrWhiteSpace(key)) return;
 
+            // 사용자가 정렬을 변경했음을 표시
+            ViewModel.MarkUserHasSorted();
+
             // 현재 정렬 목록을 복사
             var current = view.SortDescriptions.ToList();
 

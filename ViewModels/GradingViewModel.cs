@@ -22,6 +22,12 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly ScoringRuleStore _scoringRuleStore;
         private ObservableCollection<GradingResult>? _gradingResults;
         private ICollectionView? _filteredGradingResults;
+        private bool _hasMismatch;
+        private int _missingInGradingCount;
+        private int _missingInRegistryCount;
+        private string? _mismatchMessage;
+        private string? _missingInGradingList;
+        private string? _missingInRegistryList;
 
         public GradingViewModel(NavigationViewModel navigation)
         {
@@ -46,6 +52,7 @@ namespace SimpleOverlayEditor.ViewModels
             private set
             {
                 _gradingResults = value;
+                _userHasSorted = false;   // 새 데이터 로드 = 기본 정렬 다시 적용 가능
                 OnPropertyChanged();
                 UpdateFilteredResults();
             }
@@ -57,6 +64,84 @@ namespace SimpleOverlayEditor.ViewModels
             private set
             {
                 _filteredGradingResults = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 수험번호 불일치 여부
+        /// </summary>
+        public bool HasMismatch
+        {
+            get => _hasMismatch;
+            private set
+            {
+                _hasMismatch = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 명렬에는 있지만 채점 결과에 없는 수험번호 개수
+        /// </summary>
+        public int MissingInGradingCount
+        {
+            get => _missingInGradingCount;
+            private set
+            {
+                _missingInGradingCount = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 채점 결과에는 있지만 명렬에 없는 수험번호 개수
+        /// </summary>
+        public int MissingInRegistryCount
+        {
+            get => _missingInRegistryCount;
+            private set
+            {
+                _missingInRegistryCount = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 불일치 메시지
+        /// </summary>
+        public string? MismatchMessage
+        {
+            get => _mismatchMessage;
+            private set
+            {
+                _mismatchMessage = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 명렬에는 있지만 채점 결과에 없는 수험번호 목록
+        /// </summary>
+        public string? MissingInGradingList
+        {
+            get => _missingInGradingList;
+            private set
+            {
+                _missingInGradingList = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 채점 결과에는 있지만 명렬에 없는 수험번호 목록
+        /// </summary>
+        public string? MissingInRegistryList
+        {
+            get => _missingInRegistryList;
+            private set
+            {
+                _missingInRegistryList = value;
                 OnPropertyChanged();
             }
         }
@@ -73,6 +158,13 @@ namespace SimpleOverlayEditor.ViewModels
                 if (session.Documents == null || session.Documents.Count == 0)
                 {
                     GradingResults = new ObservableCollection<GradingResult>();
+                    // 불일치 정보 초기화
+                    HasMismatch = false;
+                    MissingInGradingCount = 0;
+                    MissingInRegistryCount = 0;
+                    MismatchMessage = null;
+                    MissingInGradingList = null;
+                    MissingInRegistryList = null;
                     Logger.Instance.Info("로드된 문서가 없습니다.");
                     return;
                 }
@@ -203,6 +295,7 @@ namespace SimpleOverlayEditor.ViewModels
                 // 8. 석차 계산 (TotalScore 기준)
                 CalculateRank(gradingResults);
 
+                // 9. GradingResults 설정 (이때 UpdateFilteredResults가 호출되어 기본 정렬이 자동 적용됨)
                 GradingResults = gradingResults;
 
                 Logger.Instance.Info($"채점 데이터 로드 완료: {gradingResults.Count}개 항목");
@@ -211,6 +304,13 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Logger.Instance.Error("채점 데이터 로드 실패", ex);
                 GradingResults = new ObservableCollection<GradingResult>();
+                // 불일치 정보 초기화
+                HasMismatch = false;
+                MissingInGradingCount = 0;
+                MissingInRegistryCount = 0;
+                MismatchMessage = null;
+                MissingInGradingList = null;
+                MissingInRegistryList = null;
             }
         }
 
@@ -246,6 +346,57 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     result.HasErrors = true; // 명렬에 없는 수험번호는 오류
                 }
+            }
+
+            // UI 표시를 위한 정보 저장
+            MissingInGradingCount = missingInGrading.Count;
+            MissingInRegistryCount = missingInRegistry.Count;
+            HasMismatch = missingInGrading.Any() || missingInRegistry.Any();
+
+            if (HasMismatch)
+            {
+                var messages = new System.Collections.Generic.List<string>();
+                if (missingInGrading.Any())
+                {
+                    // 수험번호 목록 생성 (최대 20개까지 표시)
+                    var studentIdList = missingInGrading.Take(20).ToList();
+                    var studentIdText = string.Join(", ", studentIdList);
+                    if (missingInGrading.Count > 20)
+                    {
+                        studentIdText += $" 외 {missingInGrading.Count - 20}개";
+                    }
+                    messages.Add($"명렬에는 있지만 채점 결과에 없는 수험번호: {missingInGrading.Count}개");
+                    MissingInGradingList = $"수험번호: {studentIdText}";
+                }
+                else
+                {
+                    MissingInGradingList = null;
+                }
+
+                if (missingInRegistry.Any())
+                {
+                    // 수험번호 목록 생성 (최대 20개까지 표시)
+                    var studentIdList = missingInRegistry.Take(20).ToList();
+                    var studentIdText = string.Join(", ", studentIdList);
+                    if (missingInRegistry.Count > 20)
+                    {
+                        studentIdText += $" 외 {missingInRegistry.Count - 20}개";
+                    }
+                    messages.Add($"채점 결과에는 있지만 명렬에 없는 수험번호: {missingInRegistry.Count}개");
+                    MissingInRegistryList = $"수험번호: {studentIdText}";
+                }
+                else
+                {
+                    MissingInRegistryList = null;
+                }
+
+                MismatchMessage = string.Join("\n", messages);
+            }
+            else
+            {
+                MismatchMessage = null;
+                MissingInGradingList = null;
+                MissingInRegistryList = null;
             }
 
             // 로그 출력
@@ -317,15 +468,45 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
+        private bool _userHasSorted = false; // 사용자가 정렬을 변경했는지 추적
+
+        /// <summary>
+        /// 사용자가 정렬을 변경했음을 표시합니다 (View에서 호출)
+        /// </summary>
+        public void MarkUserHasSorted()
+        {
+            _userHasSorted = true;
+        }
+
+        private ICollectionView? _currentView; // 현재 view를 저장하여 정렬 적용 시 사용
+
         private void UpdateFilteredResults()
         {
             if (GradingResults == null)
             {
                 FilteredGradingResults = null;
+                _currentView = null;
                 return;
             }
 
             var view = CollectionViewSource.GetDefaultView(GradingResults);
+            _currentView = view;
+            
+            // 기본 정렬 적용: 사용자가 정렬을 변경하지 않은 경우에만
+            // 컬렉션이 교체될 때마다 기본 정렬을 다시 적용
+            if (!_userHasSorted)
+            {
+                view.SortDescriptions.Clear();
+                // 중복이 가장 위, 그 다음 오류
+                view.SortDescriptions.Add(new SortDescription("IsDuplicate", ListSortDirection.Descending));
+                view.SortDescriptions.Add(new SortDescription("HasErrors", ListSortDirection.Descending));
+                // 그 다음 전형 순, 석차 순, 접수번호 순
+                view.SortDescriptions.Add(new SortDescription("ExamType", ListSortDirection.Ascending));
+                view.SortDescriptions.Add(new SortDescription("Rank", ListSortDirection.Ascending));
+                view.SortDescriptions.Add(new SortDescription("RegistrationNumber", ListSortDirection.Ascending));
+                view.Refresh();
+            }
+            
             FilteredGradingResults = view;
         }
 

@@ -8,6 +8,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -34,8 +35,41 @@
             </Grid>
         </Border>
 
+        <!-- 수험번호 불일치 경고 (DataGrid 위) -->
+        <Border Grid.Row="1"
+                Background="#FFF3CD"
+                BorderBrush="#FFC107"
+                BorderThickness="0,0,0,2"
+                Padding="15,10"
+                Margin="10,10,10,0"
+                Visibility="{Binding HasMismatch, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+                <TextBlock Text="⚠ 수험번호 불일치 발견" 
+                           FontWeight="Bold" 
+                           FontSize="14"
+                           Foreground="#856404"
+                           Margin="0,0,0,8"/>
+                <TextBlock Text="{Binding MismatchMessage}"
+                           Foreground="#856404"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,5"/>
+                <StackPanel Margin="10,0,0,0">
+                    <TextBlock Text="{Binding MissingInGradingList}"
+                               Foreground="#856404"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding MissingInGradingList, Converter={StaticResource NullToVisibilityConverter}}"/>
+                    <TextBlock Text="{Binding MissingInRegistryList}"
+                               Foreground="#856404"
+                               TextWrapping="Wrap"
+                               Margin="0,3,0,0"
+                               Visibility="{Binding MissingInRegistryList, Converter={StaticResource NullToVisibilityConverter}}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
         <!-- DataGrid -->
-        <DataGrid Grid.Row="1"
+        <DataGrid Grid.Row="2"
                   ItemsSource="{Binding FilteredGradingResults}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -107,11 +141,25 @@
                 <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" SortMemberPath="HasErrors" Width="60" IsReadOnly="True"/>
             </DataGrid.Columns>
 
-            <!-- 중복 행을 붉은색으로 표시 -->
+            <!-- 중복 및 오류 행을 색깔로 표시 -->
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
                     <Style.Triggers>
-                        <!-- IsDuplicate가 True인 경우 붉은색 배경 -->
+                        <!-- 중복과 오류가 모두 있는 경우: 진한 빨간색 -->
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding IsDuplicate}" Value="True"/>
+                                <Condition Binding="{Binding HasErrors}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Background" Value="#E57373"/>
+                            <Setter Property="ToolTip" Value="중복 및 오류가 모두 있습니다."/>
+                        </MultiDataTrigger>
+                        <!-- 오류만 있는 경우: 주황색 -->
+                        <DataTrigger Binding="{Binding HasErrors}" Value="True">
+                            <Setter Property="Background" Value="#FFB74D"/>
+                            <Setter Property="ToolTip" Value="오류가 있습니다."/>
+                        </DataTrigger>
+                        <!-- 중복만 있는 경우: 연한 빨간색 -->
                         <DataTrigger Binding="{Binding IsDuplicate}" Value="True">
                             <Setter Property="Background" Value="#FFCDD2"/>
                             <Setter Property="ToolTip" Value="같은 수험번호+면접번호 조합으로 여러 시트가 존재합니다. (중복)"/>

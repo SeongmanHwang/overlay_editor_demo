@@ -157,7 +157,7 @@ namespace SimpleOverlayEditor.ViewModels
                 // 정렬이 이미 성공적으로 수행되었거나, 정렬 정보가 있으면 건너뜀
                 if (doc.AlignmentInfo?.Success == true)
                 {
-                    Logger.Instance.Debug($"정렬 이미 완료됨: {doc.SourcePath}");
+                    // DEBUG 로그 제거: 반복적인 로그로 인한 파일 크기 증가 방지
                     continue;
                 }
 

@@ -35,6 +35,8 @@
 ```csharp
 public static class OmrConstants
 {
+    public static int TimingMarksCount => 5;
+    public static int BarcodeAreasCount => 2;
     public static int QuestionsCount => 4;
     public static int OptionsPerQuestion => 12;
     public static int TotalScoringAreas => QuestionsCount * OptionsPerQuestion;
@@ -69,8 +71,8 @@ public bool IsPlaced => OptionNumber.HasValue && Width > 0 && Height > 0;
 
 **의미**:
 - `OptionNumber`와 `QuestionNumber`는 **IdentityIndex**로, 리스트 순서와 무관하게 고정된 의미를 가짐
-- `IsPlaced`는 슬롯이 실제로 캔버스에 배치되었는지(Width, Height > 0)를 나타냄
-- 비활성화된 슬롯(Width = 0 또는 Height = 0)은 마킹 리딩에서 제외됨
+- `IsPlaced`는 슬롯이 실제로 유효한 ROI인지(Width, Height > 0)를 나타냄
+- 현재 구현에서는 **추가/삭제/배치(Place) 개념을 UI에서 제거**했기 때문에, `IsPlaced`는 주로 “유효하지 않은 크기 ROI를 리딩 단계에서 안전하게 처리”하는 데 사용됨
 
 ### 3. Question 클래스의 고정 슬롯 구조
 
@@ -103,13 +105,14 @@ public Question()
 - 슬롯 개수가 항상 정확히 12개로 고정됨
 - 추가/삭제가 구조적으로 불가능해짐
 
-### 4. OmrTemplate의 ScoringAreas 동기화 로직 변경
+### 4. OmrTemplate의 고정 슬롯 구조 확장 (Timing/Barcode 포함) 및 ScoringAreas 동기화 정책 변경
 
 **파일**: `Models/OmrTemplate.cs`
 
 **변경 사항**:
-- `SyncQuestionsToScoringAreas()` 메서드에서 `IsPlaced`가 true인 슬롯만 `ScoringAreas`에 추가
-- 비활성화된 슬롯은 마킹 리딩에서 제외
+- **TimingMarks는 5개, BarcodeAreas는 2개 고정 슬롯**으로 생성됨 (추가/삭제 불가)
+- `ScoringAreas`는 `Questions.Options`의 **48개 슬롯을 항상 투영**하여 개수가 고정됨 (필터링 제거)
+  - 목적: 리딩/렌더링/분석에서 “영역 수 부족/인덱스 흔들림”을 방지하고, 항상 동일한 구조를 보장
 
 ```csharp
 private void SyncQuestionsToScoringAreas()
@@ -119,17 +122,15 @@ private void SyncQuestionsToScoringAreas()
     {
         foreach (var option in question.Options.OrderBy(o => o.OptionNumber))
         {
-            if (option.IsPlaced) // Only add placed slots
-            {
-                _scoringAreas.Add(option);
-            }
+            // 고정 슬롯 구조: 항상 포함 (48개 고정)
+            _scoringAreas.Add(option);
         }
     }
     OnPropertyChanged(nameof(ScoringAreas));
 }
 ```
 
-### 5. TemplateEditViewModel의 UX 변경
+### 5. TemplateEditViewModel의 UX 변경 (전 타입 잠금)
 
 **파일**: `ViewModels/TemplateEditViewModel.cs`
 
@@ -149,58 +150,11 @@ public IEnumerable<int> QuestionNumbers
 }
 ```
 
-#### 5.2 OnCanvasClick 로직 변경
-- 기존: 새로운 오버레이를 추가
-- 변경: 빈 슬롯을 찾아서 배치 (Place Slot)
-
-```csharp
-private void OnCanvasClick(Point canvasPoint)
-{
-    if (SelectedOverlayType == OverlayType.ScoringArea)
-    {
-        // Find empty slot for current question
-        var emptySlot = CurrentQuestion?.Options
-            .FirstOrDefault(o => !o.IsPlaced);
-        
-        if (emptySlot != null)
-        {
-            // Place the slot
-            emptySlot.X = canvasPoint.X;
-            emptySlot.Y = canvasPoint.Y;
-            emptySlot.Width = defaultWidth;
-            emptySlot.Height = defaultHeight;
-        }
-        else
-        {
-            MessageBox.Show("이 문항의 모든 슬롯이 이미 사용 중입니다.");
-        }
-    }
-    // ... other overlay types
-}
-```
-
-#### 5.3 OnDeleteSelected 로직 변경
-- 기존: 오버레이를 컬렉션에서 제거
-- 변경: ScoringArea의 경우 좌표를 초기화하여 "unplace" (다른 타입은 여전히 삭제)
-
-```csharp
-private void OnDeleteSelected()
-{
-    if (SelectedOverlay?.OverlayType == OverlayType.ScoringArea)
-    {
-        // Unplace the slot instead of deleting
-        SelectedOverlay.X = 0;
-        SelectedOverlay.Y = 0;
-        SelectedOverlay.Width = 0;
-        SelectedOverlay.Height = 0;
-    }
-    else
-    {
-        // Delete other overlay types
-        // ... deletion logic
-    }
-}
-```
+#### 5.2 “추가/삭제” UX 제거 (전 타입 잠금)
+- 기존(과거 단계): Place/Unplace 또는 Add/Delete 개념이 존재
+- 현재 구현(최종): **추가/삭제(=unplace 포함) 기능 자체를 제거**하고, 사용자는 **이미 존재하는 슬롯 오버레이의 위치/크기만 수정**함
+  - Timing/Barcode/Scoring 모두 동일 정책
+  - 편집은 선택/다중선택 + 좌표/크기 수정(텍스트박스, 방향키) + 정렬 정도로 제한됨
 
 ### 6. MarkingDetector의 IdentityIndex 기반 매핑
 
@@ -217,8 +171,8 @@ public List<MarkingResult> DetectMarkings(/* ... */)
     
     foreach (var area in scoringAreas)
     {
-        if (!area.IsPlaced) continue; // Skip unplaced slots
-        
+        // 고정 슬롯 구조: 항상 48개를 순회하되,
+        // 유효하지 않은 크기(Width/Height <= 0)는 내부에서 안전하게 IsMarked=false 처리됨
         var marking = DetectMarkingInArea(/* ... */, area.OptionNumber.Value);
         
         marking.QuestionNumber = area.QuestionNumber.Value;
@@ -245,6 +199,10 @@ public List<MarkingResult> DetectMarkings(/* ... */)
   - 새로운 형식(Questions 구조) 우선 로드
   - 구형식(ScoringAreas만 있는 경우)은 `OmrConstants`를 사용하여 Questions 구조로 변환
   - 변환 시 각 오버레이에 `OptionNumber`와 `QuestionNumber` 할당
+  - **고정 슬롯 정책**: 로드/가져오기 과정에서 컬렉션에 `Add()`로 슬롯 개수를 늘리지 않고, 항상 기존 슬롯에 매핑하여 좌표/크기만 업데이트
+
+추가로, 새 PC 첫 실행을 위해:
+- `Assets/default_template.json`을 앱에 번들하고, AppData에 `template.json`이 없으면 자동으로 설치/로드합니다.
 
 ### 8. UI 변경사항
 
@@ -253,6 +211,10 @@ public List<MarkingResult> DetectMarkings(/* ... */)
 **변경 사항**:
 - "번호" 컬럼 재추가: `OptionNumber`를 표시 (FallbackValue: '-')
 - 문항 선택 ComboBox: `QuestionNumbers` 속성에 바인딩
+- 템플릿 편집 화면에서 **추가 모드/삭제 버튼 제거**(전 타입 잠금)
+- 캔버스에 슬롯 라벨 표시:
+  - Timing/Barcode: 숫자(OptionNumber)만
+  - Scoring: 숫자(OptionNumber)만, 그리고 **드롭다운에서 선택된 문항만 라벨 표시**(UI 일관성)
 
 ```xml
 <DataGridTextColumn Header="번호" 
@@ -286,14 +248,17 @@ OmrTemplate
 ### 새로운 구조
 ```
 OmrTemplate
+  └── TimingMarks: ObservableCollection<RectangleOverlay>
+      - 고정 {TimingMarksCount}개 슬롯 (OptionNumber=1..N)
+  └── BarcodeAreas: ObservableCollection<RectangleOverlay>
+      - 고정 {BarcodeAreasCount}개 슬롯 (OptionNumber=1..N)
   └── Questions: ObservableCollection<Question>
       └── Options: ObservableCollection<RectangleOverlay>
           - 고정 12개 슬롯
           - OptionNumber (IdentityIndex) 보유
           - QuestionNumber 보유
-          - IsPlaced로 활성/비활성 구분
   └── ScoringAreas: ReadOnlyObservableCollection<RectangleOverlay>
-      - Questions에서 자동 동기화 (IsPlaced인 것만)
+      - Questions에서 자동 동기화 (항상 48개)
       - IdentityIndex 기반 마킹 리딩
 ```
 
@@ -306,58 +271,37 @@ OmrTemplate
 - "번호"는 DisplayIndex처럼 보이지만 실제로는 IdentityIndex
 
 ### 새로운 UX
-- 슬롯은 항상 12개로 고정
-- 사용자는 "배치(Place)" 또는 "제거(Unplace)"만 가능
-- 모든 슬롯이 사용 중이면 경고 메시지 표시
-- "번호"는 명확한 IdentityIndex (OptionNumber)
-- 실수로 인한 매핑 오류가 구조적으로 불가능
+- Timing/Barcode/Scoring 모두 **고정 슬롯**이며, 사용자는 **추가/삭제를 할 수 없음**
+- 사용자는 오직 **기존 슬롯의 위치/크기만 수정**
+- "번호"는 명확한 IdentityIndex (OptionNumber)로 UI/리딩/분석이 일치
+- 첫 실행 시 **기본 템플릿이 자동으로 설치/로드**되어 바로 편집 가능
 
-## 향후 개선 사항
+## 향후 개선 사항 (선택)
 
-### 1. 추가 모드(Add Mode) 제거 또는 개선
-
-**현재 문제점**:
-- 슬롯 구조에서는 "추가" 개념이 없음 (슬롯이 이미 존재)
-- 모든 슬롯이 사용 중일 때 추가 모드가 켜져 있어도 아무 작업도 할 수 없음
-- 사용자 혼란: "추가 모드가 필요한가?"
-
-**제안**:
-- ScoringArea의 경우 추가 모드를 제거하거나
-- 추가 모드를 "배치 모드(Place Mode)"로 재명명
-- 또는 추가 모드 없이 항상 배치 가능하도록 변경
-
-### 2. 슬롯 상태 시각화
-
-**제안**:
-- DataGrid에서 비활성화된 슬롯(IsPlaced = false)을 회색으로 표시
-- 또는 별도의 "활성 슬롯" / "비활성 슬롯" 필터 추가
-
-### 3. 배치 가이드
-
-**제안**:
-- 문항별로 몇 개의 슬롯이 배치되었는지 표시 (예: "문항 1: 8/12 배치됨")
-- 다음 배치할 슬롯 번호를 하이라이트
+### 1. 기본 템플릿 튜닝 워크플로우
+- `Assets/default_template.json`은 샘플 용지/해상도에 맞게 지속적으로 보정이 필요할 수 있음
+- “샘플 이미지 로드 → 좌표 조정 → 내보내기 → 기본 템플릿 교체” 방식의 운영 가이드 문서화 권장
 
 ## 테스트 시나리오
 
-### 시나리오 1: 정상적인 슬롯 배치
+### 시나리오 1: 첫 실행 기본 템플릿 자동 설치
+1. 새 PC(또는 AppData 초기화)에서 앱 실행
+2. 템플릿 편집 모드 진입
+3. **예상 결과**: `template.json`이 없으면 번들된 `Assets/default_template.json` 기반으로 자동 생성/저장되고, 모든 슬롯이 보이며 편집 가능
+
+### 시나리오 2: 추가/삭제 불가 확인(전 타입 잠금)
 1. 템플릿 편집 모드 진입
-2. 문항 1 선택
-3. 캔버스 클릭하여 슬롯 배치 (12개)
-4. 마킹 리딩 수행
-5. **예상 결과**: 각 슬롯의 OptionNumber와 QuestionNumber가 정확히 매핑됨
+2. **예상 결과**: 추가 모드/삭제 버튼이 없고, 캔버스 클릭으로 새 오버레이가 생성되지 않음 (오직 기존 슬롯의 이동/크기 변경만 가능)
 
-### 시나리오 2: 모든 슬롯 사용 중
-1. 문항 1의 12개 슬롯 모두 배치
-2. 추가 모드 활성화
-3. 캔버스 클릭
-4. **예상 결과**: "이 문항의 모든 슬롯이 이미 사용 중입니다." 메시지 표시
+### 시나리오 3: 라벨 표시 정책(Scoring은 선택 문항만)
+1. 템플릿 편집 모드에서 ScoringArea 선택
+2. 문항 드롭다운을 1로 선택
+3. **예상 결과**: 문항 1의 선택지(1~12) 라벨만 보이고, 나머지 문항의 라벨은 숨김
 
-### 시나리오 3: 슬롯 제거 후 재배치
-1. 문항 1의 5번 슬롯 배치
-2. 5번 슬롯 선택 후 삭제 (Unplace)
-3. 다른 위치에 다시 배치
-4. **예상 결과**: 5번 슬롯이 새로운 위치에 배치되고, OptionNumber는 여전히 5
+### 시나리오 4: 마킹 리딩 개수/정합성
+1. 템플릿 편집 모드에서 48개 Scoring 슬롯이 모두 유효한 크기/좌표를 갖도록 조정
+2. 마킹 리딩 수행
+3. **예상 결과**: `ScoringAreas.Count == 48`이고, 결과 분석에서 “영역 수 부족” 오류가 발생하지 않음
 
 ### 시나리오 4: 백워드 호환성
 1. 구형식 템플릿 파일 로드 (ScoringAreas만 있는 경우)
@@ -372,4 +316,4 @@ OmrTemplate
 3. **유지보수성 향상**: 상수 중앙화로 OMR 용지 구성 변경 시 코드 재사용 용이
 4. **데이터 무결성**: IdentityIndex 기반 매핑으로 리스트 순서와 무관한 정확한 결과 보장
 
-다만, 추가 모드(Add Mode)의 필요성에 대한 사용자 피드백을 반영하여 향후 개선이 필요합니다.
+또한 현재 구현은 “전 타입 잠금” 정책에 맞춰 **추가/삭제 경로를 제거**하고, **기본 템플릿 자동 설치**를 통해 새 환경에서도 즉시 사용 가능하도록 정리되었습니다.

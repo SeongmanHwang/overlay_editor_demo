@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Threading;
+using System.Threading.Tasks;
 
 namespace SimpleOverlayEditor
 {
@@ -12,6 +13,22 @@ namespace SimpleOverlayEditor
 
             SimpleOverlayEditor.Services.Logger.Instance.Info("=== 애플리케이션 시작 ===");
             SimpleOverlayEditor.Services.Logger.Instance.Info($"로그 파일 위치: {SimpleOverlayEditor.Services.Logger.Instance.GetLogFilePath()}");
+
+            // AppData 정리 (캐시/출력 폴더 용량 폭증 방지)
+            // ✅ UI 프리즈 방지: 대용량 폴더(수만~수십만 파일) 열거가 오래 걸릴 수 있으므로 백그라운드에서 수행
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    SimpleOverlayEditor.Services.PathService.CleanupAppData();
+                    SimpleOverlayEditor.Services.Logger.Instance.Info("AppData 캐시/출력 폴더 정리 완료");
+                }
+                catch (Exception ex)
+                {
+                    // 정리 실패는 치명적이지 않음
+                    SimpleOverlayEditor.Services.Logger.Instance.Warning($"AppData 정리 중 오류: {ex.Message}");
+                }
+            });
 
             // 처리되지 않은 예외 처리
             this.DispatcherUnhandledException += App_DispatcherUnhandledException;

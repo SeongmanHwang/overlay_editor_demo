@@ -149,45 +149,24 @@ namespace SimpleOverlayEditor.ViewModels
             // 필터 옵션 초기화
             InitializeFilterOptions();
 
-            // Session.Documents가 이미 로드되어 있으면 정렬 수행
-            InitializeDocumentsAlignment();
+            // ✅ 중요: 모드 진입 시 전체 문서 정렬을 동기로 수행하면 UI가 멈출 수 있습니다.
+            // (특히 aligned_cache가 정리되어 정렬된 이미지가 사라진 경우, 수천 장 재정렬이 발생)
+            // 세션 문서/결과는 즉시 바인딩만 하고, 정렬은 폴더 로드/전체 리딩 등의 작업에서(ProgressRunner로) 수행합니다.
+            InitializeFromSessionWithoutBlocking();
         }
 
         /// <summary>
-        /// Session.Documents가 로드되어 있을 때 정렬을 수행합니다.
+        /// 세션에 저장된 문서/결과를 UI에 즉시 반영합니다 (정렬은 수행하지 않음).
         /// </summary>
-        private void InitializeDocumentsAlignment()
+        private void InitializeFromSessionWithoutBlocking()
         {
-            if (_session.Documents == null || _session.Documents.Count == 0)
-            {
-                Documents = _session.Documents;
-                return;
-            }
-
-            Logger.Instance.Info($"Session.Documents 초기화: {_session.Documents.Count}개 문서 발견, 정렬 적용 시작");
-
-            // 정렬이 수행되지 않은 문서들에 대해 정렬 수행
-            foreach (var doc in _session.Documents)
-            {
-                // 정렬이 이미 성공적으로 수행되었거나, 정렬 정보가 있으면 건너뜀
-                if (doc.AlignmentInfo?.Success == true)
-                {
-                    // DEBUG 로그 제거: 반복적인 로그로 인한 파일 크기 증가 방지
-                    continue;
-                }
-
-                // 정렬 적용
-                ApplyAlignmentToDocument(doc);
-            }
-
-            // Documents 컬렉션 설정
             Documents = _session.Documents;
             OnPropertyChanged(nameof(Documents));
             OnPropertyChanged(nameof(DocumentCount));
 
-            Logger.Instance.Info($"Session.Documents 초기화 완료: {_session.Documents.Count}개 문서 처리됨");
+            Logger.Instance.Info($"Session.Documents 초기화(비차단): {_session.Documents.Count}개 문서 로드됨");
 
-            // 기존 세션에 마킹 결과가 있으면 SheetResults 업데이트
+            // 기존 세션에 결과가 있으면 SheetResults 업데이트
             if (_session.MarkingResults != null && _session.MarkingResults.Count > 0)
             {
                 UpdateSheetResults();

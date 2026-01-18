@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
@@ -128,6 +130,8 @@ namespace SimpleOverlayEditor.Services
                     var frame = decoder.Frames[0];
                     var document = new ImageDocument
                     {
+                        // ✅ 안정적인 ID: 같은 파일을 다시 로드해도 ID가 변하지 않아 캐시 폭증을 막음
+                        ImageId = ComputeStableImageId(filePath),
                         SourcePath = filePath,
                         ImageWidth = frame.PixelWidth,   // 헤더에서 크기만 읽음
                         ImageHeight = frame.PixelHeight  // 픽셀 데이터는 로드하지 않음
@@ -142,6 +146,24 @@ namespace SimpleOverlayEditor.Services
             {
                 Logger.Instance.Error($"이미지 파일 로드 실패: {filePath}", ex);
                 throw new InvalidOperationException($"이미지 파일을 로드할 수 없습니다: {filePath}", ex);
+            }
+        }
+
+        private static string ComputeStableImageId(string filePath)
+        {
+            try
+            {
+                var fi = new FileInfo(filePath);
+                var fullPath = fi.FullName.ToLowerInvariant();
+                var payload = $"{fullPath}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}";
+                var bytes = Encoding.UTF8.GetBytes(payload);
+                var hash = SHA256.HashData(bytes);
+                // 64비트(16 hex)면 충돌 가능성은 낮고 JSON도 과도하게 커지지 않음
+                return Convert.ToHexString(hash).Substring(0, 16).ToLowerInvariant();
+            }
+            catch
+            {
+                return Guid.NewGuid().ToString();
             }
         }
     }

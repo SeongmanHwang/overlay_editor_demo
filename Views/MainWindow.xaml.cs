@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
+using SimpleOverlayEditor.Services.Validators;
 using SimpleOverlayEditor.ViewModels;
 
 namespace SimpleOverlayEditor.Views
@@ -21,6 +22,22 @@ namespace SimpleOverlayEditor.Views
             try
             {
                 InitializeComponent();
+
+                // OMR 설정 검증 (애플리케이션 시작 시)
+                var validationResult = OmrConfigurationValidator.ValidateConfiguration();
+                if (!validationResult.IsValid)
+                {
+                    Logger.Instance.Error($"OMR 설정 검증 실패:\n{string.Join("\n", validationResult.Errors)}");
+                    MessageBox.Show(
+                        $"OMR 설정 검증 실패:\n\n{string.Join("\n", validationResult.Errors)}\n\n애플리케이션이 비정상적으로 동작할 수 있습니다.",
+                        "설정 검증 오류",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                else
+                {
+                    Logger.Instance.Info("OMR 설정 검증 통과");
+                }
 
                 // 서비스 초기화
                 _stateStore = new StateStore();

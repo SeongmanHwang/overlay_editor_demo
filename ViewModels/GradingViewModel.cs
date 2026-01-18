@@ -7,6 +7,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
+using SimpleOverlayEditor.Services.Mappers;
 
 namespace SimpleOverlayEditor.ViewModels
 {
@@ -20,6 +21,8 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly RegistryStore _registryStore;
         private readonly MarkingAnalyzer _markingAnalyzer;
         private readonly ScoringRuleStore _scoringRuleStore;
+        private readonly IQuestionResultMapper<OmrSheetResult> _sheetMapper;
+        private readonly IQuestionResultMapper<GradingResult> _gradingMapper;
         private ObservableCollection<GradingResult>? _gradingResults;
         private ICollectionView? _filteredGradingResults;
         private bool _hasMismatch;
@@ -29,9 +32,26 @@ namespace SimpleOverlayEditor.ViewModels
         private string? _missingInGradingList;
         private string? _missingInRegistryList;
 
+        /// <summary>
+        /// 기본 생성자 (기본 구현 사용)
+        /// </summary>
         public GradingViewModel(NavigationViewModel navigation)
+            : this(navigation, new OmrSheetResultMapper(), new GradingResultMapper())
+        {
+        }
+
+        /// <summary>
+        /// 테스트/확장을 위한 생성자 (의존성 주입)
+        /// </summary>
+        private GradingViewModel(
+            NavigationViewModel navigation,
+            IQuestionResultMapper<OmrSheetResult> sheetMapper,
+            IQuestionResultMapper<GradingResult> gradingMapper)
         {
             _navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
+            _sheetMapper = sheetMapper ?? throw new ArgumentNullException(nameof(sheetMapper));
+            _gradingMapper = gradingMapper ?? throw new ArgumentNullException(nameof(gradingMapper));
+            
             _sessionStore = new SessionStore();
             _registryStore = new RegistryStore();
             _markingAnalyzer = new MarkingAnalyzer();
@@ -218,53 +238,27 @@ namespace SimpleOverlayEditor.ViewModels
                         }
                     }
 
-                    // 면접위원별 점수를 문항별로 평균 계산
-                    double question1Sum = 0;
-                    double question2Sum = 0;
-                    double question3Sum = 0;
-                    double question4Sum = 0;
-                    int question1Count = 0;
-                    int question2Count = 0;
-                    int question3Count = 0;
-                    int question4Count = 0;
+                    // 면접위원별 점수를 문항별로 평균 계산 - 반복문으로 개선
+                    var questionSums = new double[OmrConstants.QuestionsCount];
+                    var questionCounts = new int[OmrConstants.QuestionsCount];
                     bool hasErrors = false;
 
                     foreach (var sheet in studentSheets)
                     {
-                        // 각 시트의 마킹 번호를 배점으로 변환하여 합산
-                        if (sheet.Question1Marking.HasValue)
+                        // 각 시트의 마킹 번호를 배점으로 변환하여 합산 - Mapper 사용
+                        for (int q = 1; q <= OmrConstants.QuestionsCount; q++)
                         {
-                            var score = scoringRule.GetScore(1, sheet.Question1Marking.Value);
-                            question1Sum += score;
-                            question1Count++;
-                        }
-                        if (sheet.Question2Marking.HasValue)
-                        {
-                            var score = scoringRule.GetScore(2, sheet.Question2Marking.Value);
-                            question2Sum += score;
-                            question2Count++;
-                        }
-                        if (sheet.Question3Marking.HasValue)
-                        {
-                            var score = scoringRule.GetScore(3, sheet.Question3Marking.Value);
-                            question3Sum += score;
-                            question3Count++;
-                        }
-                        if (sheet.Question4Marking.HasValue)
-                        {
-                            var score = scoringRule.GetScore(4, sheet.Question4Marking.Value);
-                            question4Sum += score;
-                            question4Count++;
+                            var marking = _sheetMapper.GetQuestionMarking(sheet, q);
+                            if (marking.HasValue)
+                            {
+                                var score = scoringRule.GetScore(q, marking.Value);
+                                questionSums[q - 1] += score;
+                                questionCounts[q - 1]++;
+                            }
                         }
 
                         if (sheet.HasErrors) hasErrors = true;
                     }
-
-                    // 평균 계산
-                    double? question1Avg = question1Count > 0 ? question1Sum / question1Count : null;
-                    double? question2Avg = question2Count > 0 ? question2Sum / question2Count : null;
-                    double? question3Avg = question3Count > 0 ? question3Sum / question3Count : null;
-                    double? question4Avg = question4Count > 0 ? question4Sum / question4Count : null;
 
                     // 하나의 GradingResult만 생성
                     var result = new GradingResult
@@ -272,10 +266,6 @@ namespace SimpleOverlayEditor.ViewModels
                         StudentId = studentId,
                         StudentName = studentInfo?.Name,
                         InterviewId = null, // 평균이므로 면접번호는 표시하지 않음
-                        Question1Marking = question1Avg.HasValue ? (int?)Math.Round(question1Avg.Value) : null,
-                        Question2Marking = question2Avg.HasValue ? (int?)Math.Round(question2Avg.Value) : null,
-                        Question3Marking = question3Avg.HasValue ? (int?)Math.Round(question3Avg.Value) : null,
-                        Question4Marking = question4Avg.HasValue ? (int?)Math.Round(question4Avg.Value) : null,
                         IsDuplicate = hasDuplicate,
                         DuplicateCount = duplicateCount, // 중복이 없으면 0, 있으면 중복된 개수
                         HasErrors = hasErrors || hasInterviewerCountError, // 면접위원 수 오류도 포함
@@ -284,6 +274,16 @@ namespace SimpleOverlayEditor.ViewModels
                         MiddleSchool = studentInfo?.MiddleSchool,
                         BirthDate = studentInfo?.BirthDate
                     };
+
+                    // 평균 계산 및 Mapper를 통한 설정
+                    for (int q = 1; q <= OmrConstants.QuestionsCount; q++)
+                    {
+                        var avg = questionCounts[q - 1] > 0
+                            ? questionSums[q - 1] / questionCounts[q - 1]
+                            : (double?)null;
+                        _gradingMapper.SetQuestionMarking(result, q,
+                            avg.HasValue ? (int?)Math.Round(avg.Value) : null);
+                    }
 
                     CalculateScores(result);
                     gradingResults.Add(result);
@@ -317,10 +317,13 @@ namespace SimpleOverlayEditor.ViewModels
         private void CalculateScores(GradingResult result)
         {
             var scores = new System.Collections.Generic.List<double>();
-            if (result.Question1Marking.HasValue) scores.Add(result.Question1Marking.Value);
-            if (result.Question2Marking.HasValue) scores.Add(result.Question2Marking.Value);
-            if (result.Question3Marking.HasValue) scores.Add(result.Question3Marking.Value);
-            if (result.Question4Marking.HasValue) scores.Add(result.Question4Marking.Value);
+
+            // Mapper를 통한 반복 접근
+            foreach (var qNum in _gradingMapper.GetAllQuestionNumbers())
+            {
+                var marking = _gradingMapper.GetQuestionMarking(result, qNum);
+                if (marking.HasValue) scores.Add(marking.Value);
+            }
 
             result.TotalScore = scores.Count > 0 ? scores.Sum() : (double?)null;
             result.AverageScore = scores.Count > 0 ? scores.Average() : (double?)null;

@@ -29,5 +29,11 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Tests 디렉토리는 참고용이므로 빌드에서 제외 -->
+    <Compile Remove="Tests\**" />
+    <None Include="Tests\**" />
+  </ItemGroup>
+
 </Project>
 

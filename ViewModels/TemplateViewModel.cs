@@ -15,11 +15,13 @@ namespace SimpleOverlayEditor.ViewModels
     public class TemplateViewModel : INotifyPropertyChanged
     {
         private readonly StateStore _stateStore;
+        private readonly TemplateStore _templateStore;
         private OmrTemplate _template;
 
         public TemplateViewModel(StateStore stateStore, OmrTemplate template)
         {
             _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
+            _templateStore = new TemplateStore();
             _template = template ?? throw new ArgumentNullException(nameof(template));
 
             ExportTemplateCommand = new RelayCommand(OnExportTemplate);
@@ -55,9 +57,7 @@ namespace SimpleOverlayEditor.ViewModels
 
                 if (dialog.ShowDialog() == true)
                 {
-                    // ExportTemplate은 StateStore에 있지만, TemplateStore를 사용하는 것이 더 적절함
-                    // 일단 StateStore.ExportTemplate을 사용 (기존 코드 유지)
-                    _stateStore.ExportTemplate(Template, dialog.FileName);
+                    _templateStore.Export(Template, dialog.FileName);
                     Logger.Instance.Info($"템플릿 내보내기 완료: {dialog.FileName}");
                     MessageBox.Show(
                         "템플릿이 파일로 저장되었습니다.",
@@ -88,9 +88,7 @@ namespace SimpleOverlayEditor.ViewModels
 
                 if (dialog.ShowDialog() == true)
                 {
-                    // ImportTemplate은 StateStore에 있지만, TemplateStore를 사용하는 것이 더 적절함
-                    // 일단 StateStore.ImportTemplate을 사용 (기존 코드 유지)
-                    var importedTemplate = _stateStore.ImportTemplate(dialog.FileName);
+                    var importedTemplate = _templateStore.Import(dialog.FileName);
                     if (importedTemplate == null)
                     {
                         MessageBox.Show(
@@ -109,105 +107,21 @@ namespace SimpleOverlayEditor.ViewModels
 
                     if (result == MessageBoxResult.Yes)
                     {
-                        // 현재 템플릿 초기화
-                        Template.TimingMarks.Clear();
-                        Template.BarcodeAreas.Clear();
-                        // Questions를 먼저 초기화하면 ScoringAreas도 자동으로 초기화됨
-                        foreach (var question in Template.Questions)
-                        {
-                            question.Options.Clear();
-                        }
+                        // 고정 슬롯 정책: 컬렉션 Clear/Add 금지. 슬롯 좌표/크기만 초기화
+                        ResetTimingSlots(Template);
+                        ResetBarcodeSlots(Template);
+                        ResetScoringSlots(Template);
 
                         // 가져온 템플릿 적용
                         Template.ReferenceWidth = importedTemplate.ReferenceWidth;
                         Template.ReferenceHeight = importedTemplate.ReferenceHeight;
                         
-                        // TimingMarks 복원
-                        foreach (var overlay in importedTemplate.TimingMarks)
-                        {
-                            Template.TimingMarks.Add(new RectangleOverlay
-                            {
-                                X = overlay.X,
-                                Y = overlay.Y,
-                                Width = overlay.Width,
-                                Height = overlay.Height,
-                                StrokeThickness = overlay.StrokeThickness,
-                                OverlayType = overlay.OverlayType
-                            });
-                        }
+                        ApplyImportedTimingMarks(Template, importedTemplate);
                         
-                        // Questions 복원 (중요: ScoringAreas는 자동으로 동기화됨)
-                        foreach (var importedQuestion in importedTemplate.Questions)
-                        {
-                            var question = Template.Questions.FirstOrDefault(q => q.QuestionNumber == importedQuestion.QuestionNumber);
-                            if (question == null)
-                            {
-                                // 문항이 없으면 새로 생성 (일반적으로는 4개가 이미 있음)
-                                question = new Question { QuestionNumber = importedQuestion.QuestionNumber };
-                                Template.Questions.Add(question);
-                            }
+                        // ScoringAreas는 슬롯 구조(Questions.Options)에 적용해야 함
+                        ApplyImportedScoringAreas(Template, importedTemplate);
 
-                            // Options 복원
-                            foreach (var overlay in importedQuestion.Options)
-                            {
-                                question.Options.Add(new RectangleOverlay
-                                {
-                                    X = overlay.X,
-                                    Y = overlay.Y,
-                                    Width = overlay.Width,
-                                    Height = overlay.Height,
-                                    StrokeThickness = overlay.StrokeThickness,
-                                    OverlayType = overlay.OverlayType
-                                });
-                            }
-                        }
-                        // 하위 호환성: Questions가 없고 ScoringAreas만 있는 경우 처리
-                        if (importedTemplate.Questions.Count == 0 && importedTemplate.ScoringAreas.Count > 0)
-                        {
-                            // ScoringAreas를 4문항 × 12선택지로 분할
-                            int questionsCount = OmrConstants.QuestionsCount;
-                            int optionsPerQuestion = OmrConstants.OptionsPerQuestion;
-                            var scoringAreasList = importedTemplate.ScoringAreas.ToList();
-                            
-                            for (int q = 0; q < questionsCount; q++)
-                            {
-                                var question = Template.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
-                                if (question == null)
-                                {
-                                    question = new Question { QuestionNumber = q + 1 };
-                                    Template.Questions.Add(question);
-                                }
-
-                                int startIndex = q * optionsPerQuestion;
-                                for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
-                                {
-                                    var overlay = scoringAreasList[startIndex + o];
-                                    question.Options.Add(new RectangleOverlay
-                                    {
-                                        X = overlay.X,
-                                        Y = overlay.Y,
-                                        Width = overlay.Width,
-                                        Height = overlay.Height,
-                                        StrokeThickness = overlay.StrokeThickness,
-                                        OverlayType = overlay.OverlayType
-                                    });
-                                }
-                            }
-                        }
-
-                        // BarcodeAreas 복원
-                        foreach (var overlay in importedTemplate.BarcodeAreas)
-                        {
-                            Template.BarcodeAreas.Add(new RectangleOverlay
-                            {
-                                X = overlay.X,
-                                Y = overlay.Y,
-                                Width = overlay.Width,
-                                Height = overlay.Height,
-                                StrokeThickness = overlay.StrokeThickness,
-                                OverlayType = overlay.OverlayType
-                            });
-                        }
+                        ApplyImportedBarcodeAreas(Template, importedTemplate);
 
                         Logger.Instance.Info("템플릿 가져오기 완료");
                         MessageBox.Show(
@@ -222,6 +136,172 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Logger.Instance.Error("템플릿 가져오기 실패", ex);
                 MessageBox.Show($"템플릿 가져오기 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private static void ResetScoringSlots(OmrTemplate template)
+        {
+            foreach (var question in template.Questions)
+            {
+                foreach (var slot in question.Options)
+                {
+                    slot.X = 0;
+                    slot.Y = 0;
+                    slot.Width = 0;
+                    slot.Height = 0;
+                    slot.StrokeThickness = 2.0;
+                    slot.OverlayType = OverlayType.ScoringArea;
+                    // OptionNumber/QuestionNumber는 고정 슬롯의 Identity이므로 유지
+                }
+            }
+        }
+
+        private static void ResetTimingSlots(OmrTemplate template)
+        {
+            foreach (var slot in template.TimingMarks)
+            {
+                slot.X = 0;
+                slot.Y = 0;
+                slot.Width = 0;
+                slot.Height = 0;
+                slot.StrokeThickness = 2.0;
+                slot.OverlayType = OverlayType.TimingMark;
+            }
+        }
+
+        private static void ResetBarcodeSlots(OmrTemplate template)
+        {
+            foreach (var slot in template.BarcodeAreas)
+            {
+                slot.X = 0;
+                slot.Y = 0;
+                slot.Width = 0;
+                slot.Height = 0;
+                slot.StrokeThickness = 2.0;
+                slot.OverlayType = OverlayType.BarcodeArea;
+            }
+        }
+
+        private static void ApplyImportedTimingMarks(OmrTemplate target, OmrTemplate imported)
+        {
+            foreach (var importedSlot in imported.TimingMarks)
+            {
+                if (!importedSlot.OptionNumber.HasValue) continue;
+                var slot = target.TimingMarks.FirstOrDefault(o => o.OptionNumber == importedSlot.OptionNumber.Value);
+                if (slot == null) continue;
+
+                slot.OverlayType = OverlayType.TimingMark;
+                slot.X = importedSlot.X;
+                slot.Y = importedSlot.Y;
+                slot.Width = importedSlot.Width;
+                slot.Height = importedSlot.Height;
+                slot.StrokeThickness = importedSlot.StrokeThickness;
+            }
+        }
+
+        private static void ApplyImportedBarcodeAreas(OmrTemplate target, OmrTemplate imported)
+        {
+            foreach (var importedSlot in imported.BarcodeAreas)
+            {
+                if (!importedSlot.OptionNumber.HasValue) continue;
+                var slot = target.BarcodeAreas.FirstOrDefault(o => o.OptionNumber == importedSlot.OptionNumber.Value);
+                if (slot == null) continue;
+
+                slot.OverlayType = OverlayType.BarcodeArea;
+                slot.X = importedSlot.X;
+                slot.Y = importedSlot.Y;
+                slot.Width = importedSlot.Width;
+                slot.Height = importedSlot.Height;
+                slot.StrokeThickness = importedSlot.StrokeThickness;
+            }
+        }
+
+        private static void ApplyImportedScoringAreas(OmrTemplate target, OmrTemplate imported)
+        {
+            // 새 형식: Questions 기반 (OptionNumber 매핑)
+            if (imported.Questions.Count > 0)
+            {
+                foreach (var importedQuestion in imported.Questions)
+                {
+                    var question = target.Questions.FirstOrDefault(q => q.QuestionNumber == importedQuestion.QuestionNumber);
+                    if (question == null)
+                    {
+                        question = new Question { QuestionNumber = importedQuestion.QuestionNumber };
+                        target.Questions.Add(question);
+                    }
+
+                    foreach (var overlay in importedQuestion.Options)
+                    {
+                        if (overlay.OptionNumber.HasValue)
+                        {
+                            var slot = question.Options.FirstOrDefault(o => o.OptionNumber == overlay.OptionNumber.Value);
+                            if (slot != null)
+                            {
+                                slot.X = overlay.X;
+                                slot.Y = overlay.Y;
+                                slot.Width = overlay.Width;
+                                slot.Height = overlay.Height;
+                                slot.StrokeThickness = overlay.StrokeThickness;
+                                slot.OverlayType = OverlayType.ScoringArea;
+                            }
+                            else
+                            {
+                                // 고정 슬롯 정책: 슬롯이 없으면 무시
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            // 하위 호환: OptionNumber가 없으면 빈 슬롯에 순차 배치
+                            var emptySlot = question.Options.FirstOrDefault(o => !o.IsPlaced);
+                            if (emptySlot != null)
+                            {
+                                emptySlot.X = overlay.X;
+                                emptySlot.Y = overlay.Y;
+                                emptySlot.Width = overlay.Width;
+                                emptySlot.Height = overlay.Height;
+                                emptySlot.StrokeThickness = overlay.StrokeThickness;
+                                emptySlot.OverlayType = OverlayType.ScoringArea;
+                            }
+                        }
+                    }
+                }
+
+                return;
+            }
+
+            // 하위 호환: ScoringAreas만 있는 경우
+            if (imported.ScoringAreas.Count > 0)
+            {
+                int questionsCount = OmrConstants.QuestionsCount;
+                int optionsPerQuestion = OmrConstants.OptionsPerQuestion;
+                var scoringAreasList = imported.ScoringAreas.ToList();
+
+                for (int q = 0; q < questionsCount; q++)
+                {
+                    var question = target.Questions.FirstOrDefault(qu => qu.QuestionNumber == q + 1);
+                    if (question == null)
+                    {
+                        question = new Question { QuestionNumber = q + 1 };
+                        target.Questions.Add(question);
+                    }
+
+                    int startIndex = q * optionsPerQuestion;
+                    for (int o = 0; o < optionsPerQuestion && startIndex + o < scoringAreasList.Count; o++)
+                    {
+                        var overlay = scoringAreasList[startIndex + o];
+                        var slot = question.Options.FirstOrDefault(s => s.OptionNumber == o + 1);
+                        if (slot != null)
+                        {
+                            slot.X = overlay.X;
+                            slot.Y = overlay.Y;
+                            slot.Width = overlay.Width;
+                            slot.Height = overlay.Height;
+                            slot.StrokeThickness = overlay.StrokeThickness;
+                            slot.OverlayType = OverlayType.ScoringArea;
+                        }
+                    }
+                }
             }
         }
 

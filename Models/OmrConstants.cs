@@ -7,6 +7,16 @@ namespace SimpleOverlayEditor.Models
     public static class OmrConstants
     {
         /// <summary>
+        /// 타이밍 마크 개수 (기본값: 5)
+        /// </summary>
+        public static int TimingMarksCount => 5;
+
+        /// <summary>
+        /// 바코드 영역 개수 (기본값: 2)
+        /// </summary>
+        public static int BarcodeAreasCount => 2;
+
+        /// <summary>
         /// 문항 수 (기본값: 4)
         /// </summary>
         public static int QuestionsCount => 4;

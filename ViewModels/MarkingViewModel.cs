@@ -128,10 +128,10 @@ namespace SimpleOverlayEditor.ViewModels
 
             DetectMarkingsCommand = new RelayCommand(
                 OnDetectMarkings, 
-                () => SelectedDocument != null && ScoringAreas != null && ScoringAreas.Count() > 0);
+                () => SelectedDocument != null && ScoringAreas != null && ScoringAreas.Count() == OmrConstants.TotalScoringAreas);
             DetectAllMarkingsCommand = new RelayCommand(
                 OnDetectAllMarkings, 
-                () => Documents != null && Documents.Count() > 0 && ScoringAreas != null && ScoringAreas.Count() > 0);
+                () => Documents != null && Documents.Count() > 0 && ScoringAreas != null && ScoringAreas.Count() == OmrConstants.TotalScoringAreas);
             LoadFolderCommand = new RelayCommand(OnLoadFolder);
             ExportToCsvCommand = new RelayCommand(
                 OnExportToCsv, 

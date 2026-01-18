@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
@@ -19,27 +20,45 @@ namespace SimpleOverlayEditor.Models
 
         public OmrTemplate()
         {
+            // TimingMarks 초기화 ({OmrConstants.TimingMarksCount}개 슬롯)
+            for (int i = 1; i <= OmrConstants.TimingMarksCount; i++)
+            {
+                _timingMarks.Add(new RectangleOverlay
+                {
+                    OverlayType = OverlayType.TimingMark,
+                    OptionNumber = i,
+                    QuestionNumber = null,
+                    Width = 0,
+                    Height = 0
+                });
+            }
+
+            // BarcodeAreas 초기화 ({OmrConstants.BarcodeAreasCount}개 슬롯)
+            for (int i = 1; i <= OmrConstants.BarcodeAreasCount; i++)
+            {
+                _barcodeAreas.Add(new RectangleOverlay
+                {
+                    OverlayType = OverlayType.BarcodeArea,
+                    OptionNumber = i,
+                    QuestionNumber = null,
+                    Width = 0,
+                    Height = 0
+                });
+            }
+
             // Questions 초기화 ({OmrConstants.QuestionsCount}개 문항)
             for (int i = 1; i <= OmrConstants.QuestionsCount; i++)
             {
                 var question = new Question { QuestionNumber = i };
-                question.Options.CollectionChanged += (s, e) => SyncQuestionsToScoringAreas();
+                SubscribeQuestion(question);
                 _questions.Add(question);
             }
 
             // Questions 변경 시 ScoringAreas 자동 동기화
-            _questions.CollectionChanged += (s, e) =>
-            {
-                // 새로 추가된 Question에 이벤트 구독
-                if (e.NewItems != null)
-                {
-                    foreach (Question question in e.NewItems)
-                    {
-                        question.Options.CollectionChanged += (q, args) => SyncQuestionsToScoringAreas();
-                    }
-                }
-                SyncQuestionsToScoringAreas();
-            };
+            _questions.CollectionChanged += Questions_CollectionChanged;
+
+            // 초기 동기화
+            SyncQuestionsToScoringAreas();
         }
 
         /// <summary>
@@ -79,22 +98,14 @@ namespace SimpleOverlayEditor.Models
             {
                 if (_questions != null)
                 {
-                    // 기존 이벤트 구독 해제
-                    _questions.CollectionChanged -= (s, e) => SyncQuestionsToScoringAreas();
-                    foreach (var question in _questions)
-                    {
-                        question.Options.CollectionChanged -= (s, e) => SyncQuestionsToScoringAreas();
-                    }
+                    UnsubscribeQuestions(_questions);
+                    _questions.CollectionChanged -= Questions_CollectionChanged;
                 }
 
                 _questions = value ?? new ObservableCollection<Question>();
 
-                // 새 이벤트 구독
-                _questions.CollectionChanged += (s, e) => SyncQuestionsToScoringAreas();
-                foreach (var question in _questions)
-                {
-                    question.Options.CollectionChanged += (s, e) => SyncQuestionsToScoringAreas();
-                }
+                SubscribeQuestions(_questions);
+                _questions.CollectionChanged += Questions_CollectionChanged;
 
                 SyncQuestionsToScoringAreas();
                 OnPropertyChanged();
@@ -151,14 +162,98 @@ namespace SimpleOverlayEditor.Models
             {
                 foreach (var option in question.Options.OrderBy(o => o.OptionNumber))
                 {
-                    // 배치된 슬롯만 추가 (빈 슬롯은 제외)
-                    if (option.IsPlaced)
-                    {
-                        _scoringAreas.Add(option);
-                    }
+                    // 고정 슬롯 구조: 항상 포함 (48개 고정)
+                    _scoringAreas.Add(option);
                 }
             }
             OnPropertyChanged(nameof(ScoringAreas));
+        }
+
+        private void Questions_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems != null)
+            {
+                foreach (Question question in e.OldItems)
+                {
+                    UnsubscribeQuestion(question);
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (Question question in e.NewItems)
+                {
+                    SubscribeQuestion(question);
+                }
+            }
+
+            SyncQuestionsToScoringAreas();
+        }
+
+        private void SubscribeQuestions(ObservableCollection<Question> questions)
+        {
+            foreach (var question in questions)
+            {
+                SubscribeQuestion(question);
+            }
+        }
+
+        private void UnsubscribeQuestions(ObservableCollection<Question> questions)
+        {
+            foreach (var question in questions)
+            {
+                UnsubscribeQuestion(question);
+            }
+        }
+
+        private void SubscribeQuestion(Question question)
+        {
+            question.Options.CollectionChanged += QuestionOptions_CollectionChanged;
+            foreach (var option in question.Options)
+            {
+                option.PropertyChanged += OptionOverlay_PropertyChanged;
+            }
+        }
+
+        private void UnsubscribeQuestion(Question question)
+        {
+            question.Options.CollectionChanged -= QuestionOptions_CollectionChanged;
+            foreach (var option in question.Options)
+            {
+                option.PropertyChanged -= OptionOverlay_PropertyChanged;
+            }
+        }
+
+        private void QuestionOptions_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems != null)
+            {
+                foreach (RectangleOverlay option in e.OldItems)
+                {
+                    option.PropertyChanged -= OptionOverlay_PropertyChanged;
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (RectangleOverlay option in e.NewItems)
+                {
+                    option.PropertyChanged += OptionOverlay_PropertyChanged;
+                }
+            }
+
+            SyncQuestionsToScoringAreas();
+        }
+
+        private void OptionOverlay_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // IsPlaced에 영향을 주는 속성 변경 시 ScoringAreas 재구성
+            if (e.PropertyName is nameof(RectangleOverlay.Width)
+                or nameof(RectangleOverlay.Height)
+                or nameof(RectangleOverlay.OptionNumber))
+            {
+                SyncQuestionsToScoringAreas();
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

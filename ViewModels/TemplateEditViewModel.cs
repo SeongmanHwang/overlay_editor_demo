@@ -33,7 +33,6 @@ namespace SimpleOverlayEditor.ViewModels
         private OverlayType _currentOverlayType = OverlayType.ScoringArea;
         private int? _currentQuestionNumber = 1; // ScoringArea일 때 사용 (1-4)
         private Rect _currentImageDisplayRect;
-        private bool _isAddMode = false;
         private double _zoomLevel = 1.0; // 줌 레벨 (1.0 = 100%)
 
         public TemplateEditViewModel(NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
@@ -107,9 +106,6 @@ namespace SimpleOverlayEditor.ViewModels
             }
 
             // Commands
-            ToggleAddModeCommand = new RelayCommand(() => IsAddMode = !IsAddMode);
-            DeleteSelectedCommand = new RelayCommand(OnDeleteSelected, () => !_selectionVM.IsEmpty);
-            ClearAllCommand = new RelayCommand(OnClearAll, () => GetCurrentOverlayCollection()?.Count > 0);
             SaveTemplateCommand = new RelayCommand(OnSaveTemplate);
             LoadSampleImageCommand = new RelayCommand(OnLoadSampleImage);
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
@@ -178,12 +174,6 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     _selectionVM.Clear();
                 }
-                
-                // 오버레이 선택 시 추가 모드 해제
-                if (value != null)
-                {
-                    IsAddMode = false;
-                }
             }
         }
 
@@ -237,28 +227,6 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public OverlaySelectionViewModel SelectionVM => _selectionVM;
 
-        /// <summary>
-        /// 오버레이 추가 모드 활성화 여부
-        /// </summary>
-        public bool IsAddMode
-        {
-            get => _isAddMode;
-            set
-            {
-                if (_isAddMode != value)
-                {
-                    _isAddMode = value;
-                    OnPropertyChanged();
-                    
-                    // 추가 모드 활성화 시 선택 해제
-                    if (_isAddMode)
-                    {
-                        SelectedOverlay = null;
-                    }
-                }
-            }
-        }
-
         public Rect CurrentImageDisplayRect
         {
             get => _currentImageDisplayRect;
@@ -287,9 +255,6 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        public ICommand ToggleAddModeCommand { get; }
-        public ICommand DeleteSelectedCommand { get; }
-        public ICommand ClearAllCommand { get; }
         public ICommand SaveTemplateCommand { get; }
         public ICommand LoadSampleImageCommand { get; }
         public ICommand NavigateToHomeCommand { get; }
@@ -375,129 +340,6 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        public void OnCanvasClick(Point screenPoint, Size canvasSize)
-        {
-            if (!IsAddMode)
-            {
-                Logger.Instance.Debug($"OnCanvasClick 스킵. IsAddMode: false");
-                return;
-            }
-
-            if (SelectedDocument == null)
-            {
-                Logger.Instance.Debug($"OnCanvasClick 스킵. SelectedDocument: null");
-                return;
-            }
-
-            // ScoringArea일 때는 문항 번호가 선택되어 있어야 함
-            if (CurrentOverlayType == OverlayType.ScoringArea && !CurrentQuestionNumber.HasValue)
-            {
-                Logger.Instance.Debug($"OnCanvasClick 스킵. ScoringArea 선택되었지만 문항 번호가 없음");
-                return;
-            }
-
-            Logger.Instance.Debug($"캔버스 클릭. 화면 좌표: ({screenPoint.X}, {screenPoint.Y}), 캔버스 크기: {canvasSize.Width}x{canvasSize.Height}");
-
-            try
-            {
-                // 화면 좌표 → 원본 픽셀 좌표 변환
-                var pixelPoint = _coordConverter.ScreenToPixel(
-                    screenPoint,
-                    canvasSize,
-                    SelectedDocument.ImageWidth,
-                    SelectedDocument.ImageHeight,
-                    CurrentImageDisplayRect);
-
-                Logger.Instance.Debug($"픽셀 좌표 변환 완료: ({pixelPoint.X}, {pixelPoint.Y})");
-
-                // 기본 크기
-                const double defaultWidth = 45.0;
-                const double defaultHeight = 41.0;
-
-                // ScoringArea일 때는 빈 슬롯에 배치
-                if (CurrentOverlayType == OverlayType.ScoringArea)
-                {
-                    // 다음 빈 슬롯 찾기
-                    var emptySlot = GetNextEmptySlot();
-                    if (emptySlot == null)
-                    {
-                        MessageBox.Show(
-                            $"이 문항의 모든 선택지 슬롯이 이미 사용 중입니다.\n" +
-                            $"기존 슬롯의 위치를 조정하거나, 다른 문항을 선택하세요.",
-                            "슬롯 부족",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
-                        return;
-                    }
-
-                    // 슬롯에 좌표 설정
-                    emptySlot.X = Math.Max(0, Math.Min(pixelPoint.X - defaultWidth / 2, SelectedDocument.ImageWidth - defaultWidth));
-                    emptySlot.Y = Math.Max(0, Math.Min(pixelPoint.Y - defaultHeight / 2, SelectedDocument.ImageHeight - defaultHeight));
-                    emptySlot.Width = defaultWidth;
-                    emptySlot.Height = defaultHeight;
-
-                    Logger.Instance.Info($"슬롯 배치. 문항: {emptySlot.QuestionNumber}, 선택지: {emptySlot.OptionNumber}, 위치: ({emptySlot.X}, {emptySlot.Y})");
-
-                    SelectedOverlay = emptySlot;
-
-                    // 템플릿 기준 크기 업데이트 (첫 번째 오버레이 추가 시)
-                    if (_workspace.Template.ReferenceWidth == 0 && SelectedDocument != null)
-                    {
-                        _workspace.Template.ReferenceWidth = SelectedDocument.ImageWidth;
-                        _workspace.Template.ReferenceHeight = SelectedDocument.ImageHeight;
-                    }
-
-                    OnPropertyChanged(nameof(DisplayOverlays));
-                    OnPropertyChanged(nameof(CurrentOverlayCollection));
-                    System.Windows.Input.CommandManager.InvalidateRequerySuggested();
-                }
-                else
-                {
-                    // TimingMark, BarcodeArea: 기존 방식 유지 (제한 없음)
-                    var overlay = new RectangleOverlay
-                    {
-                        X = pixelPoint.X - defaultWidth / 2,
-                        Y = pixelPoint.Y - defaultHeight / 2,
-                        Width = defaultWidth,
-                        Height = defaultHeight
-                    };
-
-                    // 경계 체크
-                    overlay.X = Math.Max(0, Math.Min(overlay.X, SelectedDocument.ImageWidth - overlay.Width));
-                    overlay.Y = Math.Max(0, Math.Min(overlay.Y, SelectedDocument.ImageHeight - overlay.Height));
-
-                    overlay.OverlayType = CurrentOverlayType;
-
-                    Logger.Instance.Info($"오버레이 추가. 타입: {CurrentOverlayType}, 위치: ({overlay.X}, {overlay.Y}), 크기: {overlay.Width}x{overlay.Height}");
-
-                    // 템플릿의 적절한 컬렉션에 추가
-                    var collection = GetCurrentOverlayCollection();
-                    if (collection != null)
-                    {
-                        var command = new AddOverlayCommand(overlay, collection);
-                        _undoManager.ExecuteCommand(command);
-                        SelectedOverlay = overlay;
-
-                        // 템플릿 기준 크기 업데이트 (첫 번째 오버레이 추가 시)
-                        if (_workspace.Template.ReferenceWidth == 0 && SelectedDocument != null)
-                        {
-                            _workspace.Template.ReferenceWidth = SelectedDocument.ImageWidth;
-                            _workspace.Template.ReferenceHeight = SelectedDocument.ImageHeight;
-                        }
-
-                        OnPropertyChanged(nameof(DisplayOverlays));
-                        OnPropertyChanged(nameof(CurrentOverlayCollection));
-                        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Error("사각형 추가 실패", ex);
-                MessageBox.Show($"사각형 추가 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         public void UpdateImageDisplayRect(Size availableSize)
         {
             if (SelectedDocument != null)
@@ -527,111 +369,7 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
-        private void OnDeleteSelected()
-        {
-            // ✅ SelectionVM.Selected를 직접 사용 (Single Source of Truth)
-            if (_selectionVM.IsEmpty) return;
-            
-            // 첫 번째 선택된 오버레이를 삭제
-            var overlay = _selectionVM.Selected.FirstOrDefault();
-            if (overlay == null) return;
-            
-            IUndoableCommand? command = null;
-
-            // ScoringArea: 슬롯을 비움 (삭제가 아니라 초기화)
-            if (CurrentOverlayType == OverlayType.ScoringArea && overlay.IsPlaced)
-            {
-                var result = MessageBox.Show(
-                    $"선택지 {overlay.OptionNumber}번을 제거하시겠습니까?\n" +
-                    "이 슬롯은 유지되며, 나중에 다시 배치할 수 있습니다.",
-                    "선택지 제거",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    overlay.X = 0;
-                    overlay.Y = 0;
-                    overlay.Width = 0;
-                    overlay.Height = 0;
-                    SelectedOverlay = null;
-                    _selectionVM.Clear();
-                    OnPropertyChanged(nameof(DisplayOverlays));
-                    OnPropertyChanged(nameof(CurrentOverlayCollection));
-                }
-                return;
-            }
-
-            // TimingMarks와 BarcodeAreas는 직접 삭제
-            if (_workspace.Template.TimingMarks.Contains(overlay))
-            {
-                command = new DeleteOverlayCommand(
-                    overlay,
-                    _workspace.Template.TimingMarks,
-                    OverlayType.TimingMark);
-            }
-            else if (_workspace.Template.BarcodeAreas.Contains(overlay))
-            {
-                command = new DeleteOverlayCommand(
-                    overlay,
-                    _workspace.Template.BarcodeAreas,
-                    OverlayType.BarcodeArea);
-            }
-            // ScoringAreas는 Questions.Options에서 삭제해야 함 (ScoringAreas는 자동 동기화됨)
-            else if (_workspace.Template.ScoringAreas.Contains(overlay))
-            {
-                // Questions의 Options에서 찾아서 삭제
-                Question? parentQuestion = null;
-                foreach (var question in _workspace.Template.Questions)
-                {
-                    if (question.Options.Contains(overlay))
-                    {
-                        parentQuestion = question;
-                        break;
-                    }
-                }
-
-                if (parentQuestion != null)
-                {
-                    command = new DeleteOverlayCommand(
-                        overlay,
-                        parentQuestion.Options,
-                        OverlayType.ScoringArea,
-                        parentQuestion);
-                }
-            }
-
-            if (command != null)
-            {
-                _undoManager.ExecuteCommand(command);
-                // ✅ SelectionVM에서 자동으로 제거됨 (컬렉션에서 삭제되므로)
-                // 명시적으로 Clear할 필요 없음
-                OnPropertyChanged(nameof(DisplayOverlays));
-                OnPropertyChanged(nameof(CurrentOverlayCollection));
-                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
-            }
-        }
-
-        private void OnClearAll()
-        {
-            var collection = GetCurrentOverlayCollection();
-            if (collection != null && collection.Count > 0)
-            {
-                var result = MessageBox.Show(
-                    $"모든 {CurrentOverlayType} 오버레이를 삭제하시겠습니까?",
-                    "확인",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    collection.Clear();
-                    // ✅ SelectionVM에서 자동으로 제거됨 (컬렉션 변경 감지로)
-                    OnPropertyChanged(nameof(DisplayOverlays));
-                    OnPropertyChanged(nameof(CurrentOverlayCollection));
-                }
-            }
-        }
+        // 고정 슬롯 정책: TemplateEdit에서 추가/삭제(=unplace 포함) 기능은 제거됨.
 
         /// <summary>
         /// 템플릿 저장 (template.json에 저장)

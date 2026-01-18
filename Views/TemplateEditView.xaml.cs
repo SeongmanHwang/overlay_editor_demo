@@ -81,7 +81,10 @@ namespace SimpleOverlayEditor.Views
             UpdateNoImageHintVisibility();
             
             // 초기 커서 설정
-            UpdateCursor();
+            if (ImageCanvas != null)
+            {
+                ImageCanvas.Cursor = Cursors.Cross;
+            }
         }
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -148,10 +151,6 @@ namespace SimpleOverlayEditor.Views
                     DrawOverlays();
                 }
 
-                if (e.PropertyName == nameof(ViewModel.IsAddMode))
-                {
-                    UpdateCursor();
-                }
             }
             catch (Exception ex)
             {
@@ -267,11 +266,19 @@ namespace SimpleOverlayEditor.Views
             {
                 if (ViewModel == null) return;
                 
-                // 기존 오버레이 제거
-                var overlaysToRemove = ImageCanvas.Children.OfType<Rectangle>().ToList();
-                foreach (var rect in overlaysToRemove)
+                // 기존 오버레이/라벨 제거 (드래그 선택 박스는 유지)
+                var elementsToRemove = ImageCanvas.Children
+                    .OfType<UIElement>()
+                    .Where(el =>
+                    {
+                        if (ReferenceEquals(el, SourceImage)) return false;
+                        if (el is FrameworkElement fe && fe.Tag is string tag && tag == "selection-box") return false;
+                        return el is FrameworkElement fe2 && fe2.Tag is string tag2 && tag2.StartsWith("overlay-");
+                    })
+                    .ToList();
+                foreach (var el in elementsToRemove)
                 {
-                    ImageCanvas.Children.Remove(rect);
+                    ImageCanvas.Children.Remove(el);
                 }
 
                 if (ViewModel.SelectedDocument == null || ViewModel.Workspace?.Template == null)
@@ -307,6 +314,7 @@ namespace SimpleOverlayEditor.Views
                     {
                         var rect = new Rectangle
                         {
+                            Tag = "overlay-rect",
                             Stroke = Brushes.Red,
                             StrokeThickness = overlay.StrokeThickness * Math.Min(scaleX, scaleY),
                             Fill = Brushes.Transparent,
@@ -314,8 +322,10 @@ namespace SimpleOverlayEditor.Views
                             Height = overlay.Height * scaleY
                         };
 
-                        Canvas.SetLeft(rect, displayRect.X + overlay.X * scaleX);
-                        Canvas.SetTop(rect, displayRect.Y + overlay.Y * scaleY);
+                        var left = displayRect.X + overlay.X * scaleX;
+                        var top = displayRect.Y + overlay.Y * scaleY;
+                        Canvas.SetLeft(rect, left);
+                        Canvas.SetTop(rect, top);
 
                         // 선택된 오버레이 강조 (다중 선택 지원)
                         bool isSelected = selectedOverlays.Contains(overlay);
@@ -369,6 +379,52 @@ namespace SimpleOverlayEditor.Views
                         }
 
                         ImageCanvas.Children.Add(rect);
+
+                        // 슬롯 번호 라벨 표시 (UI 일관성: 숫자만, Scoring은 현재 문항만)
+                        bool showLabel = true;
+                        if (overlay.OverlayType == Models.OverlayType.ScoringArea)
+                        {
+                            // 드롭다운으로 선택된 문항만 라벨 표시
+                            if (!ViewModel.CurrentQuestionNumber.HasValue ||
+                                !overlay.QuestionNumber.HasValue ||
+                                overlay.QuestionNumber.Value != ViewModel.CurrentQuestionNumber.Value)
+                            {
+                                showLabel = false;
+                            }
+                        }
+
+                        var labelText = showLabel
+                            ? (overlay.OptionNumber?.ToString() ?? string.Empty) // 숫자만
+                            : string.Empty;
+
+                        if (!string.IsNullOrEmpty(labelText))
+                        {
+                            // Scoring은 라벨이 겹치기 쉬우므로 더 작게 표시
+                            var fontSize = overlay.OverlayType == Models.OverlayType.ScoringArea ? 9.0 : 11.0;
+
+                            // 반투명 + 선택 시 함께 하이라이트
+                            Brush background = isSelected
+                                ? new SolidColorBrush(Color.FromArgb(190, 0x21, 0x96, 0xF3)) // blue
+                                : new SolidColorBrush(Color.FromArgb(120, 0, 0, 0)); // semi-transparent black
+
+                            Brush foreground = isSelected ? Brushes.White : Brushes.White;
+
+                            var label = new TextBlock
+                            {
+                                Tag = "overlay-label",
+                                Text = labelText,
+                                FontSize = fontSize,
+                                Foreground = foreground,
+                                Background = background,
+                                Padding = new Thickness(3, 1, 3, 1),
+                                IsHitTestVisible = false
+                            };
+
+                            // 사각형 내부 좌상단에 표시(겹침 최소화)
+                            Canvas.SetLeft(label, left + 2);
+                            Canvas.SetTop(label, top + 2);
+                            ImageCanvas.Children.Add(label);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -442,20 +498,11 @@ namespace SimpleOverlayEditor.Views
                         }
                     }
 
-                    // 추가 모드 해제
-                    if (ViewModel.IsAddMode)
-                    {
-                        ViewModel.IsAddMode = false;
-                    }
                 }
                 else
                 {
-                    // 빈 공간 클릭: 드래그 시작 또는 추가 모드 체크
-                    if (ViewModel.IsAddMode)
-                    {
-                        ViewModel.OnCanvasClick(position, canvasSize);
-                    }
-                    else if (!Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.LeftShift))
+                    // 빈 공간 클릭: 드래그 시작 (Ctrl/Shift 없이 클릭하면 선택 해제)
+                    if (!Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.LeftShift))
                     {
                         // Ctrl/Shift 없이 빈 공간 클릭 시 선택 해제
                         ViewModel.SelectionVM.Clear();
@@ -477,9 +524,12 @@ namespace SimpleOverlayEditor.Views
         private void ImageCanvas_MouseMove(object sender, MouseEventArgs e)
         {
             if (ViewModel == null) return;
-            
-            // 커서 업데이트 (추가 모드 여부에 따라)
-            UpdateCursor();
+
+            // 고정 슬롯 정책: 커서는 항상 Cross
+            if (ImageCanvas != null)
+            {
+                ImageCanvas.Cursor = Cursors.Cross;
+            }
             
             if (_dragStartPoint.HasValue && e.LeftButton == MouseButtonState.Pressed)
             {
@@ -490,12 +540,16 @@ namespace SimpleOverlayEditor.Views
                 {
                     _selectionBox = new Rectangle
                     {
+                        Tag = "selection-box",
                         Stroke = Brushes.Blue,
                         StrokeThickness = 2,
                         StrokeDashArray = new DoubleCollection { 4, 4 },
                         Fill = new SolidColorBrush(Color.FromArgb(30, 0, 120, 255)) // 반투명 파란색 채우기
                     };
-                    ImageCanvas.Children.Add(_selectionBox);
+                    if (ImageCanvas != null)
+                    {
+                        ImageCanvas.Children.Add(_selectionBox);
+                    }
                 }
 
                 var left = Math.Min(_dragStartPoint.Value.X, currentPos.X);
@@ -518,26 +572,7 @@ namespace SimpleOverlayEditor.Views
             if (ViewModel == null) return;
             
             // 마우스가 캔버스를 떠날 때 커서 복원
-            if (!ViewModel.IsAddMode)
-            {
-                ImageCanvas.Cursor = Cursors.Arrow;
-            }
-        }
-
-        private void UpdateCursor()
-        {
-            if (ImageCanvas == null || ViewModel == null) return;
-
-            if (ViewModel.IsAddMode)
-            {
-                // 추가 모드일 때는 십자 모양이 아닌 다른 커서 (예: Cross 또는 Hand)
-                ImageCanvas.Cursor = Cursors.Hand; // 또는 다른 적절한 커서
-            }
-            else
-            {
-                // 일반 모드일 때는 십자 모양 (선택 모드)
-                ImageCanvas.Cursor = Cursors.Cross;
-            }
+            ImageCanvas.Cursor = Cursors.Arrow;
         }
 
         private void ImageCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)

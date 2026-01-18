@@ -172,14 +172,6 @@
                                 <LineBreak/>
                                 <Run Text="• Shift + 방향키: 크기 조정 (1px)"/>
                                 <LineBreak/>
-                                <LineBreak/>
-                                <Run Text="오버레이 추가:" FontWeight="Bold"/>
-                                <LineBreak/>
-                                <Run Text="1. 오른쪽 '이미지 로드' 클릭"/>
-                                <LineBreak/>
-                                <Run Text="2. '➕ 추가 모드' 활성화"/>
-                                <LineBreak/>
-                                <Run Text="3. 캔버스 클릭으로 추가"/>
                             </TextBlock>
                         </StackPanel>
                     </GroupBox>
@@ -204,42 +196,6 @@
                        Background="#E8E8E8"
                        Margin="3"
                        Height="36">
-                <!-- 오버레이 추가 모드 토글 버튼 -->
-                <Button Command="{Binding ToggleAddModeCommand, FallbackValue={x:Null}}"
-                       Margin="2"
-                       Padding="8,4"
-                       MinWidth="120"
-                       FontSize="11"
-                       Foreground="White"
-                       Cursor="Hand"
-                       VerticalAlignment="Center">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Background" Value="#CCCCCC"/>
-                            <Setter Property="BorderThickness" Value="2"/>
-                            <Setter Property="BorderBrush" Value="#999999"/>
-                            <Setter Property="FontWeight" Value="Normal"/>
-                            <Setter Property="Content" Value="➕ 추가 모드"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsAddMode, TargetNullValue=False}" Value="True">
-                                    <Setter Property="Background" Value="#4CAF50"/>
-                                    <Setter Property="BorderThickness" Value="3"/>
-                                    <Setter Property="BorderBrush" Value="#2E7D32"/>
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="Content" Value="✅ 추가 모드"/>
-                                </DataTrigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Effect">
-                                        <Setter.Value>
-                                            <DropShadowEffect Color="#000000" Opacity="0.2" BlurRadius="4" ShadowDepth="2"/>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Separator Margin="5,0"/>
                 <ComboBox SelectedItem="{Binding CurrentOverlayType, Mode=TwoWay, FallbackValue={x:Null}}"
                          Margin="3,0"
                          VerticalAlignment="Center"
@@ -269,19 +225,6 @@
                         <Binding Path="QuestionNumbers"/>
                     </ComboBox.ItemsSource>
                 </ComboBox>
-                <Separator Margin="5,0"/>
-                <Button Content="선택 삭제" 
-                       Command="{Binding DeleteSelectedCommand, FallbackValue={x:Null}}"
-                       Margin="2"
-                       Padding="6,3"
-                       MinWidth="65"
-                       FontSize="11"/>
-                <Button Content="전체 삭제" 
-                       Command="{Binding ClearAllCommand, FallbackValue={x:Null}}"
-                       Margin="2"
-                       Padding="6,3"
-                       MinWidth="65"
-                       FontSize="11"/>
                 <Separator Margin="5,0"/>
                 <Button Content="템플릿 저장" 
                        Command="{Binding SaveTemplateCommand, FallbackValue={x:Null}}"

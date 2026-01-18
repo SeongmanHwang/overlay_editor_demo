@@ -514,7 +514,7 @@
                                   FontWeight="Bold" 
                                   Foreground="Blue"
                                   VerticalAlignment="Center"/>
-                        <TextBlock Text="개 시트 중 " FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="개 용지 중 " FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding ErrorCount, FallbackValue=0}" 
                                   FontWeight="Bold" 
                                   Foreground="#D32F2F"
@@ -625,6 +625,27 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="파일명" Binding="{Binding ImageFileName}" SortMemberPath="ImageFileName" Width="150" IsReadOnly="True"/>
                         <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" SortMemberPath="StudentId" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="시각" Binding="{Binding Session}" SortMemberPath="Session" Width="50" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="실" Binding="{Binding RoomNumber}" SortMemberPath="RoomNumber" Width="50" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="순" Binding="{Binding OrderNumber}" SortMemberPath="OrderNumber" Width="50" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
                         <DataGridTextColumn Header="면접번호" Binding="{Binding InterviewId}" SortMemberPath="InterviewId" Width="100" IsReadOnly="True"/>
                         <DataGridTextColumn Header="결합ID" Binding="{Binding CombinedId}" SortMemberPath="CombinedId" Width="120" IsReadOnly="True"/>
                         <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" SortMemberPath="Question1Marking" Width="60" IsReadOnly="True">

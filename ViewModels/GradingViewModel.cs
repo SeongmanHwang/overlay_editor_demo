@@ -35,6 +35,9 @@ namespace SimpleOverlayEditor.ViewModels
         private string? _mismatchMessage;
         private string? _missingInGradingList;
         private string? _missingInRegistryList;
+        private string? _errorSheetList; // 오류 있는 용지의 수험번호 리스트
+        private string? _duplicateCombinedIdList; // 중복 결합ID의 수험번호 리스트
+        private string? _nullCombinedIdList; // 결합ID 없음의 수험번호 리스트
         
         // OMR 결과 요약 통계
         private int _totalSheetCount;
@@ -179,7 +182,46 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// 총 OMR 시트 수
+        /// 오류 있는 용지의 수험번호 리스트
+        /// </summary>
+        public string? ErrorSheetList
+        {
+            get => _errorSheetList;
+            private set
+            {
+                _errorSheetList = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 중복 결합ID의 수험번호 리스트
+        /// </summary>
+        public string? DuplicateCombinedIdList
+        {
+            get => _duplicateCombinedIdList;
+            private set
+            {
+                _duplicateCombinedIdList = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 결합ID 없음의 수험번호 리스트
+        /// </summary>
+        public string? NullCombinedIdList
+        {
+            get => _nullCombinedIdList;
+            private set
+            {
+                _nullCombinedIdList = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 총 OMR 용지 수
         /// </summary>
         public int TotalSheetCount
         {
@@ -192,7 +234,7 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// 오류가 있는 시트 수
+        /// 오류가 있는 용지 수
         /// </summary>
         public int ErrorSheetCount
         {
@@ -218,7 +260,7 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// 결합ID가 없는 시트 수
+        /// 결합ID가 없는 용지 수
         /// </summary>
         public int NullCombinedIdCount
         {
@@ -254,6 +296,9 @@ namespace SimpleOverlayEditor.ViewModels
                     MismatchMessage = null;
                     MissingInGradingList = null;
                     MissingInRegistryList = null;
+                    ErrorSheetList = null;
+                    DuplicateCombinedIdList = null;
+                    NullCombinedIdList = null;
                     // 통계 초기화
                     TotalSheetCount = 0;
                     ErrorSheetCount = 0;
@@ -266,6 +311,30 @@ namespace SimpleOverlayEditor.ViewModels
 
                 // 2. MarkingAnalyzer를 사용하여 SheetResults 생성
                 var sheetResults = _markingAnalyzer.AnalyzeAllSheets(session);
+
+                // 결합ID 기준으로 중복 검출 (MarkingViewModel과 동일한 로직)
+                var groupedByCombinedId = sheetResults
+                    .Where(r => !string.IsNullOrEmpty(r.CombinedId) && r.CombinedId != null)
+                    .GroupBy(r => r.CombinedId!)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => new { Key = (string)g.Key!, Value = g.ToList() })
+                    .ToDictionary(x => x.Key, x => x.Value);
+                
+                // 중복 여부 설정 및 ErrorMessage에 추가
+                foreach (var result in sheetResults)
+                {
+                    if (!string.IsNullOrEmpty(result.CombinedId) && 
+                        groupedByCombinedId.ContainsKey(result.CombinedId))
+                    {
+                        result.IsDuplicate = true;
+                        result.HasErrors = true;
+                        var duplicateCount = groupedByCombinedId[result.CombinedId].Count;
+                        var duplicateMessage = $"결합ID 중복 ({duplicateCount}개)";
+                        result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                            ? duplicateMessage
+                            : result.ErrorMessage + "; " + duplicateMessage;
+                    }
+                }
 
                 // OMR 결과 요약 통계 계산
                 TotalSheetCount = sheetResults.Count;
@@ -293,7 +362,7 @@ namespace SimpleOverlayEditor.ViewModels
                 foreach (var studentGroup in groupedByStudentId)
                 {
                     var studentId = studentGroup.Key;
-                    var studentSheets = studentGroup.Value; // 이 수험번호의 모든 시트
+                    var studentSheets = studentGroup.Value; // 이 수험번호의 모든 용지
 
                     // StudentInfo lookup
                     var studentInfo = studentRegistry.Students
@@ -327,7 +396,7 @@ namespace SimpleOverlayEditor.ViewModels
 
                     foreach (var sheet in studentSheets)
                     {
-                        // 각 시트의 마킹 번호를 배점으로 변환하여 합산 - Mapper 사용
+                        // 각 용지의 마킹 번호를 배점으로 변환하여 합산 - Mapper 사용
                         for (int q = 1; q <= OmrConstants.QuestionsCount; q++)
                         {
                             var marking = _sheetMapper.GetQuestionMarking(sheet, q);
@@ -380,6 +449,65 @@ namespace SimpleOverlayEditor.ViewModels
                 // 9. GradingResults 설정 (이때 UpdateFilteredResults가 호출되어 기본 정렬이 자동 적용됨)
                 GradingResults = gradingResults;
 
+                // 10. 기본 정렬 순서대로 수험번호 리스트 생성
+                // 기본 정렬: IsDuplicate (Desc) → HasErrors (Desc) → ExamType (Asc) → Rank (Asc) → RegistrationNumber (Asc)
+                var sortedResults = gradingResults
+                    .OrderByDescending(r => r.IsDuplicate)
+                    .ThenByDescending(r => r.HasErrors)
+                    .ThenBy(r => r.ExamType ?? "")
+                    .ThenBy(r => r.Rank ?? int.MaxValue)
+                    .ThenBy(r => r.RegistrationNumber ?? "")
+                    .ToList();
+
+                // 오류 있는 용지의 수험번호 리스트
+                var errorSheetStudentIds = sortedResults
+                    .Where(r => r.HasErrors && !string.IsNullOrEmpty(r.StudentId))
+                    .Select(r => r.StudentId!)
+                    .Distinct()
+                    .ToList();
+                ErrorSheetList = errorSheetStudentIds.Any()
+                    ? $" (수험번호: {string.Join(", ", errorSheetStudentIds.Take(20))}" +
+                      (errorSheetStudentIds.Count > 20 ? $" 외 {errorSheetStudentIds.Count - 20}개)" : ")")
+                    : null;
+
+                // 중복 결합ID의 수험번호 리스트
+                var duplicateStudentIds = sortedResults
+                    .Where(r => r.IsDuplicate && !string.IsNullOrEmpty(r.StudentId))
+                    .Select(r => r.StudentId!)
+                    .Distinct()
+                    .ToList();
+                DuplicateCombinedIdList = duplicateStudentIds.Any()
+                    ? $" (수험번호: {string.Join(", ", duplicateStudentIds.Take(20))}" +
+                      (duplicateStudentIds.Count > 20 ? $" 외 {duplicateStudentIds.Count - 20}개)" : ")")
+                    : null;
+
+                // 결합ID 없음의 수험번호 리스트 (sheetResults 기반)
+                var nullCombinedIdStudentIds = sheetResults
+                    .Where(r => string.IsNullOrEmpty(r.CombinedId) && !string.IsNullOrEmpty(r.StudentId))
+                    .Select(r => r.StudentId!)
+                    .Distinct()
+                    .ToList();
+                
+                // GradingResults 기준으로 정렬된 순서대로 정렬 (같은 수험번호가 여러 용지에 있을 수 있음)
+                // 수험번호별로 첫 번째 등장 순서를 기준으로 정렬
+                var sortedNullCombinedIds = sortedResults
+                    .Where(r => nullCombinedIdStudentIds.Contains(r.StudentId ?? ""))
+                    .Select(r => r.StudentId!)
+                    .Distinct()
+                    .ToList();
+                
+                // nullCombinedIdStudentIds 중에서 sortedNullCombinedIds에 없는 것 추가
+                var remainingNullIds = nullCombinedIdStudentIds
+                    .Except(sortedNullCombinedIds)
+                    .OrderBy(id => id)
+                    .ToList();
+                sortedNullCombinedIds.AddRange(remainingNullIds);
+
+                NullCombinedIdList = sortedNullCombinedIds.Any()
+                    ? $" (수험번호: {string.Join(", ", sortedNullCombinedIds.Take(20))}" +
+                      (sortedNullCombinedIds.Count > 20 ? $" 외 {sortedNullCombinedIds.Count - 20}개)" : ")")
+                    : null;
+
                 Logger.Instance.Info($"채점 데이터 로드 완료: {gradingResults.Count}개 항목");
             }
             catch (Exception ex)
@@ -393,6 +521,9 @@ namespace SimpleOverlayEditor.ViewModels
                 MismatchMessage = null;
                 MissingInGradingList = null;
                 MissingInRegistryList = null;
+                ErrorSheetList = null;
+                DuplicateCombinedIdList = null;
+                NullCombinedIdList = null;
                 // 통계 초기화
                 TotalSheetCount = 0;
                 ErrorSheetCount = 0;
@@ -436,6 +567,15 @@ namespace SimpleOverlayEditor.ViewModels
                 if (!string.IsNullOrEmpty(result.StudentId) && !registryStudentIds.Contains(result.StudentId))
                 {
                     result.HasErrors = true; // 명렬에 없는 수험번호는 오류
+                    // ErrorDetails에 추가
+                    if (string.IsNullOrEmpty(result.ErrorDetails))
+                    {
+                        result.ErrorDetails = "명렬에 없음";
+                    }
+                    else
+                    {
+                        result.ErrorDetails = result.ErrorDetails + ", 명렬에 없음";
+                    }
                 }
             }
 
@@ -642,6 +782,9 @@ namespace SimpleOverlayEditor.ViewModels
                 int col = 1;
                 worksheet.Cell(1, col++).Value = "접수번호";
                 worksheet.Cell(1, col++).Value = "수험번호";
+                worksheet.Cell(1, col++).Value = "시각";
+                worksheet.Cell(1, col++).Value = "실";
+                worksheet.Cell(1, col++).Value = "순";
                 worksheet.Cell(1, col++).Value = "이름";
                 worksheet.Cell(1, col++).Value = "전형명";
                 worksheet.Cell(1, col++).Value = "출신교명";
@@ -667,6 +810,9 @@ namespace SimpleOverlayEditor.ViewModels
                     col = 1;
                     worksheet.Cell(row, col++).Value = result.RegistrationNumber ?? "";
                     worksheet.Cell(row, col++).Value = result.StudentId ?? "";
+                    worksheet.Cell(row, col++).Value = result.Session ?? "";
+                    worksheet.Cell(row, col++).Value = result.RoomNumber ?? "";
+                    worksheet.Cell(row, col++).Value = result.OrderNumber ?? "";
                     worksheet.Cell(row, col++).Value = result.StudentName ?? "";
                     worksheet.Cell(row, col++).Value = result.ExamType ?? "";
                     worksheet.Cell(row, col++).Value = result.MiddleSchool ?? "";

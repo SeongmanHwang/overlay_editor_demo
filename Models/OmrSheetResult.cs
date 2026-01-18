@@ -36,7 +36,67 @@ namespace SimpleOverlayEditor.Models
         public string? StudentId
         {
             get => _studentId;
-            set { _studentId = value; OnPropertyChanged(); OnPropertyChanged(nameof(CombinedId)); }
+            set 
+            { 
+                _studentId = value; 
+                OnPropertyChanged(); 
+                OnPropertyChanged(nameof(CombinedId));
+                OnPropertyChanged(nameof(Session));
+                OnPropertyChanged(nameof(RoomNumber));
+                OnPropertyChanged(nameof(OrderNumber));
+            }
+        }
+
+        /// <summary>
+        /// 오전/오후 세션 (수험번호의 1-2번째 자리: 91=오전, 92=오후)
+        /// </summary>
+        public string? Session
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_studentId) || _studentId.Length < 2)
+                    return null;
+                
+                var sessionCode = _studentId.Substring(0, 2);
+                return sessionCode switch
+                {
+                    "91" => "오전",
+                    "92" => "오후",
+                    _ => null
+                };
+            }
+        }
+
+        /// <summary>
+        /// 면접실 번호 (수험번호의 3-4번째 자리)
+        /// </summary>
+        public string? RoomNumber
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_studentId) || _studentId.Length < 4)
+                    return null;
+                
+                var roomCode = _studentId.Substring(2, 2);
+                if (int.TryParse(roomCode, out var roomNum) && roomNum >= 1 && roomNum <= 12)
+                    return roomCode;
+                
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 순서 번호 (수험번호의 5-6번째 자리)
+        /// </summary>
+        public string? OrderNumber
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_studentId) || _studentId.Length < 6)
+                    return null;
+                
+                return _studentId.Substring(4, 2);
+            }
         }
 
         public string? InterviewId

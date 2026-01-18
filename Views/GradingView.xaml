@@ -62,30 +62,36 @@
                 <!-- OMR 결과 통계 -->
                 <StackPanel Margin="0,0,0,8">
                     <TextBlock Foreground="#856404" FontWeight="SemiBold">
-                        <Run Text="총 시트: "/>
+                        <Run Text="총 용지: "/>
                         <Run Text="{Binding TotalSheetCount, Mode=OneWay}"/>
                         <Run Text="개"/>
                     </TextBlock>
                     <TextBlock Foreground="#856404" 
                                Visibility="{Binding ErrorSheetCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}"
-                               Margin="0,2,0,0">
-                        <Run Text="오류 있는 시트: "/>
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap">
+                        <Run Text="오류 있는 용지: "/>
                         <Run Text="{Binding ErrorSheetCount, Mode=OneWay}" FontWeight="Bold" Foreground="#C62828"/>
                         <Run Text="개"/>
+                        <Run Text="{Binding ErrorSheetList, Mode=OneWay}"/>
                     </TextBlock>
                     <TextBlock Foreground="#856404" 
                                Visibility="{Binding DuplicateCombinedIdCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}"
-                               Margin="0,2,0,0">
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap">
                         <Run Text="중복 결합ID: "/>
                         <Run Text="{Binding DuplicateCombinedIdCount, Mode=OneWay}" FontWeight="Bold" Foreground="#C62828"/>
                         <Run Text="개"/>
+                        <Run Text="{Binding DuplicateCombinedIdList, Mode=OneWay}"/>
                     </TextBlock>
                     <TextBlock Foreground="#856404" 
                                Visibility="{Binding NullCombinedIdCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}"
-                               Margin="0,2,0,0">
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap">
                         <Run Text="결합ID 없음: "/>
                         <Run Text="{Binding NullCombinedIdCount, Mode=OneWay}" FontWeight="Bold" Foreground="#C62828"/>
                         <Run Text="개"/>
+                        <Run Text="{Binding NullCombinedIdList, Mode=OneWay}"/>
                     </TextBlock>
                 </StackPanel>
 
@@ -132,6 +138,27 @@
                   Sorting="GradingDataGrid_Sorting">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" SortMemberPath="StudentId" Width="100"/>
+                <DataGridTextColumn Header="시각" Binding="{Binding Session}" SortMemberPath="Session" Width="50">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="실" Binding="{Binding RoomNumber}" SortMemberPath="RoomNumber" Width="50">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="순" Binding="{Binding OrderNumber}" SortMemberPath="OrderNumber" Width="50">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
                 <DataGridTextColumn Header="접수번호" Binding="{Binding RegistrationNumber}" SortMemberPath="RegistrationNumber" Width="100"/>
                 <DataGridTextColumn Header="전형명" Binding="{Binding ExamType}" SortMemberPath="ExamType" Width="100"/>
                 <DataGridTextColumn Header="성명" Binding="{Binding StudentName}" SortMemberPath="StudentName" Width="100"/>
@@ -211,7 +238,7 @@
                         <!-- 중복만 있는 경우: 연한 빨간색 -->
                         <DataTrigger Binding="{Binding IsDuplicate}" Value="True">
                             <Setter Property="Background" Value="#FFCDD2"/>
-                            <Setter Property="ToolTip" Value="같은 수험번호+면접번호 조합으로 여러 시트가 존재합니다. (중복)"/>
+                            <Setter Property="ToolTip" Value="같은 수험번호+면접번호 조합으로 여러 용지가 존재합니다. (중복)"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>

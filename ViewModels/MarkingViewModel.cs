@@ -313,7 +313,7 @@ namespace SimpleOverlayEditor.ViewModels
         public NavigationViewModel Navigation => _navigation;
 
         /// <summary>
-        /// 모든 문서의 OMR 시트 결과 (문항별 마킹 정리)
+        /// 모든 문서의 OMR 용지 결과 (문항별 마킹 정리)
         /// </summary>
         public ObservableCollection<OmrSheetResult>? SheetResults
         {
@@ -342,17 +342,17 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// 오류가 있는 시트 수
+        /// 오류가 있는 용지 수
         /// </summary>
         public int ErrorCount => SheetResults?.Count(r => r.HasErrors) ?? 0;
 
         /// <summary>
-        /// 중복 결합ID를 가진 시트 수
+        /// 중복 결합ID를 가진 용지 수
         /// </summary>
         public int DuplicateCount => SheetResults?.Count(r => r.IsDuplicate) ?? 0;
 
         /// <summary>
-        /// 결합ID가 없는 시트 수
+        /// 결합ID가 없는 용지 수
         /// </summary>
         public int NullCombinedIdCount => SheetResults?.Count(r => string.IsNullOrEmpty(r.CombinedId)) ?? 0;
 
@@ -848,8 +848,8 @@ namespace SimpleOverlayEditor.ViewModels
                             if (SheetResults != null && SheetResults.Count > 0)
                             {
                                 message += $"\n\n결과 분석:\n" +
-                                          $"총 시트: {SheetResults.Count}개\n" +
-                                          $"오류 있는 시트: {ErrorCount}개";
+                                          $"총 용지: {SheetResults.Count}개\n" +
+                                          $"오류 있는 용지: {ErrorCount}개";
                                 
                                 if (DuplicateCount > 0)
                                 {
@@ -1413,7 +1413,7 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// 마킹 결과를 OMR 시트 구조에 맞게 분석하여 SheetResults를 업데이트합니다.
+        /// 마킹 결과를 OMR 용지 구조에 맞게 분석하여 SheetResults를 업데이트합니다.
         /// </summary>
         private void UpdateSheetResults()
         {
@@ -1509,7 +1509,7 @@ namespace SimpleOverlayEditor.ViewModels
                     Logger.Instance.Info($"중복 결합ID 없음");
                 }
                 
-                Logger.Instance.Info($"OMR 결과 업데이트 완료: {results.Count}개 시트");
+                Logger.Instance.Info($"OMR 결과 업데이트 완료: {results.Count}개 용지");
             }
             catch (Exception ex)
             {
@@ -1652,13 +1652,16 @@ namespace SimpleOverlayEditor.ViewModels
             
             // 헤더 작성 (UTF-8 BOM 추가)
             writer.Write('\uFEFF'); // UTF-8 BOM
-            writer.WriteLine("파일명,수험번호,면접번호,결합ID,문항1,문항2,문항3,문항4,오류,오류메시지");
+            writer.WriteLine("파일명,수험번호,시각,실,순,면접번호,결합ID,문항1,문항2,문항3,문항4,오류,오류메시지");
             
             // 데이터 작성
             foreach (var result in results)
             {
                 writer.WriteLine($"{EscapeCsvField(result.ImageFileName)}," +
                                 $"{EscapeCsvField(result.StudentId ?? "")}," +
+                                $"{EscapeCsvField(result.Session ?? "")}," +
+                                $"{EscapeCsvField(result.RoomNumber ?? "")}," +
+                                $"{EscapeCsvField(result.OrderNumber ?? "")}," +
                                 $"{EscapeCsvField(result.InterviewId ?? "")}," +
                                 $"{EscapeCsvField(result.CombinedId ?? "")}," +
                                 $"{(result.Question1Marking?.ToString() ?? "")}," +

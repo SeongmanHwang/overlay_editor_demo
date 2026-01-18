@@ -23,7 +23,7 @@ namespace SimpleOverlayEditor.Models
         private int? _rank;
         private bool _isDuplicate;  // "수험번호 + 면접번호" 결합 ID 기준 중복 여부
         private int _duplicateCount;  // 같은 "수험번호 + 면접번호" 조합을 가진 시트 수
-        private bool _hasErrors;  // OmrSheetResult의 오류 정보
+        private bool _isSimpleError;  // 단순 오류 여부 (마킹, 바코드 등, 중복 제외)
         private string? _errorDetails; // 오류 상세 정보
         
         // StudentInfo의 추가 정보들
@@ -169,7 +169,12 @@ namespace SimpleOverlayEditor.Models
         public bool IsDuplicate
         {
             get => _isDuplicate;
-            set { _isDuplicate = value; OnPropertyChanged(); }
+            set 
+            { 
+                _isDuplicate = value; 
+                OnPropertyChanged(); 
+                OnPropertyChanged(nameof(HasErrors));
+            }
         }
 
         /// <summary>
@@ -181,11 +186,24 @@ namespace SimpleOverlayEditor.Models
             set { _duplicateCount = value; OnPropertyChanged(); }
         }
 
-        public bool HasErrors
+        /// <summary>
+        /// 단순 오류 여부 (마킹, 바코드 등, 중복 제외)
+        /// </summary>
+        public bool IsSimpleError
         {
-            get => _hasErrors;
-            set { _hasErrors = value; OnPropertyChanged(); }
+            get => _isSimpleError;
+            set 
+            { 
+                _isSimpleError = value; 
+                OnPropertyChanged(); 
+                OnPropertyChanged(nameof(HasErrors));
+            }
         }
+
+        /// <summary>
+        /// 모든 오류 여부 (단순 오류 또는 중복 오류) - 계산 속성
+        /// </summary>
+        public bool HasErrors => IsSimpleError || IsDuplicate;
 
         /// <summary>
         /// 오류 상세 정보 (수험번호별 오류 요약에 사용)

@@ -9,6 +9,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -123,8 +124,70 @@
             </StackPanel>
         </Border>
 
+        <!-- 필터 영역 -->
+        <Border Grid.Row="2"
+                Background="#F5F5F5"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,1,0,1"
+                Padding="10,8"
+                Margin="10,5">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="필터:" 
+                           VerticalAlignment="Center" 
+                           Margin="0,0,10,0" 
+                           FontWeight="SemiBold"/>
+                
+                <!-- 라디오 필터: 전체/오류만/중복만 -->
+                <RadioButton Content="전체" 
+                            IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=All}"
+                            Command="{Binding SetFilterModeCommand}" 
+                            CommandParameter="All"
+                            Margin="5,0"
+                            GroupName="FilterMode"
+                            VerticalAlignment="Center"/>
+                <RadioButton Content="단순 오류만" 
+                            IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Errors}"
+                            Command="{Binding SetFilterModeCommand}" 
+                            CommandParameter="Errors"
+                            Margin="5,0"
+                            GroupName="FilterMode"
+                            VerticalAlignment="Center"/>
+                <RadioButton Content="중복만" 
+                            IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Duplicates}"
+                            Command="{Binding SetFilterModeCommand}" 
+                            CommandParameter="Duplicates"
+                            Margin="5,0"
+                            GroupName="FilterMode"
+                            VerticalAlignment="Center"/>
+                
+                <!-- 시각/실/순 필터 -->
+                <Rectangle Width="1" Height="20" Fill="#E0E0E0" Margin="15,5" VerticalAlignment="Center"/>
+                
+                <TextBlock Text="시각:" VerticalAlignment="Center" Margin="5,0,3,0" FontWeight="SemiBold"/>
+                <ComboBox ItemsSource="{Binding SessionFilterOptions}"
+                          SelectedItem="{Binding SelectedSessionFilter, UpdateSourceTrigger=PropertyChanged}"
+                          Width="80"
+                          VerticalAlignment="Center"
+                          Margin="0,0,10,0"/>
+                
+                <TextBlock Text="실:" VerticalAlignment="Center" Margin="5,0,3,0" FontWeight="SemiBold"/>
+                <ComboBox ItemsSource="{Binding RoomFilterOptions}"
+                          SelectedItem="{Binding SelectedRoomFilter, UpdateSourceTrigger=PropertyChanged}"
+                          Width="80"
+                          VerticalAlignment="Center"
+                          Margin="0,0,10,0"/>
+                
+                <TextBlock Text="순:" VerticalAlignment="Center" Margin="5,0,3,0" FontWeight="SemiBold"/>
+                <ComboBox ItemsSource="{Binding OrderFilterOptions}"
+                          SelectedItem="{Binding SelectedOrderFilter, UpdateSourceTrigger=PropertyChanged}"
+                          Width="80"
+                          VerticalAlignment="Center"
+                          Margin="0,0,5,0"/>
+            </StackPanel>
+        </Border>
+
         <!-- DataGrid -->
-        <DataGrid Grid.Row="2"
+        <DataGrid Grid.Row="3"
                   ItemsSource="{Binding FilteredGradingResults}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -206,6 +269,7 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
+                <DataGridCheckBoxColumn Header="오류" Binding="{Binding IsSimpleError}" SortMemberPath="IsSimpleError" Width="60" IsReadOnly="True"/>
                 <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" SortMemberPath="IsDuplicate" Width="60" IsReadOnly="True"/>
                 <DataGridTextColumn Header="중복수" Binding="{Binding DuplicateCount}" SortMemberPath="DuplicateCount" Width="70">
                     <DataGridTextColumn.ElementStyle>
@@ -214,7 +278,6 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" SortMemberPath="HasErrors" Width="60" IsReadOnly="True"/>
             </DataGrid.Columns>
 
             <!-- 중복 및 오류 행을 색깔로 표시 -->

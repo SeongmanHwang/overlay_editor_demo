@@ -16,7 +16,7 @@ namespace SimpleOverlayEditor.Models
         private int? _question2Marking;
         private int? _question3Marking;
         private int? _question4Marking;
-        private bool _hasErrors; // 오류 여부 (바코드 실패, 다중마킹 등)
+        private bool _isSimpleError; // 단순 오류 여부 (마킹, 바코드 등, 중복 제외)
         private string? _errorMessage;
         private bool _isDuplicate; // 결합ID 기준 중복 여부
         private bool _isSelectedForDeletion; // 삭제를 위해 선택되었는지 여부
@@ -149,11 +149,24 @@ namespace SimpleOverlayEditor.Models
             set { _question4Marking = value; OnPropertyChanged(); }
         }
 
-        public bool HasErrors
+        /// <summary>
+        /// 단순 오류 여부 (마킹, 바코드 등, 중복 제외)
+        /// </summary>
+        public bool IsSimpleError
         {
-            get => _hasErrors;
-            set { _hasErrors = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsErrorOnly)); }
+            get => _isSimpleError;
+            set 
+            { 
+                _isSimpleError = value; 
+                OnPropertyChanged(); 
+                OnPropertyChanged(nameof(HasErrors));
+            }
         }
+
+        /// <summary>
+        /// 모든 오류 여부 (단순 오류 또는 중복 오류) - 계산 속성
+        /// </summary>
+        public bool HasErrors => IsSimpleError || IsDuplicate;
 
         public string? ErrorMessage
         {
@@ -167,14 +180,13 @@ namespace SimpleOverlayEditor.Models
         public bool IsDuplicate
         {
             get => _isDuplicate;
-            set { _isDuplicate = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsErrorOnly)); }
+            set 
+            { 
+                _isDuplicate = value; 
+                OnPropertyChanged(); 
+                OnPropertyChanged(nameof(HasErrors));
+            }
         }
-
-        /// <summary>
-        /// 중복이 아닌 단순 오류 여부 (HasErrors && !IsDuplicate)
-        /// 정렬 시 사용: 중복 -> 단순 오류 -> 정상 순서
-        /// </summary>
-        public bool IsErrorOnly => HasErrors && !IsDuplicate;
 
         /// <summary>
         /// 삭제를 위해 선택되었는지 여부

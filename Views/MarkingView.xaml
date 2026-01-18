@@ -544,7 +544,7 @@
                                     Margin="5,0"
                                     GroupName="FilterMode"
                                     VerticalAlignment="Center"/>
-                        <RadioButton Content="오류만" 
+                        <RadioButton Content="단순 오류만" 
                                     IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Errors}"
                                     Command="{Binding SetFilterModeCommand}" 
                                     CommandParameter="Errors"
@@ -558,6 +558,30 @@
                                     Margin="5,0"
                                     GroupName="FilterMode"
                                     VerticalAlignment="Center"/>
+                        
+                        <!-- 시각/실/순 필터 추가 -->
+                        <Rectangle Width="1" Height="20" Fill="#E0E0E0" Margin="15,5" VerticalAlignment="Center"/>
+                        
+                        <TextBlock Text="시각:" VerticalAlignment="Center" Margin="5,0,3,0" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding SessionFilterOptions}"
+                                  SelectedItem="{Binding SelectedSessionFilter, UpdateSourceTrigger=PropertyChanged}"
+                                  Width="80"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,10,0"/>
+                        
+                        <TextBlock Text="실:" VerticalAlignment="Center" Margin="5,0,3,0" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding RoomFilterOptions}"
+                                  SelectedItem="{Binding SelectedRoomFilter, UpdateSourceTrigger=PropertyChanged}"
+                                  Width="80"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,10,0"/>
+                        
+                        <TextBlock Text="순:" VerticalAlignment="Center" Margin="5,0,3,0" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding OrderFilterOptions}"
+                                  SelectedItem="{Binding SelectedOrderFilter, UpdateSourceTrigger=PropertyChanged}"
+                                  Width="80"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,5,0"/>
                     </StackPanel>
                     
                     <!-- CSV 내보내기 버튼 (오른쪽) -->
@@ -676,7 +700,7 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridCheckBoxColumn Header="오류" Binding="{Binding HasErrors}" SortMemberPath="HasErrors" Width="60" IsReadOnly="True"/>
+                        <DataGridCheckBoxColumn Header="오류" Binding="{Binding IsSimpleError}" SortMemberPath="IsSimpleError" Width="60" IsReadOnly="True"/>
                         <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" SortMemberPath="IsDuplicate" Width="60" IsReadOnly="True"/>
                         <DataGridTextColumn Header="오류 메시지" Binding="{Binding ErrorMessage}" SortMemberPath="ErrorMessage" Width="*" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>

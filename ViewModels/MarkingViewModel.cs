@@ -46,6 +46,14 @@ namespace SimpleOverlayEditor.ViewModels
         private string _filterMode = "All";
         private Rect _currentImageDisplayRect;
         private double _zoomLevel = 1.0; // 줌 레벨 (1.0 = 100%)
+        
+        // 필터 옵션 (시각/실/순)
+        private ObservableCollection<string> _sessionFilterOptions = new ObservableCollection<string>();
+        private ObservableCollection<string> _roomFilterOptions = new ObservableCollection<string>();
+        private ObservableCollection<string> _orderFilterOptions = new ObservableCollection<string>();
+        private string? _selectedSessionFilter;
+        private string? _selectedRoomFilter;
+        private string? _selectedOrderFilter;
 
         /// <summary>
         /// SheetResults 항목의 PropertyChanged 이벤트를 처리합니다.
@@ -137,6 +145,9 @@ namespace SimpleOverlayEditor.ViewModels
                 OnExportToCsv, 
                 () => SheetResults != null && SheetResults.Count > 0);
             SetFilterModeCommand = new RelayCommand<string>(OnSetFilterMode);
+            
+            // 필터 옵션 초기화
+            InitializeFilterOptions();
 
             // Session.Documents가 이미 로드되어 있으면 정렬 수행
             InitializeDocumentsAlignment();
@@ -417,6 +428,96 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
+        /// 시각 필터 옵션 (전체, 오전, 오후)
+        /// </summary>
+        public ObservableCollection<string> SessionFilterOptions
+        {
+            get => _sessionFilterOptions;
+            private set
+            {
+                _sessionFilterOptions = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 실(면접실) 필터 옵션 (전체 + 동적 추출)
+        /// </summary>
+        public ObservableCollection<string> RoomFilterOptions
+        {
+            get => _roomFilterOptions;
+            private set
+            {
+                _roomFilterOptions = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 순 필터 옵션 (전체 + 동적 추출)
+        /// </summary>
+        public ObservableCollection<string> OrderFilterOptions
+        {
+            get => _orderFilterOptions;
+            private set
+            {
+                _orderFilterOptions = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 선택된 시각 필터
+        /// </summary>
+        public string? SelectedSessionFilter
+        {
+            get => _selectedSessionFilter;
+            set
+            {
+                if (_selectedSessionFilter != value)
+                {
+                    _selectedSessionFilter = value;
+                    OnPropertyChanged();
+                    ApplyFilter();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 선택된 실(면접실) 필터
+        /// </summary>
+        public string? SelectedRoomFilter
+        {
+            get => _selectedRoomFilter;
+            set
+            {
+                if (_selectedRoomFilter != value)
+                {
+                    _selectedRoomFilter = value;
+                    OnPropertyChanged();
+                    ApplyFilter();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 선택된 순 필터
+        /// </summary>
+        public string? SelectedOrderFilter
+        {
+            get => _selectedOrderFilter;
+            set
+            {
+                if (_selectedOrderFilter != value)
+                {
+                    _selectedOrderFilter = value;
+                    OnPropertyChanged();
+                    ApplyFilter();
+                }
+            }
+        }
+
+        /// <summary>
         /// 필터 모드를 설정합니다.
         /// </summary>
         private void OnSetFilterMode(string? filterMode)
@@ -447,9 +548,9 @@ namespace SimpleOverlayEditor.ViewModels
                     new System.ComponentModel.SortDescription(nameof(OmrSheetResult.IsDuplicate), 
                     System.ComponentModel.ListSortDirection.Descending));
                 
-                // 2. IsErrorOnly 내림차순 (단순 오류가 그 다음)
+                // 2. IsSimpleError 내림차순 (단순 오류가 그 다음)
                 FilteredSheetResults.SortDescriptions.Add(
-                    new System.ComponentModel.SortDescription(nameof(OmrSheetResult.IsErrorOnly), 
+                    new System.ComponentModel.SortDescription(nameof(OmrSheetResult.IsSimpleError), 
                     System.ComponentModel.ListSortDirection.Descending));
                 
                 // 3. StudentId 오름차순 (수험번호 순)
@@ -470,6 +571,78 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
+        /// 필터 옵션을 초기화합니다.
+        /// </summary>
+        private void InitializeFilterOptions()
+        {
+            // 시각: 전체, 오전, 오후
+            SessionFilterOptions = new ObservableCollection<string> { "전체", "오전", "오후" };
+            SelectedSessionFilter = "전체";
+            
+            // 실: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
+            RoomFilterOptions = new ObservableCollection<string> { "전체" };
+            SelectedRoomFilter = "전체";
+            
+            // 순: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
+            OrderFilterOptions = new ObservableCollection<string> { "전체" };
+            SelectedOrderFilter = "전체";
+        }
+
+        /// <summary>
+        /// 필터 옵션을 데이터에서 동적으로 업데이트합니다.
+        /// </summary>
+        private void UpdateFilterOptions()
+        {
+            if (SheetResults == null || SheetResults.Count == 0)
+            {
+                // 데이터가 없으면 기본값만 유지
+                return;
+            }
+
+            // 실(면접실) 필터 옵션 업데이트 (동적 추출)
+            var roomNumbers = SheetResults
+                .Where(r => !string.IsNullOrEmpty(r.RoomNumber))
+                .Select(r => r.RoomNumber!)
+                .Distinct()
+                .OrderBy(r => int.TryParse(r, out var num) ? num : int.MaxValue)
+                .ToList();
+            
+            RoomFilterOptions.Clear();
+            RoomFilterOptions.Add("전체");
+            foreach (var roomNum in roomNumbers)
+            {
+                RoomFilterOptions.Add(roomNum);
+            }
+            
+            // 현재 선택값이 유효한지 확인
+            if (SelectedRoomFilter != null && !RoomFilterOptions.Contains(SelectedRoomFilter))
+            {
+                SelectedRoomFilter = "전체";
+            }
+
+            // 순 필터 옵션 업데이트 (동적 추출)
+            var orderNumbers = SheetResults
+                .Where(r => !string.IsNullOrEmpty(r.OrderNumber))
+                .Select(r => r.OrderNumber!)
+                .Distinct()
+                .OrderBy(o => int.TryParse(o, out var num) ? num : int.MaxValue)
+                .ToList();
+            
+            OrderFilterOptions.Clear();
+            OrderFilterOptions.Add("전체");
+            foreach (var orderNum in orderNumbers)
+            {
+                OrderFilterOptions.Add(orderNum);
+            }
+            
+            // 현재 선택값이 유효한지 확인
+            if (SelectedOrderFilter != null && !OrderFilterOptions.Contains(SelectedOrderFilter))
+            {
+                SelectedOrderFilter = "전체";
+            }
+        }
+
+        /// <summary>
         /// 필터를 적용합니다.
         /// </summary>
         private void ApplyFilter()
@@ -480,13 +653,36 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 if (item is not OmrSheetResult result) return false;
 
-                return _filterMode switch
+                // 라디오 필터 (전체/오류만/중복만)
+                bool passesBaseFilter = _filterMode switch
                 {
-                    "Errors" => result.HasErrors && !result.IsDuplicate, // 중복 제외한 오류만
+                    "Errors" => result.IsSimpleError, // 단순 오류만 (중복 제외)
                     "Duplicates" => result.IsDuplicate, // 중복만
                     "All" => true,
                     _ => true
                 };
+                
+                if (!passesBaseFilter) return false;
+
+                // 시각 필터
+                if (SelectedSessionFilter != null && SelectedSessionFilter != "전체")
+                {
+                    if (result.Session != SelectedSessionFilter) return false;
+                }
+
+                // 실 필터
+                if (SelectedRoomFilter != null && SelectedRoomFilter != "전체")
+                {
+                    if (result.RoomNumber != SelectedRoomFilter) return false;
+                }
+
+                // 순 필터
+                if (SelectedOrderFilter != null && SelectedOrderFilter != "전체")
+                {
+                    if (result.OrderNumber != SelectedOrderFilter) return false;
+                }
+
+                return true;
             };
 
             FilteredSheetResults.Refresh();
@@ -1433,6 +1629,9 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
                 OnPropertyChanged(nameof(NullCombinedIdCount));
+                
+                // 필터 옵션 초기화 (데이터 없음)
+                UpdateFilterOptions();
                 return;
             }
 
@@ -1455,12 +1654,21 @@ namespace SimpleOverlayEditor.ViewModels
                         groupedByCombinedId.ContainsKey(result.CombinedId))
                     {
                         result.IsDuplicate = true;
-                        result.HasErrors = true;
+                        // HasErrors는 IsSimpleError || IsDuplicate로 자동 계산됨
                         var duplicateCount = groupedByCombinedId[result.CombinedId].Count;
                         var duplicateMessage = $"결합ID 중복 ({duplicateCount}개)";
-                        result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
-                            ? duplicateMessage
-                            : result.ErrorMessage + "; " + duplicateMessage;
+                        
+                        // ErrorMessage가 중복 메시지만 있으면 단순 오류가 아님을 명확히 함
+                        if (string.IsNullOrEmpty(result.ErrorMessage))
+                        {
+                            // 중복만 있는 경우: ErrorMessage에 중복 메시지만 추가
+                            result.ErrorMessage = duplicateMessage;
+                        }
+                        else
+                        {
+                            // 단순 오류가 이미 있는 경우: 기존 ErrorMessage에 중복 메시지 추가
+                            result.ErrorMessage = result.ErrorMessage + "; " + duplicateMessage;
+                        }
                     }
                 }
                 
@@ -1498,6 +1706,9 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
                 OnPropertyChanged(nameof(NullCombinedIdCount));
+                
+                // 필터 옵션 업데이트 (실/순 필터 동적 추출)
+                UpdateFilterOptions();
                 
                 var duplicateRowCount = groupedByCombinedId.Values.SelectMany(g => g).Count();
                 if (duplicateRowCount > 0)

@@ -77,7 +77,7 @@ namespace SimpleOverlayEditor.Services
 
                     if (questionMarkings.Count == 0)
                     {
-                        result.HasErrors = true;
+                        result.IsSimpleError = true;
                         result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
                             ? $"문항{questionNumber}: 마킹 결과 없음"
                             : result.ErrorMessage + $"; 문항{questionNumber}: 마킹 결과 없음";
@@ -111,7 +111,7 @@ namespace SimpleOverlayEditor.Services
 
                     if (errorMessage != null)
                     {
-                        result.HasErrors = true;
+                        result.IsSimpleError = true;
                         result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
                             ? errorMessage
                             : result.ErrorMessage + "; " + errorMessage;
@@ -120,7 +120,7 @@ namespace SimpleOverlayEditor.Services
             }
             else if (markingResults != null)
             {
-                result.HasErrors = true;
+                result.IsSimpleError = true;
                 result.ErrorMessage = $"마킹 영역 수 부족: 예상 {questionsCount * optionsPerQuestion}개, 실제 {markingResults.Count}개";
             }
 
@@ -129,7 +129,7 @@ namespace SimpleOverlayEditor.Services
             // CombinedId가 null인 경우 체크
             if (string.IsNullOrEmpty(result.CombinedId))
             {
-                result.HasErrors = true;
+                result.IsSimpleError = true;
                 result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
                     ? "결합ID 없음 (수험번호 또는 면접번호 누락)"
                     : result.ErrorMessage + "; 결합ID 없음 (수험번호 또는 면접번호 누락)";

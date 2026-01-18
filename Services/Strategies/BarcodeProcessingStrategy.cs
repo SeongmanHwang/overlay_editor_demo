@@ -47,7 +47,7 @@ namespace SimpleOverlayEditor.Services.Strategies
                 // 수험번호 바코드 디코딩 성공했지만 값이 null이거나 빈 문자열인 경우
                 if (barcodeResult.Success && string.IsNullOrWhiteSpace(result.StudentId))
                 {
-                    result.HasErrors = true;
+                    result.IsSimpleError = true;
                     result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
                         ? "수험번호 바코드 값 없음"
                         : result.ErrorMessage + "; 수험번호 바코드 값 없음";
@@ -60,7 +60,7 @@ namespace SimpleOverlayEditor.Services.Strategies
                 // 면접번호 바코드 디코딩 성공했지만 값이 null이거나 빈 문자열인 경우
                 if (barcodeResult.Success && string.IsNullOrWhiteSpace(result.InterviewId))
                 {
-                    result.HasErrors = true;
+                    result.IsSimpleError = true;
                     result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
                         ? "면접번호 바코드 값 없음"
                         : result.ErrorMessage + "; 면접번호 바코드 값 없음";
@@ -70,7 +70,7 @@ namespace SimpleOverlayEditor.Services.Strategies
             // 바코드 디코딩 실패 체크
             if (!barcodeResult.Success)
             {
-                result.HasErrors = true;
+                result.IsSimpleError = true;
                 var semanticName = semantic ?? $"바코드{barcodeIndex + 1}";
                 result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
                     ? $"{semanticName} 바코드 디코딩 실패"

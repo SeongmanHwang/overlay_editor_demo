@@ -44,6 +44,15 @@ namespace SimpleOverlayEditor.ViewModels
         private int _errorSheetCount;
         private int _duplicateCombinedIdCount;
         private int _nullCombinedIdCount;
+        
+        // 필터 관련
+        private string _filterMode = "All";
+        private ObservableCollection<string> _sessionFilterOptions = new ObservableCollection<string>();
+        private ObservableCollection<string> _roomFilterOptions = new ObservableCollection<string>();
+        private ObservableCollection<string> _orderFilterOptions = new ObservableCollection<string>();
+        private string? _selectedSessionFilter;
+        private string? _selectedRoomFilter;
+        private string? _selectedOrderFilter;
 
         /// <summary>
         /// 기본 생성자 (기본 구현 사용)
@@ -72,12 +81,17 @@ namespace SimpleOverlayEditor.ViewModels
 
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
             ExportToExcelCommand = new RelayCommand(OnExportToExcel, () => GradingResults != null && GradingResults.Count > 0);
+            SetFilterModeCommand = new RelayCommand<string>(OnSetFilterMode);
+
+            // 필터 옵션 초기화
+            InitializeFilterOptions();
 
             LoadGradingData();
         }
 
         public ICommand NavigateToHomeCommand { get; }
         public ICommand ExportToExcelCommand { get; }
+        public ICommand SetFilterModeCommand { get; }
 
         public NavigationViewModel Navigation => _navigation;
 
@@ -277,6 +291,243 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public bool HasWarnings => HasMismatch || ErrorSheetCount > 0 || DuplicateCombinedIdCount > 0 || NullCombinedIdCount > 0;
 
+        /// <summary>
+        /// 현재 필터 모드 ("All", "Errors", "Duplicates")
+        /// </summary>
+        public string FilterMode
+        {
+            get => _filterMode;
+            set
+            {
+                if (_filterMode != value)
+                {
+                    _filterMode = value;
+                    OnPropertyChanged();
+                    ApplyFilter(); // 필터 적용
+                }
+            }
+        }
+
+        /// <summary>
+        /// 시각 필터 옵션 (전체, 오전, 오후)
+        /// </summary>
+        public ObservableCollection<string> SessionFilterOptions
+        {
+            get => _sessionFilterOptions;
+            private set
+            {
+                _sessionFilterOptions = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 실(면접실) 필터 옵션 (전체 + 동적 추출)
+        /// </summary>
+        public ObservableCollection<string> RoomFilterOptions
+        {
+            get => _roomFilterOptions;
+            private set
+            {
+                _roomFilterOptions = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 순 필터 옵션 (전체 + 동적 추출)
+        /// </summary>
+        public ObservableCollection<string> OrderFilterOptions
+        {
+            get => _orderFilterOptions;
+            private set
+            {
+                _orderFilterOptions = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 선택된 시각 필터
+        /// </summary>
+        public string? SelectedSessionFilter
+        {
+            get => _selectedSessionFilter;
+            set
+            {
+                if (_selectedSessionFilter != value)
+                {
+                    _selectedSessionFilter = value;
+                    OnPropertyChanged();
+                    ApplyFilter(); // 필터 적용
+                }
+            }
+        }
+
+        /// <summary>
+        /// 선택된 실(면접실) 필터
+        /// </summary>
+        public string? SelectedRoomFilter
+        {
+            get => _selectedRoomFilter;
+            set
+            {
+                if (_selectedRoomFilter != value)
+                {
+                    _selectedRoomFilter = value;
+                    OnPropertyChanged();
+                    ApplyFilter(); // 필터 적용
+                }
+            }
+        }
+
+        /// <summary>
+        /// 선택된 순 필터
+        /// </summary>
+        public string? SelectedOrderFilter
+        {
+            get => _selectedOrderFilter;
+            set
+            {
+                if (_selectedOrderFilter != value)
+                {
+                    _selectedOrderFilter = value;
+                    OnPropertyChanged();
+                    ApplyFilter(); // 필터 적용
+                }
+            }
+        }
+
+        /// <summary>
+        /// 필터 모드를 설정합니다.
+        /// </summary>
+        private void OnSetFilterMode(string? filterMode)
+        {
+            if (!string.IsNullOrEmpty(filterMode))
+            {
+                FilterMode = filterMode;
+            }
+        }
+
+        /// <summary>
+        /// 필터 옵션을 초기화합니다.
+        /// </summary>
+        private void InitializeFilterOptions()
+        {
+            // 시각: 전체, 오전, 오후
+            SessionFilterOptions = new ObservableCollection<string> { "전체", "오전", "오후" };
+            SelectedSessionFilter = "전체";
+            
+            // 실: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
+            RoomFilterOptions = new ObservableCollection<string> { "전체" };
+            SelectedRoomFilter = "전체";
+            
+            // 순: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
+            OrderFilterOptions = new ObservableCollection<string> { "전체" };
+            SelectedOrderFilter = "전체";
+        }
+
+        /// <summary>
+        /// 필터 옵션을 데이터에서 동적으로 업데이트합니다.
+        /// </summary>
+        private void UpdateFilterOptions()
+        {
+            if (GradingResults == null || GradingResults.Count == 0)
+            {
+                // 데이터가 없으면 기본값만 유지
+                return;
+            }
+
+            // 실(면접실) 필터 옵션 업데이트 (동적 추출)
+            var roomNumbers = GradingResults
+                .Where(r => !string.IsNullOrEmpty(r.RoomNumber))
+                .Select(r => r.RoomNumber!)
+                .Distinct()
+                .OrderBy(r => int.TryParse(r, out var num) ? num : int.MaxValue)
+                .ToList();
+            
+            RoomFilterOptions.Clear();
+            RoomFilterOptions.Add("전체");
+            foreach (var roomNum in roomNumbers)
+            {
+                RoomFilterOptions.Add(roomNum);
+            }
+            
+            // 현재 선택값이 유효한지 확인
+            if (SelectedRoomFilter != null && !RoomFilterOptions.Contains(SelectedRoomFilter))
+            {
+                SelectedRoomFilter = "전체";
+            }
+
+            // 순 필터 옵션 업데이트 (동적 추출)
+            var orderNumbers = GradingResults
+                .Where(r => !string.IsNullOrEmpty(r.OrderNumber))
+                .Select(r => r.OrderNumber!)
+                .Distinct()
+                .OrderBy(o => int.TryParse(o, out var num) ? num : int.MaxValue)
+                .ToList();
+            
+            OrderFilterOptions.Clear();
+            OrderFilterOptions.Add("전체");
+            foreach (var orderNum in orderNumbers)
+            {
+                OrderFilterOptions.Add(orderNum);
+            }
+            
+            // 현재 선택값이 유효한지 확인
+            if (SelectedOrderFilter != null && !OrderFilterOptions.Contains(SelectedOrderFilter))
+            {
+                SelectedOrderFilter = "전체";
+            }
+        }
+
+        /// <summary>
+        /// 필터를 적용합니다.
+        /// </summary>
+        private void ApplyFilter(ICollectionView? view = null)
+        {
+            var targetView = view ?? FilteredGradingResults;
+            if (targetView == null) return;
+
+            targetView.Filter = item =>
+            {
+                if (item is not GradingResult result) return false;
+
+                // 라디오 필터 (전체/오류만/중복만)
+                bool passesBaseFilter = _filterMode switch
+                {
+                    "Errors" => result.IsSimpleError, // 단순 오류만 (중복 제외)
+                    "Duplicates" => result.IsDuplicate, // 중복만
+                    "All" => true,
+                    _ => true
+                };
+                
+                if (!passesBaseFilter) return false;
+
+                // 시각 필터
+                if (SelectedSessionFilter != null && SelectedSessionFilter != "전체")
+                {
+                    if (result.Session != SelectedSessionFilter) return false;
+                }
+
+                // 실 필터
+                if (SelectedRoomFilter != null && SelectedRoomFilter != "전체")
+                {
+                    if (result.RoomNumber != SelectedRoomFilter) return false;
+                }
+
+                // 순 필터
+                if (SelectedOrderFilter != null && SelectedOrderFilter != "전체")
+                {
+                    if (result.OrderNumber != SelectedOrderFilter) return false;
+                }
+
+                return true;
+            };
+
+            targetView.Refresh();
+        }
+
         private void LoadGradingData()
         {
             try
@@ -327,12 +578,21 @@ namespace SimpleOverlayEditor.ViewModels
                         groupedByCombinedId.ContainsKey(result.CombinedId))
                     {
                         result.IsDuplicate = true;
-                        result.HasErrors = true;
+                        // HasErrors는 IsSimpleError || IsDuplicate로 자동 계산됨
                         var duplicateCount = groupedByCombinedId[result.CombinedId].Count;
                         var duplicateMessage = $"결합ID 중복 ({duplicateCount}개)";
-                        result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
-                            ? duplicateMessage
-                            : result.ErrorMessage + "; " + duplicateMessage;
+                        
+                        // ErrorMessage가 중복 메시지만 있으면 단순 오류가 아님을 명확히 함
+                        if (string.IsNullOrEmpty(result.ErrorMessage))
+                        {
+                            // 중복만 있는 경우: ErrorMessage에 중복 메시지만 추가
+                            result.ErrorMessage = duplicateMessage;
+                        }
+                        else
+                        {
+                            // 단순 오류가 이미 있는 경우: 기존 ErrorMessage에 중복 메시지 추가
+                            result.ErrorMessage = result.ErrorMessage + "; " + duplicateMessage;
+                        }
                     }
                 }
 
@@ -370,29 +630,17 @@ namespace SimpleOverlayEditor.ViewModels
 
                     // 면접위원 수 확인
                     int interviewerCount = studentSheets.Count;
-                    bool hasInterviewerCountError = interviewerCount != 3; // 1, 2, 4 이상이면 오류
+                    bool hasInterviewerCountError = interviewerCount <= 2; // 1, 2명만 면접위원 수 오류로 분류 (4명 이상은 중복 원인 가능하므로 제외)
 
                     // "수험번호 + 면접번호" 결합 ID 기준으로 중복 확인
-                    var combinedIdGroups = studentSheets
-                        .Where(s => !string.IsNullOrEmpty(s.InterviewId))
-                        .GroupBy(s => $"{s.StudentId}_{s.InterviewId}")
-                        .ToList();
-
-                    bool hasDuplicate = false;
-                    int duplicateCount = 0;
-                    foreach (var combinedGroup in combinedIdGroups)
-                    {
-                        if (combinedGroup.Count() > 1)
-                        {
-                            hasDuplicate = true;
-                            duplicateCount += combinedGroup.Count();
-                        }
-                    }
+                    // 이미 sheetResults 레벨에서 IsDuplicate가 설정되었으므로 확인만 하면 됨
+                    bool hasDuplicate = studentSheets.Any(s => s.IsDuplicate);
+                    int duplicateCount = studentSheets.Count(s => s.IsDuplicate);
 
                     // 면접위원별 점수를 문항별로 평균 계산 - 반복문으로 개선
                     var questionSums = new double[OmrConstants.QuestionsCount];
                     var questionCounts = new int[OmrConstants.QuestionsCount];
-                    bool hasErrors = false;
+                    bool hasSimpleErrors = false;
 
                     foreach (var sheet in studentSheets)
                     {
@@ -408,7 +656,8 @@ namespace SimpleOverlayEditor.ViewModels
                             }
                         }
 
-                        if (sheet.HasErrors) hasErrors = true;
+                        // 단순 오류만 확인 (중복 제외)
+                        if (sheet.IsSimpleError) hasSimpleErrors = true;
                     }
 
                     // 하나의 GradingResult만 생성
@@ -419,7 +668,7 @@ namespace SimpleOverlayEditor.ViewModels
                         InterviewId = null, // 평균이므로 면접번호는 표시하지 않음
                         IsDuplicate = hasDuplicate,
                         DuplicateCount = duplicateCount, // 중복이 없으면 0, 있으면 중복된 개수
-                        HasErrors = hasErrors || hasInterviewerCountError, // 면접위원 수 오류도 포함
+                        IsSimpleError = hasSimpleErrors || hasInterviewerCountError, // 면접위원 수 오류도 포함 (HasErrors는 자동 계산됨)
                         RegistrationNumber = studentInfo?.RegistrationNumber,
                         ExamType = studentInfo?.ExamType,
                         MiddleSchool = studentInfo?.MiddleSchool,
@@ -448,12 +697,15 @@ namespace SimpleOverlayEditor.ViewModels
 
                 // 9. GradingResults 설정 (이때 UpdateFilteredResults가 호출되어 기본 정렬이 자동 적용됨)
                 GradingResults = gradingResults;
+                
+                // 10. 필터 옵션 업데이트 (실/순 필터 동적 추출)
+                UpdateFilterOptions();
 
                 // 10. 기본 정렬 순서대로 수험번호 리스트 생성
-                // 기본 정렬: IsDuplicate (Desc) → HasErrors (Desc) → ExamType (Asc) → Rank (Asc) → RegistrationNumber (Asc)
+                // 기본 정렬: IsDuplicate (Desc) → IsSimpleError (Desc) → ExamType (Asc) → Rank (Asc) → RegistrationNumber (Asc)
                 var sortedResults = gradingResults
                     .OrderByDescending(r => r.IsDuplicate)
-                    .ThenByDescending(r => r.HasErrors)
+                    .ThenByDescending(r => r.IsSimpleError)
                     .ThenBy(r => r.ExamType ?? "")
                     .ThenBy(r => r.Rank ?? int.MaxValue)
                     .ThenBy(r => r.RegistrationNumber ?? "")
@@ -566,7 +818,7 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 if (!string.IsNullOrEmpty(result.StudentId) && !registryStudentIds.Contains(result.StudentId))
                 {
-                    result.HasErrors = true; // 명렬에 없는 수험번호는 오류
+                    result.IsSimpleError = true; // 명렬에 없는 수험번호는 오류
                     // ErrorDetails에 추가
                     if (string.IsNullOrEmpty(result.ErrorDetails))
                     {
@@ -724,15 +976,18 @@ namespace SimpleOverlayEditor.ViewModels
             if (!_userHasSorted)
             {
                 view.SortDescriptions.Clear();
-                // 중복이 가장 위, 그 다음 오류
+                // 중복이 가장 위, 그 다음 단순 오류
                 view.SortDescriptions.Add(new SortDescription("IsDuplicate", ListSortDirection.Descending));
-                view.SortDescriptions.Add(new SortDescription("HasErrors", ListSortDirection.Descending));
+                view.SortDescriptions.Add(new SortDescription("IsSimpleError", ListSortDirection.Descending));
                 // 그 다음 전형 순, 석차 순, 접수번호 순
                 view.SortDescriptions.Add(new SortDescription("ExamType", ListSortDirection.Ascending));
                 view.SortDescriptions.Add(new SortDescription("Rank", ListSortDirection.Ascending));
                 view.SortDescriptions.Add(new SortDescription("RegistrationNumber", ListSortDirection.Ascending));
                 view.Refresh();
             }
+            
+            // 필터 적용
+            ApplyFilter(view);
             
             FilteredGradingResults = view;
         }

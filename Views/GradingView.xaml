@@ -30,35 +30,80 @@
                           VerticalAlignment="Center"
                           TextOptions.TextRenderingMode="ClearType"
                           TextOptions.TextFormattingMode="Display"/>
-                <Button Grid.Column="1"
-                       Content="홈으로"
-                       Command="{Binding NavigateToHomeCommand}"
-                       Style="{StaticResource CleanButton}"
-                       Background="#616161"
-                       Margin="10,0,0,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Excel 내보내기"
+                           Command="{Binding ExportToExcelCommand}"
+                           Style="{StaticResource CleanButtonSmall}"
+                           Background="#4CAF50"
+                           Margin="0,0,10,0"/>
+                    <Button Content="홈으로"
+                           Command="{Binding NavigateToHomeCommand}"
+                           Style="{StaticResource CleanButtonSmall}"
+                           Background="#616161"/>
+                </StackPanel>
             </Grid>
         </Border>
 
-        <!-- 수험번호 불일치 경고 (DataGrid 위) -->
+        <!-- 경고 및 요약 정보 (DataGrid 위) -->
         <Border Grid.Row="1"
                 Background="#FFF3CD"
                 BorderBrush="#FFC107"
                 BorderThickness="0,0,0,2"
                 Padding="15,10"
                 Margin="10,10,10,0"
-                Visibility="{Binding HasMismatch, Converter={StaticResource BoolToVisibilityConverter}}">
+                Visibility="{Binding HasWarnings, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-                <TextBlock Text="⚠ 수험번호 불일치 발견" 
+                <TextBlock Text="⚠ OMR 결과 요약" 
                            FontWeight="Bold" 
                            FontSize="14"
                            Foreground="#856404"
                            Margin="0,0,0,8"/>
+                
+                <!-- OMR 결과 통계 -->
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Foreground="#856404" FontWeight="SemiBold">
+                        <Run Text="총 시트: "/>
+                        <Run Text="{Binding TotalSheetCount, Mode=OneWay}"/>
+                        <Run Text="개"/>
+                    </TextBlock>
+                    <TextBlock Foreground="#856404" 
+                               Visibility="{Binding ErrorSheetCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}"
+                               Margin="0,2,0,0">
+                        <Run Text="오류 있는 시트: "/>
+                        <Run Text="{Binding ErrorSheetCount, Mode=OneWay}" FontWeight="Bold" Foreground="#C62828"/>
+                        <Run Text="개"/>
+                    </TextBlock>
+                    <TextBlock Foreground="#856404" 
+                               Visibility="{Binding DuplicateCombinedIdCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}"
+                               Margin="0,2,0,0">
+                        <Run Text="중복 결합ID: "/>
+                        <Run Text="{Binding DuplicateCombinedIdCount, Mode=OneWay}" FontWeight="Bold" Foreground="#C62828"/>
+                        <Run Text="개"/>
+                    </TextBlock>
+                    <TextBlock Foreground="#856404" 
+                               Visibility="{Binding NullCombinedIdCount, Mode=OneWay, Converter={StaticResource IntToVisibilityConverter}}"
+                               Margin="0,2,0,0">
+                        <Run Text="결합ID 없음: "/>
+                        <Run Text="{Binding NullCombinedIdCount, Mode=OneWay}" FontWeight="Bold" Foreground="#C62828"/>
+                        <Run Text="개"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- 수험번호 불일치 -->
+                <Separator Margin="0,5" Background="#FFC107" Visibility="{Binding HasMismatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                <TextBlock Text="⚠ 수험번호 불일치 발견" 
+                           FontWeight="Bold" 
+                           FontSize="13"
+                           Foreground="#856404"
+                           Margin="0,5,0,5"
+                           Visibility="{Binding HasMismatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
                 <TextBlock Text="{Binding MismatchMessage}"
                            Foreground="#856404"
                            FontWeight="SemiBold"
                            TextWrapping="Wrap"
-                           Margin="0,0,0,5"/>
-                <StackPanel Margin="10,0,0,0">
+                           Margin="0,0,0,5"
+                           Visibility="{Binding HasMismatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                <StackPanel Margin="10,0,0,0" Visibility="{Binding HasMismatch, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TextBlock Text="{Binding MissingInGradingList}"
                                Foreground="#856404"
                                TextWrapping="Wrap"

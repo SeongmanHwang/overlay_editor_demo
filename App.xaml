@@ -17,6 +17,7 @@
         <utils:InverseBoolToBoolConverter x:Key="InverseBoolToBoolConverter"/>
         <utils:BoolToYesNoConverter x:Key="BoolToYesNoConverter"/>
         <utils:DoubleToBoolConverter x:Key="DoubleToBoolConverter"/>
+        <utils:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
         
         <!-- 홈 화면 모드 버튼 스타일 -->
         <Style x:Key="HomeModeButton" TargetType="Button">

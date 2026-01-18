@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
+using Microsoft.Win32;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
 using SimpleOverlayEditor.Services.Mappers;
+using ClosedXML.Excel;
 
 namespace SimpleOverlayEditor.ViewModels
 {
@@ -31,6 +35,12 @@ namespace SimpleOverlayEditor.ViewModels
         private string? _mismatchMessage;
         private string? _missingInGradingList;
         private string? _missingInRegistryList;
+        
+        // OMR 결과 요약 통계
+        private int _totalSheetCount;
+        private int _errorSheetCount;
+        private int _duplicateCombinedIdCount;
+        private int _nullCombinedIdCount;
 
         /// <summary>
         /// 기본 생성자 (기본 구현 사용)
@@ -58,11 +68,13 @@ namespace SimpleOverlayEditor.ViewModels
             _scoringRuleStore = new ScoringRuleStore();
 
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
+            ExportToExcelCommand = new RelayCommand(OnExportToExcel, () => GradingResults != null && GradingResults.Count > 0);
 
             LoadGradingData();
         }
 
         public ICommand NavigateToHomeCommand { get; }
+        public ICommand ExportToExcelCommand { get; }
 
         public NavigationViewModel Navigation => _navigation;
 
@@ -166,6 +178,63 @@ namespace SimpleOverlayEditor.ViewModels
             }
         }
 
+        /// <summary>
+        /// 총 OMR 시트 수
+        /// </summary>
+        public int TotalSheetCount
+        {
+            get => _totalSheetCount;
+            private set
+            {
+                _totalSheetCount = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 오류가 있는 시트 수
+        /// </summary>
+        public int ErrorSheetCount
+        {
+            get => _errorSheetCount;
+            private set
+            {
+                _errorSheetCount = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 중복된 결합ID 수
+        /// </summary>
+        public int DuplicateCombinedIdCount
+        {
+            get => _duplicateCombinedIdCount;
+            private set
+            {
+                _duplicateCombinedIdCount = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 결합ID가 없는 시트 수
+        /// </summary>
+        public int NullCombinedIdCount
+        {
+            get => _nullCombinedIdCount;
+            private set
+            {
+                _nullCombinedIdCount = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 경고 표시가 필요한지 여부 (오류, 중복, 결합ID 없음, 수험번호 불일치)
+        /// </summary>
+        public bool HasWarnings => HasMismatch || ErrorSheetCount > 0 || DuplicateCombinedIdCount > 0 || NullCombinedIdCount > 0;
+
         private void LoadGradingData()
         {
             try
@@ -185,12 +254,25 @@ namespace SimpleOverlayEditor.ViewModels
                     MismatchMessage = null;
                     MissingInGradingList = null;
                     MissingInRegistryList = null;
+                    // 통계 초기화
+                    TotalSheetCount = 0;
+                    ErrorSheetCount = 0;
+                    DuplicateCombinedIdCount = 0;
+                    NullCombinedIdCount = 0;
+                    OnPropertyChanged(nameof(HasWarnings));
                     Logger.Instance.Info("로드된 문서가 없습니다.");
                     return;
                 }
 
                 // 2. MarkingAnalyzer를 사용하여 SheetResults 생성
                 var sheetResults = _markingAnalyzer.AnalyzeAllSheets(session);
+
+                // OMR 결과 요약 통계 계산
+                TotalSheetCount = sheetResults.Count;
+                ErrorSheetCount = sheetResults.Count(r => r.HasErrors);
+                DuplicateCombinedIdCount = sheetResults.Count(r => r.IsDuplicate);
+                NullCombinedIdCount = sheetResults.Count(r => string.IsNullOrEmpty(r.CombinedId));
+                OnPropertyChanged(nameof(HasWarnings));
 
                 // 3. StudentRegistry 로드
                 var studentRegistry = _registryStore.LoadStudentRegistry();
@@ -311,6 +393,12 @@ namespace SimpleOverlayEditor.ViewModels
                 MismatchMessage = null;
                 MissingInGradingList = null;
                 MissingInRegistryList = null;
+                // 통계 초기화
+                TotalSheetCount = 0;
+                ErrorSheetCount = 0;
+                DuplicateCombinedIdCount = 0;
+                NullCombinedIdCount = 0;
+                OnPropertyChanged(nameof(HasWarnings));
             }
         }
 
@@ -507,6 +595,123 @@ namespace SimpleOverlayEditor.ViewModels
             }
             
             FilteredGradingResults = view;
+        }
+
+        private void OnExportToExcel()
+        {
+            if (GradingResults == null || GradingResults.Count == 0)
+            {
+                MessageBox.Show("내보낼 채점 결과가 없습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var saveDialog = new SaveFileDialog
+            {
+                Filter = "Excel 파일 (*.xlsx)|*.xlsx|모든 파일 (*.*)|*.*",
+                FileName = "채점결과.xlsx",
+                DefaultExt = "xlsx"
+            };
+
+            if (saveDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    // UI에 표시된 정렬 순서대로 내보내기 위해 FilteredGradingResults 사용
+                    var resultsToExport = FilteredGradingResults?.Cast<GradingResult>().ToList() 
+                        ?? GradingResults?.ToList() 
+                        ?? new List<GradingResult>();
+                    
+                    ExportToExcel(saveDialog.FileName, new ObservableCollection<GradingResult>(resultsToExport));
+                    MessageBox.Show($"Excel 파일이 저장되었습니다.\n{saveDialog.FileName}", "내보내기 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Error("Excel 내보내기 실패", ex);
+                    MessageBox.Show($"Excel 파일 저장 실패:\n{ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void ExportToExcel(string filePath, ObservableCollection<GradingResult> results)
+        {
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("채점 결과");
+
+                // 헤더 행 (1행)
+                int col = 1;
+                worksheet.Cell(1, col++).Value = "접수번호";
+                worksheet.Cell(1, col++).Value = "수험번호";
+                worksheet.Cell(1, col++).Value = "이름";
+                worksheet.Cell(1, col++).Value = "전형명";
+                worksheet.Cell(1, col++).Value = "출신교명";
+                worksheet.Cell(1, col++).Value = "생년월일";
+                
+                // 문항별 마킹
+                for (int q = 1; q <= OmrConstants.QuestionsCount; q++)
+                {
+                    worksheet.Cell(1, col++).Value = $"문항{q}";
+                }
+                
+                worksheet.Cell(1, col++).Value = "총점";
+                worksheet.Cell(1, col++).Value = "평균";
+                worksheet.Cell(1, col++).Value = "석차";
+                worksheet.Cell(1, col++).Value = "오류";
+                worksheet.Cell(1, col++).Value = "중복";
+                worksheet.Cell(1, col++).Value = "중복개수";
+
+                // 데이터 행 (2행부터)
+                int row = 2;
+                foreach (var result in results)
+                {
+                    col = 1;
+                    worksheet.Cell(row, col++).Value = result.RegistrationNumber ?? "";
+                    worksheet.Cell(row, col++).Value = result.StudentId ?? "";
+                    worksheet.Cell(row, col++).Value = result.StudentName ?? "";
+                    worksheet.Cell(row, col++).Value = result.ExamType ?? "";
+                    worksheet.Cell(row, col++).Value = result.MiddleSchool ?? "";
+                    worksheet.Cell(row, col++).Value = result.BirthDate ?? "";
+                    
+                    // 문항별 마킹
+                    for (int q = 1; q <= OmrConstants.QuestionsCount; q++)
+                    {
+                        var marking = _gradingMapper.GetQuestionMarking(result, q);
+                        if (marking.HasValue)
+                            worksheet.Cell(row, col++).Value = (int)marking;
+                        else
+                            worksheet.Cell(row, col++).Value = "";
+                    }
+                    
+                    if (result.TotalScore.HasValue)
+                        worksheet.Cell(row, col++).Value = (double)result.TotalScore;
+                    else
+                        worksheet.Cell(row, col++).Value = "";
+                    if (result.AverageScore.HasValue)
+                        worksheet.Cell(row, col++).Value = (double)result.AverageScore;
+                    else
+                        worksheet.Cell(row, col++).Value = "";
+                    if (result.Rank.HasValue)
+                        worksheet.Cell(row, col++).Value = (int)result.Rank;
+                    else
+                        worksheet.Cell(row, col++).Value = "";
+                    worksheet.Cell(row, col++).Value = result.HasErrors ? "예" : "아니오";
+                    worksheet.Cell(row, col++).Value = result.IsDuplicate ? "예" : "아니오";
+                    worksheet.Cell(row, col++).Value = result.DuplicateCount;
+                    
+                    row++;
+                }
+
+                // 헤더 스타일 적용
+                var headerRange = worksheet.Range(1, 1, 1, col - 1);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                // 열 너비 자동 조정
+                worksheet.Columns().AdjustToContents();
+
+                workbook.SaveAs(filePath);
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

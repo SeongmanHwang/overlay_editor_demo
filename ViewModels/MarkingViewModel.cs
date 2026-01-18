@@ -39,7 +39,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly MarkingAnalyzer _markingAnalyzer;
         private List<MarkingResult>? _currentMarkingResults;
         private List<BarcodeResult>? _currentBarcodeResults;
-        private double _markingThreshold = 215.0;
+        private double _markingThreshold = 220.0;
         private BitmapSource? _displayImage;
         private ObservableCollection<OmrSheetResult>? _sheetResults;
         private ICollectionView? _filteredSheetResults;

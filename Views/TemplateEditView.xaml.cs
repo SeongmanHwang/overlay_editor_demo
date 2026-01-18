@@ -1,14 +1,17 @@
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using SimpleOverlayEditor.ViewModels;
 using SimpleOverlayEditor.Utils;
 using SimpleOverlayEditor.Services;
@@ -34,6 +37,12 @@ namespace SimpleOverlayEditor.Views
         private Point? _dragStartPoint;
         private Rectangle? _selectionBox;
         private bool _isSyncingDataGrid = false; // DataGrid 동기화 중 무한 루프 방지
+        private bool _isDragging = false; // 드래그 중인지 여부
+        private List<RectangleOverlay>? _tempDragSelection; // 드래그 중 임시 선택 추적
+        
+        // 렌더링 최적화용
+        private DispatcherTimer? _drawOverlaysTimer; // 방향키 입력 debounce용
+        private const int DrawOverlaysDelayMs = 50; // 50ms 지연
 
         public TemplateEditView()
         {
@@ -65,10 +74,25 @@ namespace SimpleOverlayEditor.Views
                     if (args.PropertyName == nameof(OverlaySelectionViewModel.Selected))
                     {
                         SyncDataGridSelection();
-                        DrawOverlays();
+                        // 드래그 중이면 DrawOverlays 스킵 (드래그 종료 시 호출됨)
+                        if (!_isDragging)
+                        {
+                            DrawOverlays();
+                        }
                     }
                 };
             }
+            
+            // 방향키 입력 debounce 타이머 초기화
+            _drawOverlaysTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(DrawOverlaysDelayMs)
+            };
+            _drawOverlaysTimer.Tick += (s, e) =>
+            {
+                _drawOverlaysTimer.Stop();
+                DrawOverlays();
+            };
             
             if (ViewModel.Workspace?.Template != null)
             {
@@ -306,7 +330,10 @@ namespace SimpleOverlayEditor.Views
                 var scaleY = displayRect.Height / doc.ImageHeight;
 
                 // 선택된 오버레이를 리스트로 먼저 복사하여 열거 중 수정 방지
-                var selectedOverlays = ViewModel.SelectionVM.Selected.ToList();
+                // 드래그 중이면 임시 선택 사용, 아니면 실제 선택 사용
+                var selectedOverlays = _isDragging && _tempDragSelection != null
+                    ? _tempDragSelection
+                    : ViewModel.SelectionVM.Selected.ToList();
 
                 foreach (var overlay in allOverlays)
                 {
@@ -512,8 +539,7 @@ namespace SimpleOverlayEditor.Views
                     _dragStartPoint = position;
                     ImageCanvas.CaptureMouse();
                 }
-
-                DrawOverlays();
+                // DrawOverlays는 SelectionVM.PropertyChanged에서 자동 호출됨
             }
             catch (Exception ex)
             {
@@ -533,6 +559,8 @@ namespace SimpleOverlayEditor.Views
             
             if (_dragStartPoint.HasValue && e.LeftButton == MouseButtonState.Pressed)
             {
+                _isDragging = true; // 드래그 시작
+                
                 var currentPos = e.GetPosition(ImageCanvas);
 
                 // 선택 박스 그리기
@@ -562,8 +590,19 @@ namespace SimpleOverlayEditor.Views
                 _selectionBox.Width = width;
                 _selectionBox.Height = height;
 
-                // 박스 내 오버레이 선택
-                SelectOverlaysInBox(new Rect(left, top, width, height));
+                // 드래그 중에는 SetSelection 호출하지 않고, 임시 리스트에만 저장
+                var overlaysInBox = FindOverlaysInBox(new Rect(left, top, width, height));
+                _tempDragSelection = overlaysInBox;
+                // 드래그 중에는 실제 선택 적용하지 않지만, 시각적 피드백을 위해 DrawOverlays 호출
+                DrawOverlays();
+            }
+            else
+            {
+                // 드래그가 아닌 경우 플래그 해제
+                if (!_dragStartPoint.HasValue)
+                {
+                    _isDragging = false;
+                }
             }
         }
 
@@ -577,19 +616,33 @@ namespace SimpleOverlayEditor.Views
 
         private void ImageCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            bool wasDragging = _isDragging;
+            
             if (_selectionBox != null)
             {
                 ImageCanvas.Children.Remove(_selectionBox);
                 _selectionBox = null;
             }
 
+            // 드래그 종료 시 임시 선택을 실제 선택으로 적용
+            if (_tempDragSelection != null && ViewModel?.SelectionVM != null)
+            {
+                ViewModel.SelectionVM.SetSelection(_tempDragSelection);
+                _tempDragSelection = null;
+            }
+
             _dragStartPoint = null;
+            _isDragging = false; // 드래그 종료
             ImageCanvas.ReleaseMouseCapture();
             ImageCanvas.Cursor = Cursors.Arrow;
             
-            // 드래그 선택 후 DataGrid 동기화
+            // 드래그 선택 후 DataGrid 동기화 및 렌더링
             SyncDataGridSelection();
-            DrawOverlays();
+            if (wasDragging)
+            {
+                // 드래그가 있었다면 이제 렌더링
+                DrawOverlays();
+            }
         }
 
         private RectangleOverlay? FindOverlayAtPosition(Point position, Size canvasSize)
@@ -632,10 +685,13 @@ namespace SimpleOverlayEditor.Views
             return null;
         }
 
-        private void SelectOverlaysInBox(Rect box)
+        /// <summary>
+        /// 박스 내 오버레이를 찾아서 리스트로 반환 (드래그 중용)
+        /// </summary>
+        private List<RectangleOverlay> FindOverlaysInBox(Rect box)
         {
             if (ViewModel == null || ViewModel.SelectedDocument == null || ViewModel.Workspace?.Template == null)
-                return;
+                return new List<RectangleOverlay>();
 
             var displayRect = ViewModel.CurrentImageDisplayRect;
             var doc = ViewModel.SelectedDocument;
@@ -643,7 +699,7 @@ namespace SimpleOverlayEditor.Views
             if (doc.ImageWidth <= 0 || doc.ImageHeight <= 0 ||
                 displayRect.Width <= 0 || displayRect.Height <= 0)
             {
-                return;
+                return new List<RectangleOverlay>();
             }
 
             var scaleX = displayRect.Width / doc.ImageWidth;
@@ -676,8 +732,19 @@ namespace SimpleOverlayEditor.Views
                 })
                 .ToList();
 
-            ViewModel.SelectionVM.SetSelection(overlaysInBox);
-            // 드래그 중에는 DataGrid 동기화하지 않음 (MouseLeftButtonUp에서 처리)
+            return overlaysInBox;
+        }
+
+        /// <summary>
+        /// 박스 내 오버레이를 선택 (드래그 종료 시 사용)
+        /// </summary>
+        private void SelectOverlaysInBox(Rect box)
+        {
+            var overlaysInBox = FindOverlaysInBox(box);
+            if (ViewModel != null && ViewModel.SelectionVM != null)
+            {
+                ViewModel.SelectionVM.SetSelection(overlaysInBox);
+            }
         }
 
         private void DataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
@@ -728,6 +795,8 @@ namespace SimpleOverlayEditor.Views
         private void NumericTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
             ApplyTextBoxValue(sender);
+            // LostFocus 시 렌더링 (TextBox에서 값이 변경되었을 수 있음)
+            DrawOverlays();
         }
 
         private void NumericTextBox_KeyDown(object sender, KeyEventArgs e)
@@ -875,7 +944,28 @@ namespace SimpleOverlayEditor.Views
                 or nameof(RectangleOverlay.Width)
                 or nameof(RectangleOverlay.Height))
             {
-                DrawOverlays();
+                // TextBox에서 편집 중이면 즉시 렌더링하지 않음 (LostFocus/Enter에서 처리)
+                if (Keyboard.FocusedElement is TextBox)
+                {
+                    return; // TextBox 입력 중에는 DrawOverlays() 호출하지 않음
+                }
+                
+                // 드래그 중이면 스킵
+                if (_isDragging)
+                {
+                    return;
+                }
+                
+                // 방향키 입력의 경우 debounce 적용
+                if (_drawOverlaysTimer != null)
+                {
+                    _drawOverlaysTimer.Stop();
+                    _drawOverlaysTimer.Start();
+                }
+                else
+                {
+                    DrawOverlays();
+                }
             }
         }
 
@@ -885,6 +975,13 @@ namespace SimpleOverlayEditor.Views
         private void UserControl_Unloaded(object sender, RoutedEventArgs e)
         {
             ResubscribeOverlay(null);
+            
+            // 타이머 정리
+            if (_drawOverlaysTimer != null)
+            {
+                _drawOverlaysTimer.Stop();
+                _drawOverlaysTimer = null;
+            }
         }
 
         /// <summary>

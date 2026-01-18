@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Windows;
+using SimpleOverlayEditor.Utils;
 
 namespace SimpleOverlayEditor.Views
 {
@@ -33,7 +34,7 @@ namespace SimpleOverlayEditor.Views
         /// </summary>
         public void UpdateProgress(int current, int total, string? statusMessage = null)
         {
-            if (Dispatcher.CheckAccess())
+            UiThread.Invoke(() =>
             {
                 ProgressBar.Value = total > 0 ? (current * 100.0 / total) : 0;
                 ProgressTextBlock.Text = $"{current} / {total} ({(total > 0 ? current * 100 / total : 0)}%)";
@@ -41,11 +42,7 @@ namespace SimpleOverlayEditor.Views
                 {
                     StatusTextBlock.Text = statusMessage;
                 }
-            }
-            else
-            {
-                Dispatcher.Invoke(() => UpdateProgress(current, total, statusMessage));
-            }
+            });
         }
 
         /// <summary>
@@ -53,14 +50,10 @@ namespace SimpleOverlayEditor.Views
         /// </summary>
         public void UpdateStatus(string message)
         {
-            if (Dispatcher.CheckAccess())
+            UiThread.Invoke(() =>
             {
                 StatusTextBlock.Text = message;
-            }
-            else
-            {
-                Dispatcher.Invoke(() => UpdateStatus(message));
-            }
+            });
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)

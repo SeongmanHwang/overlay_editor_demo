@@ -575,17 +575,15 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         private void InitializeFilterOptions()
         {
-            // 시각: 전체, 오전, 오후
-            SessionFilterOptions = new ObservableCollection<string> { "전체", "오전", "오후" };
-            SelectedSessionFilter = "전체";
-            
-            // 실: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
-            RoomFilterOptions = new ObservableCollection<string> { "전체" };
-            SelectedRoomFilter = "전체";
-            
-            // 순: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
-            OrderFilterOptions = new ObservableCollection<string> { "전체" };
-            SelectedOrderFilter = "전체";
+            // 공통 유틸 사용: 시각/실/순 기본값
+            SessionFilterOptions = OmrFilterUtils.CreateDefaultSessionOptions();
+            SelectedSessionFilter = OmrFilterUtils.AllLabel;
+
+            RoomFilterOptions = OmrFilterUtils.CreateDefaultAllOnlyOptions();
+            SelectedRoomFilter = OmrFilterUtils.AllLabel;
+
+            OrderFilterOptions = OmrFilterUtils.CreateDefaultAllOnlyOptions();
+            SelectedOrderFilter = OmrFilterUtils.AllLabel;
         }
 
         /// <summary>
@@ -599,47 +597,18 @@ namespace SimpleOverlayEditor.ViewModels
                 return;
             }
 
-            // 실(면접실) 필터 옵션 업데이트 (동적 추출)
-            var roomNumbers = SheetResults
-                .Where(r => !string.IsNullOrEmpty(r.RoomNumber))
-                .Select(r => r.RoomNumber!)
-                .Distinct()
-                .OrderBy(r => int.TryParse(r, out var num) ? num : int.MaxValue)
-                .ToList();
-            
-            RoomFilterOptions.Clear();
-            RoomFilterOptions.Add("전체");
-            foreach (var roomNum in roomNumbers)
-            {
-                RoomFilterOptions.Add(roomNum);
-            }
-            
-            // 현재 선택값이 유효한지 확인
-            if (SelectedRoomFilter != null && !RoomFilterOptions.Contains(SelectedRoomFilter))
-            {
-                SelectedRoomFilter = "전체";
-            }
+            // 실/순 옵션 동적 업데이트 (공통 유틸)
+            OmrFilterUtils.UpdateNumericStringOptions(RoomFilterOptions, SheetResults.Select(r => r.RoomNumber));
+            OmrFilterUtils.UpdateNumericStringOptions(OrderFilterOptions, SheetResults.Select(r => r.OrderNumber));
 
-            // 순 필터 옵션 업데이트 (동적 추출)
-            var orderNumbers = SheetResults
-                .Where(r => !string.IsNullOrEmpty(r.OrderNumber))
-                .Select(r => r.OrderNumber!)
-                .Distinct()
-                .OrderBy(o => int.TryParse(o, out var num) ? num : int.MaxValue)
-                .ToList();
-            
-            OrderFilterOptions.Clear();
-            OrderFilterOptions.Add("전체");
-            foreach (var orderNum in orderNumbers)
-            {
-                OrderFilterOptions.Add(orderNum);
-            }
-            
             // 현재 선택값이 유효한지 확인
-            if (SelectedOrderFilter != null && !OrderFilterOptions.Contains(SelectedOrderFilter))
-            {
-                SelectedOrderFilter = "전체";
-            }
+            var selectedRoom = SelectedRoomFilter;
+            OmrFilterUtils.EnsureSelectionIsValid(ref selectedRoom, RoomFilterOptions);
+            SelectedRoomFilter = selectedRoom;
+
+            var selectedOrder = SelectedOrderFilter;
+            OmrFilterUtils.EnsureSelectionIsValid(ref selectedOrder, OrderFilterOptions);
+            SelectedOrderFilter = selectedOrder;
         }
 
         /// <summary>
@@ -654,33 +623,15 @@ namespace SimpleOverlayEditor.ViewModels
                 if (item is not OmrSheetResult result) return false;
 
                 // 라디오 필터 (전체/오류만/중복만)
-                bool passesBaseFilter = _filterMode switch
-                {
-                    "Errors" => result.IsSimpleError, // 단순 오류만 (중복 제외)
-                    "Duplicates" => result.IsDuplicate, // 중복만
-                    "All" => true,
-                    _ => true
-                };
-                
-                if (!passesBaseFilter) return false;
+                if (!OmrFilterUtils.PassesBaseFilter(_filterMode, result.IsSimpleError, result.IsDuplicate))
+                    return false;
 
-                // 시각 필터
-                if (SelectedSessionFilter != null && SelectedSessionFilter != "전체")
-                {
-                    if (result.Session != SelectedSessionFilter) return false;
-                }
-
-                // 실 필터
-                if (SelectedRoomFilter != null && SelectedRoomFilter != "전체")
-                {
-                    if (result.RoomNumber != SelectedRoomFilter) return false;
-                }
-
-                // 순 필터
-                if (SelectedOrderFilter != null && SelectedOrderFilter != "전체")
-                {
-                    if (result.OrderNumber != SelectedOrderFilter) return false;
-                }
+                if (!OmrFilterUtils.PassesSelectionFilter(SelectedSessionFilter, result.Session))
+                    return false;
+                if (!OmrFilterUtils.PassesSelectionFilter(SelectedRoomFilter, result.RoomNumber))
+                    return false;
+                if (!OmrFilterUtils.PassesSelectionFilter(SelectedOrderFilter, result.OrderNumber))
+                    return false;
 
                 return true;
             };
@@ -850,254 +801,201 @@ namespace SimpleOverlayEditor.ViewModels
                 return;
             }
 
-            // ProgressWindow 생성 및 표시
-            var progressWindow = new ProgressWindow
-            {
-                Owner = Application.Current.MainWindow
-            };
-            progressWindow.Show();
-
             try
             {
-                await Task.Run(() =>
-                {
-                    var cancellationToken = progressWindow.CancellationToken;
-                    var documentsList = Documents.ToList();
-                    Logger.Instance.Info($"전체 문서 바코드/마킹 리딩 시작: {documentsList.Count}개 문서");
-                    
-                    // 바코드 디코딩 (바코드 영역이 있는 경우) - 마킹 리딩보다 먼저 실행
-                    Dictionary<string, List<BarcodeResult>>? allBarcodeResults = null;
-                    if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
+                Dictionary<string, List<MarkingResult>>? allResults = null;
+                Dictionary<string, List<BarcodeResult>>? allBarcodeResults = null;
+
+                var cancelled = await ProgressRunner.RunAsync(
+                    Application.Current.MainWindow,
+                    async scope =>
                     {
-                        try
+                        var cancellationToken = scope.CancellationToken;
+                        var documentsList = Documents.ToList();
+                        Logger.Instance.Info($"전체 문서 바코드/마킹 리딩 시작: {documentsList.Count}개 문서");
+
+                        // 바코드 디코딩 (바코드 영역이 있는 경우) - 마킹 리딩보다 먼저 실행
+                        if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
                         {
-                            Logger.Instance.Info($"전체 문서 바코드 디코딩 시작");
-                            Application.Current.Dispatcher.Invoke(() =>
+                            try
                             {
-                                progressWindow.UpdateProgress(0, documentsList.Count, "바코드 디코딩 시작");
-                            });
+                                Logger.Instance.Info("전체 문서 바코드 디코딩 시작");
+                                scope.Report(0, documentsList.Count, "바코드 디코딩 시작");
 
-                            if (cancellationToken.IsCancellationRequested) return;
+                                cancellationToken.ThrowIfCancellationRequested();
 
-                            // BarcodeReaderService.DecodeAllBarcodes는 진행률 콜백을 지원하지 않으므로 수동으로 처리
-                            allBarcodeResults = new Dictionary<string, List<BarcodeResult>>();
-                            int barcodeIndex = 0;
-                            foreach (var document in documentsList)
-                            {
-                                if (cancellationToken.IsCancellationRequested) break;
-                                
-                                barcodeIndex++;
-                                Application.Current.Dispatcher.Invoke(() =>
+                                allBarcodeResults = new Dictionary<string, List<BarcodeResult>>();
+                                int barcodeIndex = 0;
+                                foreach (var document in documentsList)
                                 {
+                                    cancellationToken.ThrowIfCancellationRequested();
+
+                                    barcodeIndex++;
                                     var fileName = Path.GetFileName(document.SourcePath);
-                                    progressWindow.UpdateProgress(barcodeIndex, documentsList.Count, $"바코드 디코딩 중: {fileName}");
+                                    scope.Report(barcodeIndex, documentsList.Count, $"바코드 디코딩 중: {fileName}");
+
+                                    try
+                                    {
+                                        var barcodeResults = _barcodeReaderService.DecodeBarcodes(document, _workspace.Template.BarcodeAreas);
+                                        allBarcodeResults[document.ImageId] = barcodeResults;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Logger.Instance.Warning($"바코드 디코딩 실패: {document.SourcePath}, {ex.Message}");
+                                        allBarcodeResults[document.ImageId] = new List<BarcodeResult>();
+                                    }
+                                }
+
+                                cancellationToken.ThrowIfCancellationRequested();
+
+                                scope.Ui(() =>
+                                {
+                                    _session.BarcodeResults = allBarcodeResults;
                                 });
 
-                                try
-                                {
-                                    var barcodeResults = _barcodeReaderService.DecodeBarcodes(document, _workspace.Template.BarcodeAreas);
-                                    allBarcodeResults[document.ImageId] = barcodeResults;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Logger.Instance.Warning($"바코드 디코딩 실패: {document.SourcePath}, {ex.Message}");
-                                    allBarcodeResults[document.ImageId] = new List<BarcodeResult>();
-                                }
+                                Logger.Instance.Info("전체 문서 바코드 디코딩 완료");
                             }
-
-                            if (cancellationToken.IsCancellationRequested) return;
-
-                            Application.Current.Dispatcher.Invoke(() =>
+                            catch (Exception ex) when (ex is not OperationCanceledException)
                             {
-                                _session.BarcodeResults = allBarcodeResults;
-                            });
-                            Logger.Instance.Info($"전체 문서 바코드 디코딩 완료");
+                                Logger.Instance.Error("전체 문서 바코드 디코딩 실패", ex);
+                                // 바코드 디코딩 실패해도 마킹 리딩은 계속 진행
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            Logger.Instance.Error("전체 문서 바코드 디코딩 실패", ex);
-                            // 바코드 디코딩 실패해도 마킹 리딩은 계속 진행
-                        }
-                    }
 
-                    if (cancellationToken.IsCancellationRequested) return;
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        progressWindow.UpdateProgress(0, documentsList.Count, "마킹 리딩 시작");
-                    });
+                        scope.Report(0, documentsList.Count, "마킹 리딩 시작");
 
-                    if (cancellationToken.IsCancellationRequested) return;
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    // 마킹 리딩
-                    Dictionary<string, List<MarkingResult>> allResults;
-                    try
-                    {
+                        // 마킹 리딩
                         allResults = _markingDetector.DetectAllMarkings(
-                            documentsList, 
-                            _workspace.Template, 
+                            documentsList,
+                            _workspace.Template,
                             MarkingThreshold,
                             (current, total, message) =>
                             {
                                 if (cancellationToken.IsCancellationRequested) return;
-                                Application.Current.Dispatcher.Invoke(() =>
-                                {
-                                    progressWindow.UpdateProgress(current, total, message);
-                                });
+                                scope.Report(current, total, message);
                             },
                             cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        Logger.Instance.Info("마킹 리딩 작업이 취소되었습니다.");
-                        Application.Current.Dispatcher.Invoke(() =>
+
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        scope.Ui(() =>
                         {
-                            progressWindow.Close();
-                            MessageBox.Show("작업이 취소되었습니다.", "취소됨", MessageBoxButton.OK, MessageBoxImage.Information);
+                            _session.MarkingResults = allResults;
+                            _sessionStore.Save(_session);
                         });
-                        return;
-                    }
 
-                    if (cancellationToken.IsCancellationRequested) return;
+                        await Task.CompletedTask;
+                    },
+                    title: "진행 중...",
+                    initialStatus: "처리 중...");
 
-                    // Session에 마킹 결과 저장
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        _session.MarkingResults = allResults;
-                    });
-                    
-                    if (cancellationToken.IsCancellationRequested) return;
-                    
-                    // Session 저장
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        _sessionStore.Save(_session);
-                    });
-
-                    int totalDocuments = allResults.Count;
-                    int totalAreas = 0;
-                    int totalMarked = 0;
-
-                    foreach (var kvp in allResults)
-                    {
-                        totalAreas += kvp.Value.Count;
-                        totalMarked += kvp.Value.Count(r => r.IsMarked);
-                    }
-
-                    var message = $"전체 문서 마킹 리딩 완료\n\n" +
-                                 $"처리된 문서: {totalDocuments}개\n" +
-                                 $"총 영역: {totalAreas}개\n" +
-                                 $"마킹 리딩: {totalMarked}개\n" +
-                                 $"미마킹: {totalAreas - totalMarked}개\n\n" +
-                                 $"임계값: {MarkingThreshold}";
-
-                    // 바코드 결과 추가
-                    if (allBarcodeResults != null && allBarcodeResults.Count > 0)
-                    {
-                        int totalBarcodeAreas = 0;
-                        int totalBarcodeSuccess = 0;
-                        foreach (var kvp in allBarcodeResults)
-                        {
-                            totalBarcodeAreas += kvp.Value.Count;
-                            totalBarcodeSuccess += kvp.Value.Count(r => r.Success);
-                        }
-                        message += $"\n\n바코드 디코딩:\n" +
-                                  $"총 영역: {totalBarcodeAreas}개\n" +
-                                  $"성공: {totalBarcodeSuccess}개\n" +
-                                  $"실패: {totalBarcodeAreas - totalBarcodeSuccess}개";
-                    }
-
-                    Logger.Instance.Info($"전체 문서 마킹 리딩 완료: {totalMarked}/{totalAreas}개 마킹 리딩");
-
-                    if (cancellationToken.IsCancellationRequested) return;
-
-                    // UI 업데이트는 UI 스레드에서 수행
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        if (!cancellationToken.IsCancellationRequested)
-                        {
-                            progressWindow.UpdateProgress(documentsList.Count, documentsList.Count, "결과 저장 중");
-                            
-                            // 현재 선택된 문서의 결과 표시
-                            if (SelectedDocument != null)
-                            {
-                                if (allResults.TryGetValue(SelectedDocument.ImageId, out var currentResults))
-                                {
-                                    CurrentMarkingResults = currentResults;
-                                }
-
-                                if (allBarcodeResults != null && 
-                                    allBarcodeResults.TryGetValue(SelectedDocument.ImageId, out var currentBarcodeResults))
-                                {
-                                    CurrentBarcodeResults = currentBarcodeResults;
-                                }
-
-                                UpdateDisplayImage();
-                            }
-
-                            progressWindow.Close();
-
-                            // OMR 결과 업데이트
-                            UpdateSheetResults();
-
-                            // 통계 수집 (UpdateSheetResults 이후에 SheetResults가 설정됨)
-                            if (SheetResults != null && SheetResults.Count > 0)
-                            {
-                                message += $"\n\n결과 분석:\n" +
-                                          $"총 용지: {SheetResults.Count}개\n" +
-                                          $"오류 있는 용지: {ErrorCount}개";
-                                
-                                if (DuplicateCount > 0)
-                                {
-                                    message += $"\n중복 결합ID: {DuplicateCount}개";
-                                }
-                                
-                                if (NullCombinedIdCount > 0)
-                                {
-                                    message += $"\n결합ID 없음: {NullCombinedIdCount}개";
-                                }
-                            }
-
-                            MessageBox.Show(message, "전체 마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
-                        }
-                    });
-
-                    if (!cancellationToken.IsCancellationRequested)
-                    {
-                        // 모든 문서의 결과 이미지 파일 저장 (백그라운드에서 수행)
-                        Task.Run(() =>
-                        {
-                            try
-                            {
-                                _renderer.RenderAll(_session, _workspace);
-                                Logger.Instance.Info($"전체 결과 이미지 파일 저장 완료");
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Instance.Error("전체 결과 이미지 파일 저장 실패", ex);
-                                // 저장 실패해도 마킹 리딩은 완료되었으므로 계속 진행
-                            }
-                        });
-                    }
-                });
-            }
-            catch (OperationCanceledException)
-            {
-                Application.Current.Dispatcher.Invoke(() =>
+                if (cancelled)
                 {
-                    progressWindow.Close();
                     Logger.Instance.Info("전체 마킹 리딩이 취소되었습니다.");
                     MessageBox.Show("작업이 취소되었습니다.", "취소됨", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                if (allResults == null)
+                {
+                    throw new InvalidOperationException("마킹 리딩 결과가 생성되지 않았습니다.");
+                }
+
+                // 완료 메시지 구성/표시 (UI 스레드)
+                int totalDocuments = allResults.Count;
+                int totalAreas = 0;
+                int totalMarked = 0;
+                foreach (var kvp in allResults)
+                {
+                    totalAreas += kvp.Value.Count;
+                    totalMarked += kvp.Value.Count(r => r.IsMarked);
+                }
+
+                var message = $"전체 문서 마킹 리딩 완료\n\n" +
+                              $"처리된 문서: {totalDocuments}개\n" +
+                              $"총 영역: {totalAreas}개\n" +
+                              $"마킹 리딩: {totalMarked}개\n" +
+                              $"미마킹: {totalAreas - totalMarked}개\n\n" +
+                              $"임계값: {MarkingThreshold}";
+
+                if (allBarcodeResults != null && allBarcodeResults.Count > 0)
+                {
+                    int totalBarcodeAreas = 0;
+                    int totalBarcodeSuccess = 0;
+                    foreach (var kvp in allBarcodeResults)
+                    {
+                        totalBarcodeAreas += kvp.Value.Count;
+                        totalBarcodeSuccess += kvp.Value.Count(r => r.Success);
+                    }
+                    message += $"\n\n바코드 디코딩:\n" +
+                               $"총 영역: {totalBarcodeAreas}개\n" +
+                               $"성공: {totalBarcodeSuccess}개\n" +
+                               $"실패: {totalBarcodeAreas - totalBarcodeSuccess}개";
+                }
+
+                Logger.Instance.Info($"전체 문서 마킹 리딩 완료: {totalMarked}/{totalAreas}개 마킹 리딩");
+
+                // 현재 선택된 문서의 결과 표시
+                if (SelectedDocument != null)
+                {
+                    if (allResults.TryGetValue(SelectedDocument.ImageId, out var currentResults))
+                    {
+                        CurrentMarkingResults = currentResults;
+                    }
+
+                    if (allBarcodeResults != null &&
+                        allBarcodeResults.TryGetValue(SelectedDocument.ImageId, out var currentBarcodeResults))
+                    {
+                        CurrentBarcodeResults = currentBarcodeResults;
+                    }
+
+                    UpdateDisplayImage();
+                }
+
+                // OMR 결과 업데이트 및 통계 표시
+                UpdateSheetResults();
+
+                if (SheetResults != null && SheetResults.Count > 0)
+                {
+                    message += $"\n\n결과 분석:\n" +
+                              $"총 용지: {SheetResults.Count}개\n" +
+                              $"오류 있는 용지: {ErrorCount}개";
+
+                    if (DuplicateCount > 0)
+                    {
+                        message += $"\n중복 결합ID: {DuplicateCount}개";
+                    }
+
+                    if (NullCombinedIdCount > 0)
+                    {
+                        message += $"\n결합ID 없음: {NullCombinedIdCount}개";
+                    }
+                }
+
+                MessageBox.Show(message, "전체 마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // 모든 문서의 결과 이미지 파일 저장 (백그라운드)
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        _renderer.RenderAll(_session, _workspace);
+                        Logger.Instance.Info("전체 결과 이미지 파일 저장 완료");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Error("전체 결과 이미지 파일 저장 실패", ex);
+                    }
                 });
             }
             catch (Exception ex)
             {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    progressWindow.Close();
-                    Logger.Instance.Error("전체 마킹 리딩 실패", ex);
-                    MessageBox.Show($"전체 마킹 리딩 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-                });
+                Logger.Instance.Error("전체 마킹 리딩 실패", ex);
+                MessageBox.Show($"전체 마킹 리딩 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1121,154 +1019,128 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     var folderPath = dialog.SelectedPath;
                     Logger.Instance.Info($"선택된 폴더: {folderPath}");
-                    
-                    // ProgressWindow 생성 및 표시
-                    var progressWindow = new ProgressWindow
-                    {
-                        Owner = Application.Current.MainWindow
-                    };
-                    progressWindow.Show();
-                    
+
                     try
                     {
-                        // 백그라운드 작업으로 이미지 로드 및 정렬 수행
-                        await Task.Run(() =>
-                        {
-                            var cancellationToken = progressWindow.CancellationToken;
-                            
-                            Logger.Instance.Debug("이미지 파일 로드 시작");
-                            var documents = _imageLoader.LoadImagesFromFolder(folderPath, (current, total, message) =>
+                        List<ImageDocument>? loadedDocuments = null;
+
+                        var cancelled = await ProgressRunner.RunAsync(
+                            Application.Current.MainWindow,
+                            async scope =>
                             {
-                                if (cancellationToken.IsCancellationRequested) return;
-                                Application.Current.Dispatcher.Invoke(() =>
+                                var cancellationToken = scope.CancellationToken;
+
+                                Logger.Instance.Debug("이미지 파일 로드 시작");
+                                loadedDocuments = _imageLoader.LoadImagesFromFolder(
+                                    folderPath,
+                                    (current, total, message) =>
+                                    {
+                                        if (cancellationToken.IsCancellationRequested) return;
+                                        scope.Report(current, total, message);
+                                    },
+                                    cancellationToken);
+
+                                cancellationToken.ThrowIfCancellationRequested();
+
+                                Logger.Instance.Info($"이미지 파일 로드 완료. 문서 수: {loadedDocuments.Count}");
+
+                                scope.Report(0, loadedDocuments.Count, "정렬 작업 시작");
+
+                                if (loadedDocuments.Count == 0)
                                 {
-                                    progressWindow.UpdateProgress(current, total, message);
-                                });
-                            }, cancellationToken);
-                            
-                            if (cancellationToken.IsCancellationRequested) return;
-                            
-                            Logger.Instance.Info($"이미지 파일 로드 완료. 문서 수: {documents.Count}");
+                                    scope.Ui(() =>
+                                    {
+                                        Logger.Instance.Warning("선택한 폴더에 이미지 파일이 없음");
+                                        MessageBox.Show("선택한 폴더에 이미지 파일이 없습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                                    });
+                                    return;
+                                }
 
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                progressWindow.UpdateProgress(0, documents.Count, "정렬 작업 시작");
-                            });
-
-                            if (documents.Count == 0)
-                            {
-                                Application.Current.Dispatcher.Invoke(() =>
+                                scope.Ui(() =>
                                 {
-                                    progressWindow.Close();
-                                    Logger.Instance.Warning("선택한 폴더에 이미지 파일이 없음");
-                                    MessageBox.Show("선택한 폴더에 이미지 파일이 없습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                                    SelectedDocument = null;
+                                    _session.Documents.Clear();
+                                    _session.MarkingResults.Clear();
+                                    _session.BarcodeResults.Clear();
+                                    _workspace.InputFolderPath = folderPath;
                                 });
-                                return;
-                            }
 
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                SelectedDocument = null;
-                                _session.Documents.Clear();
-                                _session.MarkingResults.Clear();
-                                _session.BarcodeResults.Clear();
-                                _workspace.InputFolderPath = folderPath;
-                            });
+                                Logger.Instance.Debug($"문서 {loadedDocuments.Count}개 추가 및 정렬 적용 시작 (병렬 처리)");
 
-                            Logger.Instance.Debug($"문서 {documents.Count}개 추가 및 정렬 적용 시작 (병렬 처리)");
-                            
-                            // 병렬 처리로 정렬 수행
-                            var completedCount = 0;
-                            var lockObject = new object();
-                            
-                            try
-                            {
-                                Parallel.ForEach(documents, new ParallelOptions
+                                var completedCount = 0;
+                                var lockObject = new object();
+
+                                Parallel.ForEach(loadedDocuments, new ParallelOptions
                                 {
                                     MaxDegreeOfParallelism = Environment.ProcessorCount,
                                     CancellationToken = cancellationToken
                                 }, doc =>
                                 {
-                                    if (cancellationToken.IsCancellationRequested) return;
-                                    
+                                    cancellationToken.ThrowIfCancellationRequested();
+
                                     // 이미지 정렬 적용
                                     ApplyAlignmentToDocument(doc);
-                                    
-                                    // 진행률 업데이트 및 문서 추가 (스레드 안전)
+
                                     int current;
                                     lock (lockObject)
                                     {
                                         completedCount++;
                                         current = completedCount;
                                     }
-                                    
-                                    Application.Current.Dispatcher.Invoke(() =>
+
+                                    scope.Ui(() =>
                                     {
-                                        if (!cancellationToken.IsCancellationRequested)
-                                        {
-                                            var fileName = Path.GetFileName(doc.SourcePath);
-                                            progressWindow.UpdateProgress(current, documents.Count, $"정렬 중: {fileName}");
-                                            _session.Documents.Add(doc);
-                                        }
+                                        if (cancellationToken.IsCancellationRequested) return;
+
+                                        var fileName = Path.GetFileName(doc.SourcePath);
+                                        scope.Report(current, loadedDocuments.Count, $"정렬 중: {fileName}");
+                                        _session.Documents.Add(doc);
                                     });
                                 });
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                Logger.Instance.Info("정렬 작업이 취소되었습니다.");
-                                Application.Current.Dispatcher.Invoke(() =>
+
+                                cancellationToken.ThrowIfCancellationRequested();
+
+                                scope.Ui(() =>
                                 {
-                                    progressWindow.Close();
-                                    MessageBox.Show("작업이 취소되었습니다.", "취소됨", MessageBoxButton.OK, MessageBoxImage.Information);
-                                });
-                                return;
-                            }
-                            
-                            if (cancellationToken.IsCancellationRequested) return;
-                            
-                            Logger.Instance.Debug("모든 문서 추가 완료");
-
-                            // UI 업데이트는 UI 스레드에서 수행
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                if (!cancellationToken.IsCancellationRequested)
-                                {
-                                    SelectedDocument = null;
-                                    _workspace.SelectedDocumentId = null;
-                                    CurrentMarkingResults = null;
-                                    CurrentBarcodeResults = null;
-                                    DisplayImage = null;
-
-                                    Documents = _session.Documents;
-                                    OnPropertyChanged(nameof(Documents));
-                                    OnPropertyChanged(nameof(DocumentCount));
-
-                                    // 작업 상황만 저장 (InputFolderPath)
                                     _stateStore.SaveWorkspaceState(_workspace);
                                     _sessionStore.Save(_session);
-
-                                    progressWindow.Close();
-                                }
-                            });
-
-                            if (!cancellationToken.IsCancellationRequested)
-                            {
-                                Logger.Instance.Info($"폴더 로드 완료. 총 {documents.Count}개 이미지 로드됨");
-                                Application.Current.Dispatcher.Invoke(() =>
-                                {
-                                    MessageBox.Show($"{documents.Count}개의 이미지를 로드했습니다.", "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);
                                 });
-                            }
-                        });
+
+                                await Task.CompletedTask;
+                            },
+                            title: "진행 중...",
+                            initialStatus: "처리 중...");
+
+                        if (cancelled)
+                        {
+                            Logger.Instance.Info("폴더 로드/정렬 작업이 취소되었습니다.");
+                            MessageBox.Show("작업이 취소되었습니다.", "취소됨", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+
+                        if (loadedDocuments == null || loadedDocuments.Count == 0)
+                        {
+                            return;
+                        }
+
+                        // UI 반영
+                        SelectedDocument = null;
+                        _workspace.SelectedDocumentId = null;
+                        CurrentMarkingResults = null;
+                        CurrentBarcodeResults = null;
+                        DisplayImage = null;
+
+                        Documents = _session.Documents;
+                        OnPropertyChanged(nameof(Documents));
+                        OnPropertyChanged(nameof(DocumentCount));
+
+                        Logger.Instance.Info($"폴더 로드 완료. 총 {loadedDocuments.Count}개 이미지 로드됨");
+                        MessageBox.Show($"{loadedDocuments.Count}개의 이미지를 로드했습니다.", "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch (Exception ex)
                     {
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            progressWindow.Close();
-                            Logger.Instance.Error("폴더 로드 실패", ex);
-                            MessageBox.Show($"폴더 로드 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-                        });
+                        Logger.Instance.Error("폴더 로드 실패", ex);
+                        MessageBox.Show($"폴더 로드 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
                 else
@@ -1640,37 +1512,7 @@ namespace SimpleOverlayEditor.ViewModels
                 var results = _markingAnalyzer.AnalyzeAllSheets(_session);
                 
                 // 결합ID 기준으로 중복 검출
-                var groupedByCombinedId = results
-                    .Where(r => !string.IsNullOrEmpty(r.CombinedId) && r.CombinedId != null)
-                    .GroupBy(r => r.CombinedId!)
-                    .Where(g => g.Count() > 1)
-                    .Select(g => new { Key = (string)g.Key!, Value = g.ToList() })
-                    .ToDictionary(x => x.Key, x => x.Value);
-                
-                // 중복 여부 설정 및 ErrorMessage에 추가
-                foreach (var result in results)
-                {
-                    if (!string.IsNullOrEmpty(result.CombinedId) && 
-                        groupedByCombinedId.ContainsKey(result.CombinedId))
-                    {
-                        result.IsDuplicate = true;
-                        // HasErrors는 IsSimpleError || IsDuplicate로 자동 계산됨
-                        var duplicateCount = groupedByCombinedId[result.CombinedId].Count;
-                        var duplicateMessage = $"결합ID 중복 ({duplicateCount}개)";
-                        
-                        // ErrorMessage가 중복 메시지만 있으면 단순 오류가 아님을 명확히 함
-                        if (string.IsNullOrEmpty(result.ErrorMessage))
-                        {
-                            // 중복만 있는 경우: ErrorMessage에 중복 메시지만 추가
-                            result.ErrorMessage = duplicateMessage;
-                        }
-                        else
-                        {
-                            // 단순 오류가 이미 있는 경우: 기존 ErrorMessage에 중복 메시지 추가
-                            result.ErrorMessage = result.ErrorMessage + "; " + duplicateMessage;
-                        }
-                    }
-                }
+                var groupedByCombinedId = DuplicateDetector.DetectAndApplyCombinedIdDuplicates(results);
                 
                 // 컬렉션 인스턴스 유지: 기존 SheetResults가 있으면 Clear 후 다시 채우기
                 // 이렇게 하면 FilteredSheetResults도 유지되어 사용자 정렬 상태가 보존됨

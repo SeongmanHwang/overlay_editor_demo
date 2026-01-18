@@ -11,6 +11,7 @@ using Microsoft.Win32;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
 using SimpleOverlayEditor.Services.Mappers;
+using SimpleOverlayEditor.Utils;
 using ClosedXML.Excel;
 
 namespace SimpleOverlayEditor.ViewModels
@@ -414,17 +415,14 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         private void InitializeFilterOptions()
         {
-            // 시각: 전체, 오전, 오후
-            SessionFilterOptions = new ObservableCollection<string> { "전체", "오전", "오후" };
-            SelectedSessionFilter = "전체";
-            
-            // 실: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
-            RoomFilterOptions = new ObservableCollection<string> { "전체" };
-            SelectedRoomFilter = "전체";
-            
-            // 순: 전체만 초기 설정 (데이터 로드 시 동적 업데이트)
-            OrderFilterOptions = new ObservableCollection<string> { "전체" };
-            SelectedOrderFilter = "전체";
+            SessionFilterOptions = OmrFilterUtils.CreateDefaultSessionOptions();
+            SelectedSessionFilter = OmrFilterUtils.AllLabel;
+
+            RoomFilterOptions = OmrFilterUtils.CreateDefaultAllOnlyOptions();
+            SelectedRoomFilter = OmrFilterUtils.AllLabel;
+
+            OrderFilterOptions = OmrFilterUtils.CreateDefaultAllOnlyOptions();
+            SelectedOrderFilter = OmrFilterUtils.AllLabel;
         }
 
         /// <summary>
@@ -438,47 +436,16 @@ namespace SimpleOverlayEditor.ViewModels
                 return;
             }
 
-            // 실(면접실) 필터 옵션 업데이트 (동적 추출)
-            var roomNumbers = GradingResults
-                .Where(r => !string.IsNullOrEmpty(r.RoomNumber))
-                .Select(r => r.RoomNumber!)
-                .Distinct()
-                .OrderBy(r => int.TryParse(r, out var num) ? num : int.MaxValue)
-                .ToList();
-            
-            RoomFilterOptions.Clear();
-            RoomFilterOptions.Add("전체");
-            foreach (var roomNum in roomNumbers)
-            {
-                RoomFilterOptions.Add(roomNum);
-            }
-            
-            // 현재 선택값이 유효한지 확인
-            if (SelectedRoomFilter != null && !RoomFilterOptions.Contains(SelectedRoomFilter))
-            {
-                SelectedRoomFilter = "전체";
-            }
+            OmrFilterUtils.UpdateNumericStringOptions(RoomFilterOptions, GradingResults.Select(r => r.RoomNumber));
+            OmrFilterUtils.UpdateNumericStringOptions(OrderFilterOptions, GradingResults.Select(r => r.OrderNumber));
 
-            // 순 필터 옵션 업데이트 (동적 추출)
-            var orderNumbers = GradingResults
-                .Where(r => !string.IsNullOrEmpty(r.OrderNumber))
-                .Select(r => r.OrderNumber!)
-                .Distinct()
-                .OrderBy(o => int.TryParse(o, out var num) ? num : int.MaxValue)
-                .ToList();
-            
-            OrderFilterOptions.Clear();
-            OrderFilterOptions.Add("전체");
-            foreach (var orderNum in orderNumbers)
-            {
-                OrderFilterOptions.Add(orderNum);
-            }
-            
-            // 현재 선택값이 유효한지 확인
-            if (SelectedOrderFilter != null && !OrderFilterOptions.Contains(SelectedOrderFilter))
-            {
-                SelectedOrderFilter = "전체";
-            }
+            var selectedRoom = SelectedRoomFilter;
+            OmrFilterUtils.EnsureSelectionIsValid(ref selectedRoom, RoomFilterOptions);
+            SelectedRoomFilter = selectedRoom;
+
+            var selectedOrder = SelectedOrderFilter;
+            OmrFilterUtils.EnsureSelectionIsValid(ref selectedOrder, OrderFilterOptions);
+            SelectedOrderFilter = selectedOrder;
         }
 
         /// <summary>
@@ -494,33 +461,15 @@ namespace SimpleOverlayEditor.ViewModels
                 if (item is not GradingResult result) return false;
 
                 // 라디오 필터 (전체/오류만/중복만)
-                bool passesBaseFilter = _filterMode switch
-                {
-                    "Errors" => result.IsSimpleError, // 단순 오류만 (중복 제외)
-                    "Duplicates" => result.IsDuplicate, // 중복만
-                    "All" => true,
-                    _ => true
-                };
-                
-                if (!passesBaseFilter) return false;
+                if (!OmrFilterUtils.PassesBaseFilter(_filterMode, result.IsSimpleError, result.IsDuplicate))
+                    return false;
 
-                // 시각 필터
-                if (SelectedSessionFilter != null && SelectedSessionFilter != "전체")
-                {
-                    if (result.Session != SelectedSessionFilter) return false;
-                }
-
-                // 실 필터
-                if (SelectedRoomFilter != null && SelectedRoomFilter != "전체")
-                {
-                    if (result.RoomNumber != SelectedRoomFilter) return false;
-                }
-
-                // 순 필터
-                if (SelectedOrderFilter != null && SelectedOrderFilter != "전체")
-                {
-                    if (result.OrderNumber != SelectedOrderFilter) return false;
-                }
+                if (!OmrFilterUtils.PassesSelectionFilter(SelectedSessionFilter, result.Session))
+                    return false;
+                if (!OmrFilterUtils.PassesSelectionFilter(SelectedRoomFilter, result.RoomNumber))
+                    return false;
+                if (!OmrFilterUtils.PassesSelectionFilter(SelectedOrderFilter, result.OrderNumber))
+                    return false;
 
                 return true;
             };
@@ -563,38 +512,8 @@ namespace SimpleOverlayEditor.ViewModels
                 // 2. MarkingAnalyzer를 사용하여 SheetResults 생성
                 var sheetResults = _markingAnalyzer.AnalyzeAllSheets(session);
 
-                // 결합ID 기준으로 중복 검출 (MarkingViewModel과 동일한 로직)
-                var groupedByCombinedId = sheetResults
-                    .Where(r => !string.IsNullOrEmpty(r.CombinedId) && r.CombinedId != null)
-                    .GroupBy(r => r.CombinedId!)
-                    .Where(g => g.Count() > 1)
-                    .Select(g => new { Key = (string)g.Key!, Value = g.ToList() })
-                    .ToDictionary(x => x.Key, x => x.Value);
-                
-                // 중복 여부 설정 및 ErrorMessage에 추가
-                foreach (var result in sheetResults)
-                {
-                    if (!string.IsNullOrEmpty(result.CombinedId) && 
-                        groupedByCombinedId.ContainsKey(result.CombinedId))
-                    {
-                        result.IsDuplicate = true;
-                        // HasErrors는 IsSimpleError || IsDuplicate로 자동 계산됨
-                        var duplicateCount = groupedByCombinedId[result.CombinedId].Count;
-                        var duplicateMessage = $"결합ID 중복 ({duplicateCount}개)";
-                        
-                        // ErrorMessage가 중복 메시지만 있으면 단순 오류가 아님을 명확히 함
-                        if (string.IsNullOrEmpty(result.ErrorMessage))
-                        {
-                            // 중복만 있는 경우: ErrorMessage에 중복 메시지만 추가
-                            result.ErrorMessage = duplicateMessage;
-                        }
-                        else
-                        {
-                            // 단순 오류가 이미 있는 경우: 기존 ErrorMessage에 중복 메시지 추가
-                            result.ErrorMessage = result.ErrorMessage + "; " + duplicateMessage;
-                        }
-                    }
-                }
+                // 결합ID 기준 중복 검출/적용 (공통 서비스)
+                DuplicateDetector.DetectAndApplyCombinedIdDuplicates(sheetResults);
 
                 // OMR 결과 요약 통계 계산
                 TotalSheetCount = sheetResults.Count;

@@ -76,11 +76,19 @@
         </Border>
 
         <!-- 메인 콘텐츠 -->
-        <Grid Grid.Row="1" 
-              VerticalAlignment="Top" 
+        <!-- 버튼 영역은 Auto로 고정, 로컬 데이터 섹션은 스크롤되도록 분리 -->
+        <Grid Grid.Row="1"
               HorizontalAlignment="Center"
               Margin="30,20">
-            <Grid VerticalAlignment="Top" 
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 상단: 모드 버튼 -->
+            <Grid Grid.Row="0"
+                  VerticalAlignment="Top"
                   HorizontalAlignment="Center"
                   MaxWidth="1200">
                 <Grid.ColumnDefinitions>
@@ -95,13 +103,11 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="5"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="10"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
                 <!-- 1열: 학교별 설정 -->
-                <Grid Grid.Column="0" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
+                <Grid Grid.Column="0" Grid.Row="0" Grid.RowSpan="3">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="5"/>
@@ -133,7 +139,7 @@
                 </Grid>
 
                 <!-- 2열: 면접 준비 -->
-                <Grid Grid.Column="2" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
+                <Grid Grid.Column="2" Grid.Row="0" Grid.RowSpan="3">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="5"/>
@@ -157,7 +163,7 @@
                 </Grid>
 
                 <!-- 3열: 마킹 리딩 (강조) -->
-                <Grid Grid.Column="4" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
+                <Grid Grid.Column="4" Grid.Row="0" Grid.RowSpan="3">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="5"/>
@@ -181,7 +187,7 @@
                 </Grid>
 
                 <!-- 4열: 성적 처리 -->
-                <Grid Grid.Column="6" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
+                <Grid Grid.Column="6" Grid.Row="0" Grid.RowSpan="3">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="5"/>
@@ -212,15 +218,21 @@
                            HorizontalAlignment="Stretch"/>
                 </Grid>
 
-                <!-- 데이터 정보 섹션 -->
-                <Border Grid.Column="0" Grid.ColumnSpan="7" Grid.Row="4"
-                       Background="White"
-                       BorderBrush="#E0E0E0"
-                       BorderThickness="1"
-                       CornerRadius="4"
-                       Padding="15"
-                       Margin="0,5,0,0"
-                       Panel.ZIndex="1">
+            </Grid>
+
+            <!-- 하단: 로컬 데이터 섹션 (스크롤) -->
+            <ScrollViewer Grid.Row="2"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          HorizontalAlignment="Center"
+                          MaxWidth="1200">
+                <Border Background="White"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        VerticalAlignment="Top"
+                        Padding="15"
+                        Margin="0,5,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -236,27 +248,27 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0"
-                                     Text="로컬 데이터 정보"
-                                     FontSize="15"
-                                     FontWeight="Bold"
-                                     Foreground="#212121"
-                                     VerticalAlignment="Center"/>
+                                       Text="로컬 데이터 정보"
+                                       FontSize="15"
+                                       FontWeight="Bold"
+                                       Foreground="#212121"
+                                       VerticalAlignment="Center"/>
                             <Button Grid.Column="2"
-                                  Content="새로고침"
-                                  Command="{Binding RefreshDataUsageCommand}"
-                                  Width="80"
-                                  Height="30"
-                                  FontSize="12"
-                                  Background="#1976D2"
-                                  Foreground="White"
-                                  BorderThickness="0"
-                                  Cursor="Hand"
-                                  Padding="8,6"/>
+                                    Content="새로고침"
+                                    Command="{Binding RefreshDataUsageCommand}"
+                                    Width="80"
+                                    Height="30"
+                                    FontSize="12"
+                                    Background="#1976D2"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    Padding="8,6"/>
                         </Grid>
 
                         <!-- 데이터 카드 리스트 -->
                         <ItemsControl Grid.Row="2"
-                                    ItemsSource="{Binding DataUsageItems}">
+                                      ItemsSource="{Binding DataUsageItems}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Vertical"/>
@@ -265,11 +277,11 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type models:DataUsageItem}">
                                     <Border Background="#F9F9F9"
-                                          BorderBrush="#E0E0E0"
-                                          BorderThickness="1"
-                                          CornerRadius="4"
-                                          Padding="10,6"
-                                          Margin="0,0,0,4">
+                                            BorderBrush="#E0E0E0"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="10,6"
+                                            Margin="0,0,0,4">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -278,19 +290,19 @@
                                             </Grid.ColumnDefinitions>
                                             
                                             <TextBlock Grid.Column="0"
-                                                     Text="{Binding Name}"
-                                                     FontSize="13"
-                                                     FontWeight="SemiBold"
-                                                     Foreground="#212121"
-                                                     VerticalAlignment="Center"
-                                                     MinWidth="110"
-                                                     Margin="0,0,12,0"/>
+                                                       Text="{Binding Name}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#212121"
+                                                       VerticalAlignment="Center"
+                                                       MinWidth="110"
+                                                       Margin="0,0,12,0"/>
                                             
                                             <StackPanel Grid.Column="1"
-                                                      VerticalAlignment="Center">
+                                                        VerticalAlignment="Center">
                                                 <!-- 마지막 변경 날짜/시간 (JSON 파일인 경우) -->
                                                 <TextBlock FontSize="11"
-                                                         Visibility="{Binding Type, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=JsonFile}">
+                                                           Visibility="{Binding Type, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=JsonFile}">
                                                     <TextBlock.Foreground>
                                                         <MultiBinding Converter="{StaticResource ItemColorConverter}">
                                                             <Binding Path="IsMostRecent"/>
@@ -341,18 +353,18 @@
 
                         <!-- 스캔 중 인디케이터 -->
                         <StackPanel Grid.Row="2"
-                                  Orientation="Horizontal"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    Orientation="Horizontal"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Text="데이터 정보를 확인하는 중..."
-                                     FontSize="13"
-                                     Foreground="#757575"
-                                     Margin="0,10"/>
+                                       FontSize="13"
+                                       Foreground="#757575"
+                                       Margin="0,10"/>
                         </StackPanel>
                     </Grid>
                 </Border>
-            </Grid>
+            </ScrollViewer>
         </Grid>
     </Grid>
 </UserControl>

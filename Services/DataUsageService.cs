@@ -20,12 +20,11 @@ namespace SimpleOverlayEditor.Services
         {
             ("템플릿", "template.json", DataUsageItem.ItemType.JsonFile),
             ("배점 규칙", "scoring_rule.json", DataUsageItem.ItemType.JsonFile),
-            ("수험생 명렬", "student_registry.json", DataUsageItem.ItemType.JsonFile),
             ("면접위원 명렬", "interviewer_registry.json", DataUsageItem.ItemType.JsonFile),
-            ("OMR 세션", "session.json", DataUsageItem.ItemType.JsonFile),
+            ("수험생 명렬", "student_registry.json", DataUsageItem.ItemType.JsonFile),
             ("정렬 캐시", "aligned_cache", DataUsageItem.ItemType.Folder),
-            ("출력 이미지", "output", DataUsageItem.ItemType.Folder),
             ("바코드 디버그", "barcode_debug", DataUsageItem.ItemType.Folder),
+            ("출력 이미지", "output", DataUsageItem.ItemType.Folder),
             ("로그", "logs", DataUsageItem.ItemType.Folder) // 전역
         };
 

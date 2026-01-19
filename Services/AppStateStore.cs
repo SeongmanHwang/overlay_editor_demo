@@ -237,6 +237,9 @@ namespace SimpleOverlayEditor.Services
             Directory.CreateDirectory(roundRoot);
             PathService.EnsureRoundDirectories(finalRoundName);
 
+            // 기본값 복사 (템플릿, 배점 규칙, 면접위원 명렬)
+            InitializeRoundWithDefaults(finalRoundName);
+
             // app_state.json에 추가
             appState.Rounds.Add(round);
             SaveAppState(appState);
@@ -244,6 +247,63 @@ namespace SimpleOverlayEditor.Services
             Logger.Instance.Info($"회차 생성: {finalRoundName} (SafeName: {safeRoundName})");
 
             return round;
+        }
+
+        /// <summary>
+        /// 새 회차에 기본값(템플릿, 배점 규칙, 면접위원 명렬)을 복사합니다.
+        /// </summary>
+        private void InitializeRoundWithDefaults(string roundName)
+        {
+            var oldRound = PathService.CurrentRound;
+            try
+            {
+                // 임시로 새 회차를 CurrentRound로 설정
+                PathService.CurrentRound = roundName;
+
+                // 기본 템플릿 복사
+                var templateStore = new TemplateStore();
+                var template = templateStore.Load();
+                if (template != null)
+                {
+                    // Load() 내부에서 이미 저장하므로 중복 저장 불필요
+                    // 하지만 안전을 위해 한 번 더 저장 (같은 내용이므로 문제 없음)
+                    try
+                    {
+                        templateStore.Save(template);
+                        Logger.Instance.Info($"회차 '{roundName}'에 기본 템플릿 복사 완료");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Warning($"회차 '{roundName}' 기본 템플릿 저장 실패: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    Logger.Instance.Warning($"회차 '{roundName}' 기본 템플릿 로드 실패");
+                }
+
+                // 기본 배점 규칙 복사
+                var scoringRuleStore = new ScoringRuleStore();
+                var scoringRule = scoringRuleStore.LoadScoringRule();
+                scoringRuleStore.SaveScoringRule(scoringRule);
+                Logger.Instance.Info($"회차 '{roundName}'에 기본 배점 규칙 복사 완료");
+
+                // 기본 면접위원 명렬 복사
+                var registryStore = new RegistryStore();
+                var interviewerRegistry = registryStore.LoadInterviewerRegistry();
+                registryStore.SaveInterviewerRegistry(interviewerRegistry);
+                Logger.Instance.Info($"회차 '{roundName}'에 기본 면접위원 명렬 복사 완료");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Warning($"회차 '{roundName}' 기본값 초기화 실패: {ex.Message}");
+                // 기본값 초기화 실패해도 회차 생성은 계속 진행
+            }
+            finally
+            {
+                // 원래 회차로 복원
+                PathService.CurrentRound = oldRound;
+            }
         }
 
         /// <summary>

@@ -1,0 +1,148 @@
+{
+  "Interviewers": [
+    {
+      "InterviewerId": "3011",
+      "Name": "1실_제1면접관"
+    },
+    {
+      "InterviewerId": "3012",
+      "Name": "1실_제2면접관"
+    },
+    {
+      "InterviewerId": "3013",
+      "Name": "1실_제3면접관"
+    },
+    {
+      "InterviewerId": "3021",
+      "Name": "2실_제1면접관"
+    },
+    {
+      "InterviewerId": "3022",
+      "Name": "2실_제2면접관"
+    },
+    {
+      "InterviewerId": "3023",
+      "Name": "2실_제3면접관"
+    },
+    {
+      "InterviewerId": "3031",
+      "Name": "3실_제1면접관"
+    },
+    {
+      "InterviewerId": "3032",
+      "Name": "3실_제2면접관"
+    },
+    {
+      "InterviewerId": "3033",
+      "Name": "3실_제3면접관"
+    },
+    {
+      "InterviewerId": "3041",
+      "Name": "4실_제1면접관"
+    },
+    {
+      "InterviewerId": "3042",
+      "Name": "4실_제2면접관"
+    },
+    {
+      "InterviewerId": "3043",
+      "Name": "4실_제3면접관"
+    },
+    {
+      "InterviewerId": "3051",
+      "Name": "5실_제1면접관"
+    },
+    {
+      "InterviewerId": "3052",
+      "Name": "5실_제2면접관"
+    },
+    {
+      "InterviewerId": "3053",
+      "Name": "5실_제3면접관"
+    },
+    {
+      "InterviewerId": "3061",
+      "Name": "6실_제1면접관"
+    },
+    {
+      "InterviewerId": "3062",
+      "Name": "6실_제2면접관"
+    },
+    {
+      "InterviewerId": "3063",
+      "Name": "6실_제3면접관"
+    },
+    {
+      "InterviewerId": "3071",
+      "Name": "7실_제1면접관"
+    },
+    {
+      "InterviewerId": "3072",
+      "Name": "7실_제2면접관"
+    },
+    {
+      "InterviewerId": "3073",
+      "Name": "7실_제3면접관"
+    },
+    {
+      "InterviewerId": "3081",
+      "Name": "8실_제1면접관"
+    },
+    {
+      "InterviewerId": "3082",
+      "Name": "8실_제2면접관"
+    },
+    {
+      "InterviewerId": "3083",
+      "Name": "8실_제3면접관"
+    },
+    {
+      "InterviewerId": "3091",
+      "Name": "9실_제1면접관"
+    },
+    {
+      "InterviewerId": "3092",
+      "Name": "9실_제2면접관"
+    },
+    {
+      "InterviewerId": "3093",
+      "Name": "9실_제3면접관"
+    },
+    {
+      "InterviewerId": "3101",
+      "Name": "10실_제1면접관"
+    },
+    {
+      "InterviewerId": "3102",
+      "Name": "10실_제2면접관"
+    },
+    {
+      "InterviewerId": "3103",
+      "Name": "10실_제3면접관"
+    },
+    {
+      "InterviewerId": "3111",
+      "Name": "11실_제1면접관"
+    },
+    {
+      "InterviewerId": "3112",
+      "Name": "11실_제2면접관"
+    },
+    {
+      "InterviewerId": "3113",
+      "Name": "11실_제3면접관"
+    },
+    {
+      "InterviewerId": "3121",
+      "Name": "12실_제1면접관"
+    },
+    {
+      "InterviewerId": "3122",
+      "Name": "12실_제2면접관"
+    },
+    {
+      "InterviewerId": "3123",
+      "Name": "12실_제3면접관"
+    }
+  ]
+}

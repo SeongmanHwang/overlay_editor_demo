@@ -13,6 +13,8 @@ namespace SimpleOverlayEditor.Services
     /// </summary>
     public class RegistryStore
     {
+        private const string BundledDefaultInterviewerRegistryRelativePath = "Assets/default_interviewer_registry.json";
+
         public static string StudentRegistryFilePath
         {
             get
@@ -35,6 +37,20 @@ namespace SimpleOverlayEditor.Services
                 }
                 return Path.Combine(PathService.AppDataFolder, "interviewer_registry.json");
             }
+        }
+
+        private static string? TryGetBundledDefaultInterviewerRegistryPath()
+        {
+            // 실행 폴더 기준(배포 시 CopyToOutputDirectory로 따라오는 위치)
+            var baseDir = AppContext.BaseDirectory;
+            var candidate1 = Path.Combine(baseDir, BundledDefaultInterviewerRegistryRelativePath);
+            if (File.Exists(candidate1)) return candidate1;
+
+            // 개발/디버그 시 WorkingDirectory 기준
+            var candidate2 = Path.Combine(Directory.GetCurrentDirectory(), BundledDefaultInterviewerRegistryRelativePath);
+            if (File.Exists(candidate2)) return candidate2;
+
+            return null;
         }
 
         /// <summary>
@@ -167,44 +183,94 @@ namespace SimpleOverlayEditor.Services
         /// </summary>
         public InterviewerRegistry LoadInterviewerRegistry()
         {
-            if (!File.Exists(InterviewerRegistryFilePath))
+            // 1) AppData에 면접위원 명부가 있으면 로드
+            if (File.Exists(InterviewerRegistryFilePath))
             {
-                return new InterviewerRegistry();
-            }
-
-            try
-            {
-                var json = File.ReadAllText(InterviewerRegistryFilePath);
-                var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                var registry = new InterviewerRegistry();
-
-                if (root.TryGetProperty("Interviewers", out var interviewersElement))
+                try
                 {
-                    foreach (var interviewerElem in interviewersElement.EnumerateArray())
+                    var json = File.ReadAllText(InterviewerRegistryFilePath);
+                    var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    var registry = new InterviewerRegistry();
+
+                    if (root.TryGetProperty("Interviewers", out var interviewersElement))
                     {
-                        var interviewer = new InterviewerInfo
+                        foreach (var interviewerElem in interviewersElement.EnumerateArray())
                         {
-                            InterviewerId = interviewerElem.TryGetProperty("InterviewerId", out var id)
-                                ? id.GetString() ?? string.Empty
-                                : string.Empty,
-                            Name = interviewerElem.TryGetProperty("Name", out var name)
-                                ? name.GetString()
-                                : null
-                        };
+                            var interviewer = new InterviewerInfo
+                            {
+                                InterviewerId = interviewerElem.TryGetProperty("InterviewerId", out var id)
+                                    ? id.GetString() ?? string.Empty
+                                    : string.Empty,
+                                Name = interviewerElem.TryGetProperty("Name", out var name)
+                                    ? name.GetString()
+                                    : null
+                            };
 
-                        registry.Interviewers.Add(interviewer);
+                            registry.Interviewers.Add(interviewer);
+                        }
                     }
-                }
 
-                return registry;
+                    return registry;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Warning($"면접위원 명부 로드 실패: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+
+            // 2) 없으면 번들된 기본 면접위원 명부를 찾아 설치/로드
+            var bundledPath = TryGetBundledDefaultInterviewerRegistryPath();
+            if (bundledPath != null)
             {
-                Logger.Instance.Warning($"면접위원 명부 로드 실패: {ex.Message}");
-                return new InterviewerRegistry();
+                try
+                {
+                    var json = File.ReadAllText(bundledPath);
+                    var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    var registry = new InterviewerRegistry();
+
+                    if (root.TryGetProperty("Interviewers", out var interviewersElement))
+                    {
+                        foreach (var interviewerElem in interviewersElement.EnumerateArray())
+                        {
+                            var interviewer = new InterviewerInfo
+                            {
+                                InterviewerId = interviewerElem.TryGetProperty("InterviewerId", out var id)
+                                    ? id.GetString() ?? string.Empty
+                                    : string.Empty,
+                                Name = interviewerElem.TryGetProperty("Name", out var name)
+                                    ? name.GetString()
+                                    : null
+                            };
+
+                            registry.Interviewers.Add(interviewer);
+                        }
+                    }
+
+                    // 기본 면접위원 명부를 AppData에 저장
+                    try
+                    {
+                        SaveInterviewerRegistry(registry);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 저장 실패해도 명부는 반환 (첫 실행 UX 우선)
+                        Logger.Instance.Warning($"기본 면접위원 명부 저장 실패(계속 진행): {ex.Message}");
+                    }
+
+                    return registry;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Warning($"기본 면접위원 명부 로드 실패: {ex.Message}");
+                }
             }
+
+            // 3) 기본값도 없으면 빈 객체 반환
+            return new InterviewerRegistry();
         }
 
         /// <summary>

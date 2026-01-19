@@ -1,85 +1,959 @@
 {
-  "ReferenceWidth": 2480,
-  "ReferenceHeight": 3508,
+  "ReferenceWidth": 2322,
+  "ReferenceHeight": 1658,
   "TimingMarks": [
-    { "OptionNumber": 1, "X": 200,  "Y": 120, "Width": 60, "Height": 60, "StrokeThickness": 2.0, "OverlayType": "TimingMark" },
-    { "OptionNumber": 2, "X": 650,  "Y": 120, "Width": 60, "Height": 60, "StrokeThickness": 2.0, "OverlayType": "TimingMark" },
-    { "OptionNumber": 3, "X": 1100, "Y": 120, "Width": 60, "Height": 60, "StrokeThickness": 2.0, "OverlayType": "TimingMark" },
-    { "OptionNumber": 4, "X": 1550, "Y": 120, "Width": 60, "Height": 60, "StrokeThickness": 2.0, "OverlayType": "TimingMark" },
-    { "OptionNumber": 5, "X": 2000, "Y": 120, "Width": 60, "Height": 60, "StrokeThickness": 2.0, "OverlayType": "TimingMark" }
+    {
+      "OptionNumber": 1,
+      "X": 55,
+      "Y": 41,
+      "Width": 20,
+      "Height": 35,
+      "StrokeThickness": 2,
+      "OverlayType": "TimingMark"
+    },
+    {
+      "OptionNumber": 2,
+      "X": 2089,
+      "Y": 35,
+      "Width": 20,
+      "Height": 35,
+      "StrokeThickness": 2,
+      "OverlayType": "TimingMark"
+    },
+    {
+      "OptionNumber": 3,
+      "X": 2144,
+      "Y": 35,
+      "Width": 20,
+      "Height": 35,
+      "StrokeThickness": 2,
+      "OverlayType": "TimingMark"
+    },
+    {
+      "OptionNumber": 4,
+      "X": 2199,
+      "Y": 35,
+      "Width": 20,
+      "Height": 35,
+      "StrokeThickness": 2,
+      "OverlayType": "TimingMark"
+    },
+    {
+      "OptionNumber": 5,
+      "X": 2252,
+      "Y": 35,
+      "Width": 20,
+      "Height": 35,
+      "StrokeThickness": 2,
+      "OverlayType": "TimingMark"
+    }
+  ],
+  "ScoringAreas": [
+    {
+      "X": 2091,
+      "Y": 404,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2146.2285418821098,
+      "Y": 404,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2091,
+      "Y": 446.0785935884178,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2146.2285418821098,
+      "Y": 446.0785935884178,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2091,
+      "Y": 487.5139607032058,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2146.2285418821098,
+      "Y": 487.5139607032058,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2202.095139607032,
+      "Y": 487.5139607032058,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2091,
+      "Y": 528.3784901758014,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2146.2285418821098,
+      "Y": 528.3784901758014,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2202.095139607032,
+      "Y": 528.3784901758014,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2092,
+      "Y": 570.2430196483971,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2147.2285418821098,
+      "Y": 570.2430196483971,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2093.076525336091,
+      "Y": 739.7011375387797,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2148.5139607032056,
+      "Y": 739.7011375387797,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2093.076525336091,
+      "Y": 782.5656670113754,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2148.5139607032056,
+      "Y": 782.5656670113754,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2093.076525336091,
+      "Y": 823.7156153050672,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2148.5139607032056,
+      "Y": 823.7156153050672,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2204.5243019648397,
+      "Y": 823.7156153050672,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2093.076525336091,
+      "Y": 865.1509824198552,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2148.5139607032056,
+      "Y": 865.1509824198552,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2204.5243019648397,
+      "Y": 865.1509824198552,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2093.076525336091,
+      "Y": 906.0155118924508,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2148.5139607032056,
+      "Y": 906.0155118924508,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2094.7911065149947,
+      "Y": 1076.7590486039296,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2151.657704239917,
+      "Y": 1076.7590486039296,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2094.7911065149947,
+      "Y": 1117.9089968976216,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2151.657704239917,
+      "Y": 1117.9089968976216,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2094.7911065149947,
+      "Y": 1159.773526370217,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2151.657704239917,
+      "Y": 1159.773526370217,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2206.2388831437434,
+      "Y": 1159.773526370217,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2094.7911065149947,
+      "Y": 1200.923474663909,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2151.657704239917,
+      "Y": 1200.923474663909,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2206.2388831437434,
+      "Y": 1200.923474663909,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2096.7911065149947,
+      "Y": 1242.7880041365047,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2151.657704239917,
+      "Y": 1242.7880041365047,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2096.7911065149947,
+      "Y": 1412.8169596690796,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2152.086866597725,
+      "Y": 1412.8169596690796,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2096.7911065149947,
+      "Y": 1456.3960703205792,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2152.086866597725,
+      "Y": 1456.3960703205792,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2096.7911065149947,
+      "Y": 1495.4022750775594,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2152.086866597725,
+      "Y": 1495.4022750775594,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2207.9534643226475,
+      "Y": 1495.4022750775594,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2096.7911065149947,
+      "Y": 1537.981385729059,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2152.086866597725,
+      "Y": 1537.981385729059,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2207.9534643226475,
+      "Y": 1537.981385729059,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2097.7911065149947,
+      "Y": 1578.8459152016546,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    },
+    {
+      "X": 2153.086866597725,
+      "Y": 1578.8459152016546,
+      "Width": 20,
+      "Height": 25,
+      "StrokeThickness": 2,
+      "OverlayType": "ScoringArea"
+    }
   ],
   "Questions": [
     {
       "QuestionNumber": 1,
       "Options": [
-        { "OptionNumber": 1,  "QuestionNumber": 1, "X": 2000, "Y": 450,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 2,  "QuestionNumber": 1, "X": 2000, "Y": 495,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 3,  "QuestionNumber": 1, "X": 2000, "Y": 540,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 4,  "QuestionNumber": 1, "X": 2000, "Y": 585,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 5,  "QuestionNumber": 1, "X": 2000, "Y": 630,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 6,  "QuestionNumber": 1, "X": 2000, "Y": 675,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 7,  "QuestionNumber": 1, "X": 2000, "Y": 720,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 8,  "QuestionNumber": 1, "X": 2000, "Y": 765,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 9,  "QuestionNumber": 1, "X": 2000, "Y": 810,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 10, "QuestionNumber": 1, "X": 2000, "Y": 855,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 11, "QuestionNumber": 1, "X": 2000, "Y": 900,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 12, "QuestionNumber": 1, "X": 2000, "Y": 945,  "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" }
+        {
+          "OptionNumber": 1,
+          "QuestionNumber": 1,
+          "X": 2091,
+          "Y": 404,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 2,
+          "QuestionNumber": 1,
+          "X": 2146.2285418821098,
+          "Y": 404,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 3,
+          "QuestionNumber": 1,
+          "X": 2091,
+          "Y": 446.0785935884178,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 4,
+          "QuestionNumber": 1,
+          "X": 2146.2285418821098,
+          "Y": 446.0785935884178,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 5,
+          "QuestionNumber": 1,
+          "X": 2091,
+          "Y": 487.5139607032058,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 6,
+          "QuestionNumber": 1,
+          "X": 2146.2285418821098,
+          "Y": 487.5139607032058,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 7,
+          "QuestionNumber": 1,
+          "X": 2202.095139607032,
+          "Y": 487.5139607032058,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 8,
+          "QuestionNumber": 1,
+          "X": 2091,
+          "Y": 528.3784901758014,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 9,
+          "QuestionNumber": 1,
+          "X": 2146.2285418821098,
+          "Y": 528.3784901758014,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 10,
+          "QuestionNumber": 1,
+          "X": 2202.095139607032,
+          "Y": 528.3784901758014,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 11,
+          "QuestionNumber": 1,
+          "X": 2092,
+          "Y": 570.2430196483971,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 12,
+          "QuestionNumber": 1,
+          "X": 2147.2285418821098,
+          "Y": 570.2430196483971,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        }
       ]
     },
     {
       "QuestionNumber": 2,
       "Options": [
-        { "OptionNumber": 1,  "QuestionNumber": 2, "X": 2000, "Y": 1200, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 2,  "QuestionNumber": 2, "X": 2000, "Y": 1245, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 3,  "QuestionNumber": 2, "X": 2000, "Y": 1290, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 4,  "QuestionNumber": 2, "X": 2000, "Y": 1335, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 5,  "QuestionNumber": 2, "X": 2000, "Y": 1380, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 6,  "QuestionNumber": 2, "X": 2000, "Y": 1425, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 7,  "QuestionNumber": 2, "X": 2000, "Y": 1470, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 8,  "QuestionNumber": 2, "X": 2000, "Y": 1515, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 9,  "QuestionNumber": 2, "X": 2000, "Y": 1560, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 10, "QuestionNumber": 2, "X": 2000, "Y": 1605, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 11, "QuestionNumber": 2, "X": 2000, "Y": 1650, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 12, "QuestionNumber": 2, "X": 2000, "Y": 1695, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" }
+        {
+          "OptionNumber": 1,
+          "QuestionNumber": 2,
+          "X": 2093.076525336091,
+          "Y": 739.7011375387797,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 2,
+          "QuestionNumber": 2,
+          "X": 2148.5139607032056,
+          "Y": 739.7011375387797,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 3,
+          "QuestionNumber": 2,
+          "X": 2093.076525336091,
+          "Y": 782.5656670113754,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 4,
+          "QuestionNumber": 2,
+          "X": 2148.5139607032056,
+          "Y": 782.5656670113754,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 5,
+          "QuestionNumber": 2,
+          "X": 2093.076525336091,
+          "Y": 823.7156153050672,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 6,
+          "QuestionNumber": 2,
+          "X": 2148.5139607032056,
+          "Y": 823.7156153050672,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 7,
+          "QuestionNumber": 2,
+          "X": 2204.5243019648397,
+          "Y": 823.7156153050672,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 8,
+          "QuestionNumber": 2,
+          "X": 2093.076525336091,
+          "Y": 865.1509824198552,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 9,
+          "QuestionNumber": 2,
+          "X": 2148.5139607032056,
+          "Y": 865.1509824198552,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 10,
+          "QuestionNumber": 2,
+          "X": 2204.5243019648397,
+          "Y": 865.1509824198552,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 11,
+          "QuestionNumber": 2,
+          "X": 2093.076525336091,
+          "Y": 906.0155118924508,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 12,
+          "QuestionNumber": 2,
+          "X": 2148.5139607032056,
+          "Y": 906.0155118924508,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        }
       ]
     },
     {
       "QuestionNumber": 3,
       "Options": [
-        { "OptionNumber": 1,  "QuestionNumber": 3, "X": 2000, "Y": 1950, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 2,  "QuestionNumber": 3, "X": 2000, "Y": 1995, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 3,  "QuestionNumber": 3, "X": 2000, "Y": 2040, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 4,  "QuestionNumber": 3, "X": 2000, "Y": 2085, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 5,  "QuestionNumber": 3, "X": 2000, "Y": 2130, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 6,  "QuestionNumber": 3, "X": 2000, "Y": 2175, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 7,  "QuestionNumber": 3, "X": 2000, "Y": 2220, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 8,  "QuestionNumber": 3, "X": 2000, "Y": 2265, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 9,  "QuestionNumber": 3, "X": 2000, "Y": 2310, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 10, "QuestionNumber": 3, "X": 2000, "Y": 2355, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 11, "QuestionNumber": 3, "X": 2000, "Y": 2400, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 12, "QuestionNumber": 3, "X": 2000, "Y": 2445, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" }
+        {
+          "OptionNumber": 1,
+          "QuestionNumber": 3,
+          "X": 2094.7911065149947,
+          "Y": 1076.7590486039296,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 2,
+          "QuestionNumber": 3,
+          "X": 2151.657704239917,
+          "Y": 1076.7590486039296,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 3,
+          "QuestionNumber": 3,
+          "X": 2094.7911065149947,
+          "Y": 1117.9089968976216,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 4,
+          "QuestionNumber": 3,
+          "X": 2151.657704239917,
+          "Y": 1117.9089968976216,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 5,
+          "QuestionNumber": 3,
+          "X": 2094.7911065149947,
+          "Y": 1159.773526370217,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 6,
+          "QuestionNumber": 3,
+          "X": 2151.657704239917,
+          "Y": 1159.773526370217,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 7,
+          "QuestionNumber": 3,
+          "X": 2206.2388831437434,
+          "Y": 1159.773526370217,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 8,
+          "QuestionNumber": 3,
+          "X": 2094.7911065149947,
+          "Y": 1200.923474663909,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 9,
+          "QuestionNumber": 3,
+          "X": 2151.657704239917,
+          "Y": 1200.923474663909,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 10,
+          "QuestionNumber": 3,
+          "X": 2206.2388831437434,
+          "Y": 1200.923474663909,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 11,
+          "QuestionNumber": 3,
+          "X": 2096.7911065149947,
+          "Y": 1242.7880041365047,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 12,
+          "QuestionNumber": 3,
+          "X": 2151.657704239917,
+          "Y": 1242.7880041365047,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        }
       ]
     },
     {
       "QuestionNumber": 4,
       "Options": [
-        { "OptionNumber": 1,  "QuestionNumber": 4, "X": 2000, "Y": 2700, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 2,  "QuestionNumber": 4, "X": 2000, "Y": 2745, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 3,  "QuestionNumber": 4, "X": 2000, "Y": 2790, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 4,  "QuestionNumber": 4, "X": 2000, "Y": 2835, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 5,  "QuestionNumber": 4, "X": 2000, "Y": 2880, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 6,  "QuestionNumber": 4, "X": 2000, "Y": 2925, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 7,  "QuestionNumber": 4, "X": 2000, "Y": 2970, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 8,  "QuestionNumber": 4, "X": 2000, "Y": 3015, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 9,  "QuestionNumber": 4, "X": 2000, "Y": 3060, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 10, "QuestionNumber": 4, "X": 2000, "Y": 3105, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 11, "QuestionNumber": 4, "X": 2000, "Y": 3150, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" },
-        { "OptionNumber": 12, "QuestionNumber": 4, "X": 2000, "Y": 3195, "Width": 20, "Height": 25, "StrokeThickness": 2.0, "OverlayType": "ScoringArea" }
+        {
+          "OptionNumber": 1,
+          "QuestionNumber": 4,
+          "X": 2096.7911065149947,
+          "Y": 1412.8169596690796,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 2,
+          "QuestionNumber": 4,
+          "X": 2152.086866597725,
+          "Y": 1412.8169596690796,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 3,
+          "QuestionNumber": 4,
+          "X": 2096.7911065149947,
+          "Y": 1456.3960703205792,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 4,
+          "QuestionNumber": 4,
+          "X": 2152.086866597725,
+          "Y": 1456.3960703205792,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 5,
+          "QuestionNumber": 4,
+          "X": 2096.7911065149947,
+          "Y": 1495.4022750775594,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 6,
+          "QuestionNumber": 4,
+          "X": 2152.086866597725,
+          "Y": 1495.4022750775594,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 7,
+          "QuestionNumber": 4,
+          "X": 2207.9534643226475,
+          "Y": 1495.4022750775594,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 8,
+          "QuestionNumber": 4,
+          "X": 2096.7911065149947,
+          "Y": 1537.981385729059,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 9,
+          "QuestionNumber": 4,
+          "X": 2152.086866597725,
+          "Y": 1537.981385729059,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 10,
+          "QuestionNumber": 4,
+          "X": 2207.9534643226475,
+          "Y": 1537.981385729059,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 11,
+          "QuestionNumber": 4,
+          "X": 2097.7911065149947,
+          "Y": 1578.8459152016546,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        },
+        {
+          "OptionNumber": 12,
+          "QuestionNumber": 4,
+          "X": 2153.086866597725,
+          "Y": 1578.8459152016546,
+          "Width": 20,
+          "Height": 25,
+          "StrokeThickness": 2,
+          "OverlayType": "ScoringArea"
+        }
       ]
     }
   ],
   "BarcodeAreas": [
-    { "OptionNumber": 1, "X": 150, "Y": 450, "Width": 500, "Height": 120, "StrokeThickness": 2.0, "OverlayType": "BarcodeArea" },
-    { "OptionNumber": 2, "X": 150, "Y": 620, "Width": 500, "Height": 120, "StrokeThickness": 2.0, "OverlayType": "BarcodeArea" }
+    {
+      "OptionNumber": 1,
+      "X": 62,
+      "Y": 267,
+      "Width": 461,
+      "Height": 324,
+      "StrokeThickness": 2,
+      "OverlayType": "BarcodeArea"
+    },
+    {
+      "OptionNumber": 2,
+      "X": 150,
+      "Y": 730,
+      "Width": 375,
+      "Height": 155,
+      "StrokeThickness": 2,
+      "OverlayType": "BarcodeArea"
+    }
   ]
 }

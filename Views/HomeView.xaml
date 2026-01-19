@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:utils="clr-namespace:SimpleOverlayEditor.Utils"
+             xmlns:models="clr-namespace:SimpleOverlayEditor.Models"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800">
     <Grid Background="#F5F5F5">
@@ -14,7 +16,7 @@
         <!-- 헤더 -->
         <Border Grid.Row="0" 
                 Background="#1565C0"
-                Padding="30,25"
+                Padding="20,15"
                 BorderThickness="0,0,0,2"
                 BorderBrush="#0D47A1">
             <Grid>
@@ -77,7 +79,7 @@
         <Grid Grid.Row="1" 
               VerticalAlignment="Top" 
               HorizontalAlignment="Center"
-              Margin="40,30">
+              Margin="30,20">
             <Grid VerticalAlignment="Top" 
                   HorizontalAlignment="Center"
                   MaxWidth="1200">
@@ -92,121 +94,264 @@
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="5"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
                 <!-- 1열: 학교별 설정 -->
-                <Grid Grid.Column="0" Grid.Row="0" Grid.RowSpan="3">
+                <Grid Grid.Column="0" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="5"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="5"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0"
                               Text="학교별 설정" 
-                              FontSize="16" 
+                              FontSize="15" 
                               FontWeight="Bold" 
                               Foreground="#212121"
                               TextOptions.TextRenderingMode="ClearType"
-                              Margin="0,0,0,10"/>
+                              Margin="0,0,0,5"/>
                     <Button Grid.Row="2"
                            Content="템플릿 편집" 
                            Command="{Binding NavigateToTemplateEditCommand}"
                            Style="{StaticResource CleanButton}"
                            Background="#6A1B9A"
-                           Height="85"
+                           Height="70"
                            HorizontalAlignment="Stretch"/>
                     <Button Grid.Row="4"
                            Content="문항 배점 입력" 
                            Command="{Binding NavigateToScoringRuleCommand}"
                            Style="{StaticResource CleanButton}"
                            Background="#E65100"
-                           Height="85"
+                           Height="70"
                            HorizontalAlignment="Stretch"/>
                 </Grid>
 
                 <!-- 2열: 면접 준비 -->
-                <Grid Grid.Column="2" Grid.Row="0" Grid.RowSpan="3">
+                <Grid Grid.Column="2" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="5"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0"
                               Text="면접 준비" 
-                              FontSize="16" 
+                              FontSize="15" 
                               FontWeight="Bold" 
                               Foreground="#212121"
                               TextOptions.TextRenderingMode="ClearType"
-                              Margin="0,0,0,10"/>
+                              Margin="0,0,0,5"/>
                     <Button Grid.Row="2"
                            Content="수험생 명렬 관리" 
                            Command="{Binding NavigateToRegistryCommand}"
                            Style="{StaticResource CleanButton}"
                            Background="#2E7D32"
-                           MinHeight="180"
+                           MinHeight="150"
                            HorizontalAlignment="Stretch"
                            VerticalAlignment="Stretch"/>
                 </Grid>
 
                 <!-- 3열: 마킹 리딩 (강조) -->
-                <Grid Grid.Column="4" Grid.Row="0" Grid.RowSpan="3">
+                <Grid Grid.Column="4" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="5"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0"
                               Text="OMR 스캔" 
-                              FontSize="18" 
+                              FontSize="17" 
                               FontWeight="Bold" 
                               Foreground="#1565C0"
                               TextOptions.TextRenderingMode="ClearType"
-                              Margin="0,0,0,10"/>
+                              Margin="0,0,0,5"/>
                     <Button Grid.Row="2"
                            Content="마킹 리딩" 
                            Command="{Binding NavigateToMarkingCommand}"
                            Style="{StaticResource CleanButtonEmphasized}"
                            Background="#1565C0"
-                           MinHeight="180"
+                           MinHeight="150"
                            HorizontalAlignment="Stretch"
                            VerticalAlignment="Stretch"/>
                 </Grid>
 
                 <!-- 4열: 성적 처리 -->
-                <Grid Grid.Column="6" Grid.Row="0" Grid.RowSpan="3">
+                <Grid Grid.Column="6" Grid.Row="0" Grid.RowSpan="3" Panel.ZIndex="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="5"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="5"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0"
                               Text="성적 처리" 
-                              FontSize="16" 
+                              FontSize="15" 
                               FontWeight="Bold" 
                               Foreground="#212121"
                               TextOptions.TextRenderingMode="ClearType"
-                              Margin="0,0,0,10"/>
+                              Margin="0,0,0,5"/>
                     <Button Grid.Row="2"
                            Content="채점 및 성적 처리" 
                            Command="{Binding NavigateToGradingCommand}"
                            Style="{StaticResource CleanButton}"
                            Background="#C62828"
-                           Height="85"
+                           Height="70"
                            HorizontalAlignment="Stretch"/>
                     <Button Grid.Row="4"
                            Content="수기 검산" 
                            Command="{Binding NavigateToManualVerificationCommand}"
                            Style="{StaticResource CleanButton}"
                            Background="#424242"
-                           Height="85"
+                           Height="70"
                            HorizontalAlignment="Stretch"/>
                 </Grid>
+
+                <!-- 데이터 정보 섹션 -->
+                <Border Grid.Column="0" Grid.ColumnSpan="7" Grid.Row="4"
+                       Background="White"
+                       BorderBrush="#E0E0E0"
+                       BorderThickness="1"
+                       CornerRadius="4"
+                       Padding="15"
+                       Margin="0,5,0,0"
+                       Panel.ZIndex="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="5"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- 제목 및 새로고침 버튼 -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                     Text="로컬 데이터 정보"
+                                     FontSize="15"
+                                     FontWeight="Bold"
+                                     Foreground="#212121"
+                                     VerticalAlignment="Center"/>
+                            <Button Grid.Column="2"
+                                  Content="새로고침"
+                                  Command="{Binding RefreshDataUsageCommand}"
+                                  Width="80"
+                                  Height="30"
+                                  FontSize="12"
+                                  Background="#1976D2"
+                                  Foreground="White"
+                                  BorderThickness="0"
+                                  Cursor="Hand"
+                                  Padding="8,6"/>
+                        </Grid>
+
+                        <!-- 데이터 카드 리스트 -->
+                        <ItemsControl Grid.Row="2"
+                                    ItemsSource="{Binding DataUsageItems}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Vertical"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type models:DataUsageItem}">
+                                    <Border Background="#F9F9F9"
+                                          BorderBrush="#E0E0E0"
+                                          BorderThickness="1"
+                                          CornerRadius="4"
+                                          Padding="10,6"
+                                          Margin="0,0,0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <TextBlock Grid.Column="0"
+                                                     Text="{Binding Name}"
+                                                     FontSize="13"
+                                                     FontWeight="SemiBold"
+                                                     Foreground="#212121"
+                                                     VerticalAlignment="Center"
+                                                     MinWidth="110"
+                                                     Margin="0,0,12,0"/>
+                                            
+                                            <StackPanel Grid.Column="1"
+                                                      VerticalAlignment="Center">
+                                                <!-- 마지막 변경 날짜/시간 (JSON 파일인 경우) -->
+                                                <TextBlock FontSize="11"
+                                                         Visibility="{Binding Type, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=JsonFile}">
+                                                    <TextBlock.Foreground>
+                                                        <MultiBinding Converter="{StaticResource ItemColorConverter}">
+                                                            <Binding Path="IsMostRecent"/>
+                                                            <Binding Path="Name"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Foreground>
+                                                    <Run Text="{Binding LastModified, Converter={StaticResource DateTimeDisplayConverter}}"/>
+                                                </TextBlock>
+                                                
+                                                <!-- 폴더인 경우: 날짜/시간 및 용량 -->
+                                                <StackPanel Visibility="{Binding Type, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=Folder}">
+                                                    <TextBlock FontSize="11">
+                                                        <TextBlock.Foreground>
+                                                            <MultiBinding Converter="{StaticResource ItemColorConverter}">
+                                                                <Binding Path="IsMostRecent"/>
+                                                                <Binding Path="Name"/>
+                                                            </MultiBinding>
+                                                        </TextBlock.Foreground>
+                                                        <Run Text="{Binding LastModified, Converter={StaticResource DateTimeDisplayConverter}}"/>
+                                                        <Run Text=" ("/>
+                                                        <Run Text="{Binding Size, Converter={StaticResource FileSizeConverter}}"/>
+                                                        <Run Text=")"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            
+                                            <!-- 폴더 열기 버튼 (폴더인 경우만) -->
+                                            <Button Grid.Column="2"
+                                                    Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Width="28"
+                                                    Height="28"
+                                                    Padding="0"
+                                                    FontSize="16"
+                                                    Content="📁"
+                                                    Background="Transparent"
+                                                    BorderThickness="1"
+                                                    BorderBrush="#E0E0E0"
+                                                    Cursor="Hand"
+                                                    ToolTip="탐색기에서 열기"
+                                                    Visibility="{Binding Type, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=Folder}"
+                                                    Margin="5,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 스캔 중 인디케이터 -->
+                        <StackPanel Grid.Row="2"
+                                  Orientation="Horizontal"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="데이터 정보를 확인하는 중..."
+                                     FontSize="13"
+                                     Foreground="#757575"
+                                     Margin="0,10"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </Grid>
         </Grid>
     </Grid>

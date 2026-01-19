@@ -18,6 +18,11 @@
         <utils:BoolToYesNoConverter x:Key="BoolToYesNoConverter"/>
         <utils:DoubleToBoolConverter x:Key="DoubleToBoolConverter"/>
         <utils:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
+        <utils:DateTimeDisplayConverter x:Key="DateTimeDisplayConverter"/>
+        <utils:FileSizeConverter x:Key="FileSizeConverter"/>
+        <utils:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+        <utils:BoolToColorConverter x:Key="BoolToColorConverter"/>
+        <utils:ItemColorConverter x:Key="ItemColorConverter"/>
         
         <!-- 홈 화면 모드 버튼 스타일 -->
         <Style x:Key="HomeModeButton" TargetType="Button">

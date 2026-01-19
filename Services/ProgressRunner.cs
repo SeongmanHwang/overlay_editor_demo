@@ -50,12 +50,19 @@ namespace SimpleOverlayEditor.Services
         {
             if (work == null) throw new ArgumentNullException(nameof(work));
 
-            owner ??= Application.Current?.MainWindow;
-
-            var progressWindow = new ProgressWindow
+            // owner가 null이거나 아직 로드되지 않은 경우 Owner를 설정하지 않음
+            if (owner == null)
             {
-                Owner = owner
-            };
+                owner = Application.Current?.MainWindow;
+            }
+
+            var progressWindow = new ProgressWindow();
+            
+            // owner가 유효하고 로드된 경우에만 Owner 설정
+            if (owner != null && owner.IsLoaded)
+            {
+                progressWindow.Owner = owner;
+            }
 
             if (!string.IsNullOrEmpty(title))
             {

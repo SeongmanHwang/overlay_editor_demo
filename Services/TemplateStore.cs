@@ -108,11 +108,13 @@ namespace SimpleOverlayEditor.Services
         {
             if (!File.Exists(filePath))
             {
+                Logger.Instance.Warning($"템플릿 파일이 존재하지 않습니다: {filePath}");
                 return null;
             }
 
             try
             {
+                Logger.Instance.Info($"템플릿 가져오기 시작: {filePath}");
                 var json = File.ReadAllText(filePath);
                 var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
@@ -133,6 +135,7 @@ namespace SimpleOverlayEditor.Services
                 if (root.TryGetProperty("TimingMarks", out var timingMarksElement))
                 {
                     int i = 0;
+                    int loadedCount = 0;
                     foreach (var ovElem in timingMarksElement.EnumerateArray())
                     {
                         i++;
@@ -144,6 +147,7 @@ namespace SimpleOverlayEditor.Services
                         if (slot == null)
                         {
                             // 고정 슬롯 정책: 범위를 벗어나면 무시
+                            Logger.Instance.Warning($"TimingMark 슬롯을 찾을 수 없습니다: OptionNumber={optionNumber}");
                             continue;
                         }
 
@@ -155,12 +159,15 @@ namespace SimpleOverlayEditor.Services
                         slot.StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
                             ? thickness.GetDouble()
                             : 2.0;
+                        loadedCount++;
                     }
+                    Logger.Instance.Info($"TimingMarks 로드 완료: {loadedCount}개");
                 }
 
                 // Questions 로드 (새 형식)
                 if (root.TryGetProperty("Questions", out var questionsElement))
                 {
+                    int totalOptionsLoaded = 0;
                     foreach (var qElem in questionsElement.EnumerateArray())
                     {
                         var questionNumber = qElem.TryGetProperty("QuestionNumber", out var qNum)
@@ -172,67 +179,46 @@ namespace SimpleOverlayEditor.Services
                         {
                             question = new Question { QuestionNumber = questionNumber };
                             template.Questions.Add(question);
+                            Logger.Instance.Warning($"문항 {questionNumber}가 템플릿에 없어 새로 생성했습니다.");
                         }
 
                         if (qElem.TryGetProperty("Options", out var optionsElement))
                         {
+                            int optionsInQuestion = 0;
                             foreach (var ovElem in optionsElement.EnumerateArray())
                             {
-                                var overlay = new RectangleOverlay
-                                {
-                                    OptionNumber = ovElem.TryGetProperty("OptionNumber", out var optNum)
-                                        ? optNum.GetInt32()
-                                        : null,
-                                    QuestionNumber = questionNumber,
-                                    X = ovElem.GetProperty("X").GetDouble(),
-                                    Y = ovElem.GetProperty("Y").GetDouble(),
-                                    Width = ovElem.GetProperty("Width").GetDouble(),
-                                    Height = ovElem.GetProperty("Height").GetDouble(),
-                                    StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
-                                        ? thickness.GetDouble()
-                                        : 2.0
-                                };
+                                var optionNumber = ovElem.TryGetProperty("OptionNumber", out var optNum)
+                                    ? optNum.GetInt32()
+                                    : (int?)null;
 
-                                if (ovElem.TryGetProperty("OverlayType", out var overlayType))
+                                if (!optionNumber.HasValue)
                                 {
-                                    if (Enum.TryParse<OverlayType>(overlayType.GetString(), out var type))
-                                    {
-                                        overlay.OverlayType = type;
-                                    }
+                                    Logger.Instance.Warning($"문항 {questionNumber}의 Option에 OptionNumber가 없습니다.");
+                                    continue;
                                 }
 
-                                // OptionNumber가 있으면 해당 슬롯에 배치, 없으면 빈 슬롯에 순차 배치
-                                if (overlay.OptionNumber.HasValue)
+                                var slot = question.Options.FirstOrDefault(o => o.OptionNumber == optionNumber.Value);
+                                if (slot == null)
                                 {
-                                    var slot = question.Options.FirstOrDefault(o => o.OptionNumber == overlay.OptionNumber.Value);
-                                    if (slot != null)
-                                    {
-                                        slot.X = overlay.X;
-                                        slot.Y = overlay.Y;
-                                        slot.Width = overlay.Width;
-                                        slot.Height = overlay.Height;
-                                        slot.StrokeThickness = overlay.StrokeThickness;
-                                        slot.OverlayType = OverlayType.ScoringArea;
-                                    }
-                                    // 고정 슬롯 정책: 슬롯이 없으면 무시
+                                    Logger.Instance.Warning($"문항 {questionNumber}, 선택지 {optionNumber.Value}의 슬롯을 찾을 수 없습니다.");
+                                    continue;
                                 }
-                                else
-                                {
-                                    var emptySlot = question.Options.FirstOrDefault(o => !o.IsPlaced);
-                                    if (emptySlot != null)
-                                    {
-                                        emptySlot.X = overlay.X;
-                                        emptySlot.Y = overlay.Y;
-                                        emptySlot.Width = overlay.Width;
-                                        emptySlot.Height = overlay.Height;
-                                        emptySlot.StrokeThickness = overlay.StrokeThickness;
-                                        emptySlot.OverlayType = OverlayType.ScoringArea;
-                                    }
-                                    // 고정 슬롯 정책: 빈 슬롯이 없으면 무시
-                                }
+
+                                slot.X = ovElem.GetProperty("X").GetDouble();
+                                slot.Y = ovElem.GetProperty("Y").GetDouble();
+                                slot.Width = ovElem.GetProperty("Width").GetDouble();
+                                slot.Height = ovElem.GetProperty("Height").GetDouble();
+                                slot.StrokeThickness = ovElem.TryGetProperty("StrokeThickness", out var thickness)
+                                    ? thickness.GetDouble()
+                                    : 2.0;
+                                slot.OverlayType = OverlayType.ScoringArea;
+                                optionsInQuestion++;
                             }
+                            Logger.Instance.Info($"문항 {questionNumber} 로드 완료: {optionsInQuestion}개 선택지");
+                            totalOptionsLoaded += optionsInQuestion;
                         }
                     }
+                    Logger.Instance.Info($"Questions 로드 완료: 총 {totalOptionsLoaded}개 선택지");
                 }
                 // 하위 호환성: ScoringAreas만 있는 경우 Questions로 변환
                 else if (root.TryGetProperty("ScoringAreas", out var scoringAreasElement))
@@ -319,11 +305,12 @@ namespace SimpleOverlayEditor.Services
                     }
                 }
 
+                Logger.Instance.Info($"템플릿 가져오기 완료: ReferenceWidth={template.ReferenceWidth}, ReferenceHeight={template.ReferenceHeight}, TimingMarks={template.TimingMarks.Count}, Questions={template.Questions.Count}, BarcodeAreas={template.BarcodeAreas.Count}");
                 return template;
             }
             catch (Exception ex)
             {
-                Logger.Instance.Warning($"템플릿 가져오기 실패: {ex.Message}");
+                Logger.Instance.Error($"템플릿 가져오기 실패: {ex.Message}", ex);
                 return null;
             }
         }
@@ -421,7 +408,9 @@ namespace SimpleOverlayEditor.Services
                 {
                     try
                     {
+                        // 기본 템플릿을 현재 경로에 저장
                         Save(template);
+                        Logger.Instance.Info($"기본 템플릿을 {PathService.TemplateFilePath}에 저장했습니다.");
                     }
                     catch (Exception ex)
                     {

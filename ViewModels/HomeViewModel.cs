@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -20,7 +21,10 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly AppStateStore _appStateStore;
         private readonly StateStore _stateStore;
         private readonly Workspace _workspace;
+        private readonly DataUsageService _dataUsageService;
         private string? _selectedRound;
+        private bool _isScanning;
+        private System.Threading.CancellationTokenSource? _scanCancellation;
 
         public HomeViewModel(NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
@@ -28,6 +32,7 @@ namespace SimpleOverlayEditor.ViewModels
             _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
             _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
             _appStateStore = new AppStateStore();
+            _dataUsageService = new DataUsageService();
 
             // 회차 목록 로드
             LoadRounds();
@@ -72,6 +77,9 @@ namespace SimpleOverlayEditor.ViewModels
 
             CreateRoundCommand = new RelayCommand(OnCreateRound);
             RenameRoundCommand = new RelayCommand(OnRenameRound, () => !string.IsNullOrEmpty(SelectedRound));
+            RefreshDataUsageCommand = new RelayCommand(OnRefreshDataUsage, () => !IsScanning && !string.IsNullOrEmpty(SelectedRound));
+
+            // 초기 데이터 로드는 HomeView의 Loaded 이벤트에서 처리
         }
 
         /// <summary>
@@ -117,6 +125,9 @@ namespace SimpleOverlayEditor.ViewModels
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Warning);
                         }
+
+                        // 데이터 사용 정보 자동 갱신
+                        RefreshDataUsageAsync(value);
                     }
                 }
             }
@@ -269,6 +280,155 @@ namespace SimpleOverlayEditor.ViewModels
         /// 회차 이름 변경
         /// </summary>
         public RelayCommand RenameRoundCommand { get; }
+
+        /// <summary>
+        /// 데이터 사용 정보 목록
+        /// </summary>
+        public ObservableCollection<DataUsageItem> DataUsageItems { get; } = new ObservableCollection<DataUsageItem>();
+
+        /// <summary>
+        /// 스캔 중 여부
+        /// </summary>
+        public bool IsScanning
+        {
+            get => _isScanning;
+            private set
+            {
+                if (_isScanning != value)
+                {
+                    _isScanning = value;
+                    OnPropertyChanged();
+                    RefreshDataUsageCommand.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 데이터 사용 정보 새로고침 커맨드
+        /// </summary>
+        public RelayCommand RefreshDataUsageCommand { get; }
+
+        private async void RefreshDataUsageAsync(string roundName)
+        {
+            // 이전 스캔 취소
+            _scanCancellation?.Cancel();
+            _scanCancellation?.Dispose();
+            _scanCancellation = new System.Threading.CancellationTokenSource();
+
+            IsScanning = true;
+            DataUsageItems.Clear();
+
+            try
+            {
+                // MainWindow가 표시되지 않았을 수 있으므로 null 전달 (ProgressRunner가 자동 처리)
+                var mainWindow = Application.Current?.MainWindow;
+                var owner = mainWindow != null && mainWindow.IsLoaded ? mainWindow : null;
+                
+                var wasCancelled = await ProgressRunner.RunAsync(
+                    owner,
+                    async scope =>
+                    {
+                        var result = await _dataUsageService.ScanRoundDataUsageAsync(
+                            roundName,
+                            scope.CancellationToken,
+                            (current, total, status) =>
+                            {
+                                scope.Report(current, total, status);
+                            });
+
+                        scope.Ui(() =>
+                        {
+                            DataUsageItems.Clear();
+                            
+                            // 가장 최근에 변경된 항목 찾기 (로그 제외)
+                            var mostRecentItem = result
+                                .Where(item => item.LastModified.HasValue && item.Name != "로그")
+                                .OrderByDescending(item => item.LastModified)
+                                .FirstOrDefault();
+                            
+                            foreach (var item in result)
+                            {
+                                if (item == mostRecentItem)
+                                {
+                                    item.IsMostRecent = true;
+                                }
+                                DataUsageItems.Add(item);
+                            }
+                        });
+                    },
+                    "데이터 정보 스캔",
+                    "데이터 정보를 확인하는 중...");
+
+                if (wasCancelled)
+                {
+                    // 취소됨
+                    Logger.Instance.Info("데이터 정보 스캔이 취소되었습니다.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error($"데이터 정보 스캔 실패: {ex.Message}", ex);
+                MessageBox.Show(
+                    $"데이터 정보를 확인하는 중 오류가 발생했습니다:\n\n{ex.Message}",
+                    "오류",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            finally
+            {
+                IsScanning = false;
+            }
+        }
+
+        private void OnRefreshDataUsage()
+        {
+            if (!string.IsNullOrEmpty(SelectedRound))
+            {
+                RefreshDataUsageAsync(SelectedRound);
+            }
+        }
+
+        /// <summary>
+        /// 폴더를 탐색기에서 여는 명령
+        /// </summary>
+        public ICommand OpenFolderCommand => new RelayCommand<DataUsageItem>(item =>
+        {
+            if (item?.Type == DataUsageItem.ItemType.Folder && !string.IsNullOrEmpty(item.Path))
+            {
+                OpenFolderInExplorer(item.Path);
+            }
+        });
+
+        private void OpenFolderInExplorer(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+            {
+                MessageBox.Show(
+                    "폴더를 찾을 수 없습니다.",
+                    "오류",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error($"탐색기 열기 실패: {ex.Message}", ex);
+                MessageBox.Show(
+                    $"탐색기를 열 수 없습니다:\n\n{ex.Message}",
+                    "오류",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

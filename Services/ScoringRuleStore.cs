@@ -12,6 +12,8 @@ namespace SimpleOverlayEditor.Services
     /// </summary>
     public class ScoringRuleStore
     {
+        private const string BundledDefaultScoringRuleRelativePath = "Assets/default_scoring_rule.json";
+
         public static string ScoringRuleFilePath
         {
             get
@@ -22,6 +24,20 @@ namespace SimpleOverlayEditor.Services
                 }
                 return Path.Combine(PathService.AppDataFolder, "scoring_rule.json");
             }
+        }
+
+        private static string? TryGetBundledDefaultScoringRulePath()
+        {
+            // 실행 폴더 기준(배포 시 CopyToOutputDirectory로 따라오는 위치)
+            var baseDir = AppContext.BaseDirectory;
+            var candidate1 = Path.Combine(baseDir, BundledDefaultScoringRuleRelativePath);
+            if (File.Exists(candidate1)) return candidate1;
+
+            // 개발/디버그 시 WorkingDirectory 기준
+            var candidate2 = Path.Combine(Directory.GetCurrentDirectory(), BundledDefaultScoringRuleRelativePath);
+            if (File.Exists(candidate2)) return candidate2;
+
+            return null;
         }
 
         /// <summary>
@@ -62,73 +78,152 @@ namespace SimpleOverlayEditor.Services
         /// </summary>
         public ScoringRule LoadScoringRule()
         {
-            if (!File.Exists(ScoringRuleFilePath))
+            // 1) AppData에 배점 규칙이 있으면 로드
+            if (File.Exists(ScoringRuleFilePath))
             {
-                return new ScoringRule();
-            }
-
-            try
-            {
-                var json = File.ReadAllText(ScoringRuleFilePath);
-                var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                var scoringRule = new ScoringRule();
-
-                // 점수 이름 로드
-                if (root.TryGetProperty("ScoreNames", out var scoreNamesElement))
+                try
                 {
-                    scoringRule.ScoreNames.Clear();
-                    foreach (var nameElem in scoreNamesElement.EnumerateArray())
-                    {
-                        scoringRule.ScoreNames.Add(nameElem.GetString() ?? string.Empty);
-                    }
-                    
-                    // 12개가 안 되면 빈 문자열로 채움
-                    while (scoringRule.ScoreNames.Count < OmrConstants.OptionsPerQuestion)
-                    {
-                        scoringRule.ScoreNames.Add(string.Empty);
-                    }
-                }
+                    var json = File.ReadAllText(ScoringRuleFilePath);
+                    var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
 
-                if (root.TryGetProperty("Questions", out var questionsElement))
-                {
-                    scoringRule.Questions.Clear();
-                    
-                    foreach (var questionElem in questionsElement.EnumerateArray())
+                    var scoringRule = new ScoringRule();
+
+                    // 점수 이름 로드
+                    if (root.TryGetProperty("ScoreNames", out var scoreNamesElement))
                     {
-                        var questionNumber = questionElem.TryGetProperty("QuestionNumber", out var qNum)
-                            ? qNum.GetInt32()
-                            : 0;
-
-                        var question = new QuestionScoringRule { QuestionNumber = questionNumber };
-
-                        if (questionElem.TryGetProperty("Scores", out var scoresElement))
+                        scoringRule.ScoreNames.Clear();
+                        foreach (var nameElem in scoreNamesElement.EnumerateArray())
                         {
-                            question.Scores.Clear();
-                            foreach (var scoreElem in scoresElement.EnumerateArray())
-                            {
-                                question.Scores.Add(scoreElem.GetDouble());
-                            }
-                            
-                            // {OmrConstants.OptionsPerQuestion}개가 안 되면 0으로 채움
-                            while (question.Scores.Count < OmrConstants.OptionsPerQuestion)
-                            {
-                                question.Scores.Add(0);
-                            }
+                            scoringRule.ScoreNames.Add(nameElem.GetString() ?? string.Empty);
                         }
-
-                        scoringRule.Questions.Add(question);
+                        
+                        // 12개가 안 되면 빈 문자열로 채움
+                        while (scoringRule.ScoreNames.Count < OmrConstants.OptionsPerQuestion)
+                        {
+                            scoringRule.ScoreNames.Add(string.Empty);
+                        }
                     }
-                }
 
-                return scoringRule;
+                    if (root.TryGetProperty("Questions", out var questionsElement))
+                    {
+                        scoringRule.Questions.Clear();
+                        
+                        foreach (var questionElem in questionsElement.EnumerateArray())
+                        {
+                            var questionNumber = questionElem.TryGetProperty("QuestionNumber", out var qNum)
+                                ? qNum.GetInt32()
+                                : 0;
+
+                            var question = new QuestionScoringRule { QuestionNumber = questionNumber };
+
+                            if (questionElem.TryGetProperty("Scores", out var scoresElement))
+                            {
+                                question.Scores.Clear();
+                                foreach (var scoreElem in scoresElement.EnumerateArray())
+                                {
+                                    question.Scores.Add(scoreElem.GetDouble());
+                                }
+                                
+                                // {OmrConstants.OptionsPerQuestion}개가 안 되면 0으로 채움
+                                while (question.Scores.Count < OmrConstants.OptionsPerQuestion)
+                                {
+                                    question.Scores.Add(0);
+                                }
+                            }
+
+                            scoringRule.Questions.Add(question);
+                        }
+                    }
+
+                    return scoringRule;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Warning($"정답 및 배점 로드 실패: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+
+            // 2) 없으면 번들된 기본 배점 규칙을 찾아 설치/로드
+            var bundledPath = TryGetBundledDefaultScoringRulePath();
+            if (bundledPath != null)
             {
-                Logger.Instance.Warning($"정답 및 배점 로드 실패: {ex.Message}");
-                return new ScoringRule();
+                try
+                {
+                    var json = File.ReadAllText(bundledPath);
+                    var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    var scoringRule = new ScoringRule();
+
+                    // 점수 이름 로드
+                    if (root.TryGetProperty("ScoreNames", out var scoreNamesElement))
+                    {
+                        scoringRule.ScoreNames.Clear();
+                        foreach (var nameElem in scoreNamesElement.EnumerateArray())
+                        {
+                            scoringRule.ScoreNames.Add(nameElem.GetString() ?? string.Empty);
+                        }
+                        
+                        // 12개가 안 되면 빈 문자열로 채움
+                        while (scoringRule.ScoreNames.Count < OmrConstants.OptionsPerQuestion)
+                        {
+                            scoringRule.ScoreNames.Add(string.Empty);
+                        }
+                    }
+
+                    if (root.TryGetProperty("Questions", out var questionsElement))
+                    {
+                        scoringRule.Questions.Clear();
+                        
+                        foreach (var questionElem in questionsElement.EnumerateArray())
+                        {
+                            var questionNumber = questionElem.TryGetProperty("QuestionNumber", out var qNum)
+                                ? qNum.GetInt32()
+                                : 0;
+
+                            var question = new QuestionScoringRule { QuestionNumber = questionNumber };
+
+                            if (questionElem.TryGetProperty("Scores", out var scoresElement))
+                            {
+                                question.Scores.Clear();
+                                foreach (var scoreElem in scoresElement.EnumerateArray())
+                                {
+                                    question.Scores.Add(scoreElem.GetDouble());
+                                }
+                                
+                                // {OmrConstants.OptionsPerQuestion}개가 안 되면 0으로 채움
+                                while (question.Scores.Count < OmrConstants.OptionsPerQuestion)
+                                {
+                                    question.Scores.Add(0);
+                                }
+                            }
+
+                            scoringRule.Questions.Add(question);
+                        }
+                    }
+
+                    // 기본 배점 규칙을 AppData에 저장
+                    try
+                    {
+                        SaveScoringRule(scoringRule);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 저장 실패해도 배점 규칙은 반환 (첫 실행 UX 우선)
+                        Logger.Instance.Warning($"기본 배점 규칙 저장 실패(계속 진행): {ex.Message}");
+                    }
+
+                    return scoringRule;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Warning($"기본 배점 규칙 로드 실패: {ex.Message}");
+                }
             }
+
+            // 3) 기본값도 없으면 빈 객체 반환
+            return new ScoringRule();
         }
 
         /// <summary>

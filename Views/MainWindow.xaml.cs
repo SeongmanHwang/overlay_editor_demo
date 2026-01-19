@@ -55,27 +55,6 @@ namespace SimpleOverlayEditor.Views
                     }
                 }
 
-                // 마이그레이션: 기존 단일 루트 데이터가 있으면 "기존 폴더" 회차로 이동
-                if (!Directory.Exists(PathService.RoundsFolder))
-                {
-                    var hasLegacyData = File.Exists(Path.Combine(PathService.AppDataFolder, "state.json")) ||
-                                       File.Exists(Path.Combine(PathService.AppDataFolder, "session.json")) ||
-                                       File.Exists(Path.Combine(PathService.AppDataFolder, "template.json")) ||
-                                       File.Exists(Path.Combine(PathService.AppDataFolder, "student_registry.json")) ||
-                                       File.Exists(Path.Combine(PathService.AppDataFolder, "interviewer_registry.json")) ||
-                                       File.Exists(Path.Combine(PathService.AppDataFolder, "scoring_rule.json")) ||
-                                       Directory.Exists(Path.Combine(PathService.AppDataFolder, "aligned_cache")) ||
-                                       Directory.Exists(Path.Combine(PathService.AppDataFolder, "output"));
-
-                    if (hasLegacyData)
-                    {
-                        Logger.Instance.Info("기존 단일 루트 데이터 발견. '기존 폴더' 회차로 마이그레이션합니다.");
-                        MigrateLegacyDataToRound(appStateStore, "기존 폴더");
-                        // 마이그레이션 후 app_state 다시 로드
-                        appState = appStateStore.LoadAppState();
-                    }
-                }
-
                 // 폴더가 없는 회차 정리 (수동 삭제 등으로 폴더만 삭제된 경우 대응)
                 var validRounds = appState.Rounds
                     .Where(r => Directory.Exists(PathService.GetRoundRoot(r.Name)))
@@ -104,45 +83,24 @@ namespace SimpleOverlayEditor.Views
                     appState = appStateStore.LoadAppState(); // 다시 로드
                 }
 
-                // 기본 회차 생성 (첫 실행 시, 마이그레이션 후가 아닐 때)
-                // 마이그레이션 후에는 이미 "기존 폴더"가 생성되었을 수 있으므로 확인 필요
-                if (appState.Rounds.Count == 0)
+                // 기본 회차 생성 (2025년, 2026년이 없으면 항상 생성)
+                var has2025 = Directory.Exists(PathService.GetRoundRoot("2025년")) ||
+                              appState.Rounds.Any(r => r.Name.Equals("2025년", StringComparison.OrdinalIgnoreCase));
+                var has2026 = Directory.Exists(PathService.GetRoundRoot("2026년")) ||
+                              appState.Rounds.Any(r => r.Name.Equals("2026년", StringComparison.OrdinalIgnoreCase));
+
+                if (!has2025 || !has2026)
                 {
-                    Logger.Instance.Info("기본 회차 생성: 2027년, 2028년");
+                    Logger.Instance.Info("기본 회차 생성: 2025년, 2026년");
                     
-                    // "2027년"이 이미 폴더로 존재하는지 확인
-                    var has2027 = Directory.Exists(PathService.GetRoundRoot("2027년"));
-                    var has2028 = Directory.Exists(PathService.GetRoundRoot("2028년"));
-                    
-                    if (!has2027)
+                    if (!has2025)
                     {
-                        appStateStore.CreateRound("2027년");
-                    }
-                    else
-                    {
-                        // 폴더는 있지만 app_state.json에 없는 경우 (마이그레이션 후)
-                        appState.Rounds.Add(new Models.RoundInfo
-                        {
-                            Name = "2027년",
-                            CreatedAt = Directory.GetCreationTimeUtc(PathService.GetRoundRoot("2027년")),
-                            LastAccessedAt = Directory.GetLastWriteTimeUtc(PathService.GetRoundRoot("2027년"))
-                        });
-                        Logger.Instance.Info("기존 '2027년' 폴더 발견, 목록에 추가");
+                        appStateStore.CreateRound("2025년");
                     }
                     
-                    if (!has2028)
+                    if (!has2026)
                     {
-                        appStateStore.CreateRound("2028년");
-                    }
-                    else
-                    {
-                        appState.Rounds.Add(new Models.RoundInfo
-                        {
-                            Name = "2028년",
-                            CreatedAt = Directory.GetCreationTimeUtc(PathService.GetRoundRoot("2028년")),
-                            LastAccessedAt = Directory.GetLastWriteTimeUtc(PathService.GetRoundRoot("2028년"))
-                        });
-                        Logger.Instance.Info("기존 '2028년' 폴더 발견, 목록에 추가");
+                        appStateStore.CreateRound("2026년");
                     }
                     
                     appStateStore.SaveAppState(appState);
@@ -156,7 +114,7 @@ namespace SimpleOverlayEditor.Views
                     // 가장 최근에 접근한 회차 선택 (LastAccessedAt 기준)
                     selectedRound = appState.Rounds
                         .OrderByDescending(r => r.LastAccessedAt)
-                        .FirstOrDefault()?.Name ?? appState.Rounds.FirstOrDefault()?.Name ?? "2027년";
+                        .FirstOrDefault()?.Name ?? appState.Rounds.FirstOrDefault()?.Name ?? "2025년";
                 }
 
                 // PathService.CurrentRound 설정
@@ -290,98 +248,6 @@ namespace SimpleOverlayEditor.Views
             }
 
             base.OnClosed(e);
-        }
-
-        /// <summary>
-        /// 기존 단일 루트 데이터를 지정된 회차로 마이그레이션합니다.
-        /// </summary>
-        private void MigrateLegacyDataToRound(AppStateStore appStateStore, string roundName)
-        {
-            try
-            {
-                // 회차 생성 (이미 있으면 스킵)
-                var existingRound = appStateStore.LoadAppState().Rounds
-                    .FirstOrDefault(r => r.Name.Equals(roundName, StringComparison.OrdinalIgnoreCase));
-
-                if (existingRound == null)
-                {
-                    appStateStore.CreateRound(roundName);
-                }
-
-                var roundRoot = PathService.GetRoundRoot(roundName);
-                Directory.CreateDirectory(roundRoot);
-                PathService.EnsureRoundDirectories(roundName);
-
-                var appDataFolder = PathService.AppDataFolder;
-
-                // 파일 이동
-                var filesToMove = new[]
-                {
-                    ("state.json", "state.json"),
-                    ("session.json", "session.json"),
-                    ("template.json", "template.json"),
-                    ("student_registry.json", "student_registry.json"),
-                    ("interviewer_registry.json", "interviewer_registry.json"),
-                    ("scoring_rule.json", "scoring_rule.json")
-                };
-
-                foreach (var (sourceFile, destFile) in filesToMove)
-                {
-                    var sourcePath = Path.Combine(appDataFolder, sourceFile);
-                    var destPath = Path.Combine(roundRoot, destFile);
-
-                    if (File.Exists(sourcePath) && !File.Exists(destPath))
-                    {
-                        File.Move(sourcePath, destPath);
-                        Logger.Instance.Info($"마이그레이션: {sourceFile} → {roundName}/{destFile}");
-                    }
-                }
-
-                // 폴더 이동
-                var foldersToMove = new[]
-                {
-                    ("aligned_cache", "aligned_cache"),
-                    ("output", "output"),
-                    ("barcode_debug", "barcode_debug")
-                };
-
-                foreach (var (sourceFolder, destFolder) in foldersToMove)
-                {
-                    var sourcePath = Path.Combine(appDataFolder, sourceFolder);
-                    var destPath = Path.Combine(roundRoot, destFolder);
-
-                    if (Directory.Exists(sourcePath) && !Directory.Exists(destPath))
-                    {
-                        // 폴더 내부 파일들을 이동
-                        Directory.CreateDirectory(destPath);
-                        foreach (var file in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
-                        {
-                            var relativePath = Path.GetRelativePath(sourcePath, file);
-                            var destFile = Path.Combine(destPath, relativePath);
-                            var destDir = Path.GetDirectoryName(destFile);
-                            if (!string.IsNullOrEmpty(destDir))
-                            {
-                                Directory.CreateDirectory(destDir);
-                            }
-                            File.Move(file, destFile);
-                        }
-                        Directory.Delete(sourcePath, true);
-                        Logger.Instance.Info($"마이그레이션: {sourceFolder}/ → {roundName}/{destFolder}/");
-                    }
-                }
-
-                // app_state.json 업데이트
-                var appState = appStateStore.LoadAppState();
-                appState.LastSelectedRound = roundName;
-                appStateStore.SaveAppState(appState);
-
-                Logger.Instance.Info($"마이그레이션 완료: {roundName}");
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Error($"마이그레이션 실패: {ex.Message}", ex);
-                // 마이그레이션 실패해도 계속 진행
-            }
         }
     }
 

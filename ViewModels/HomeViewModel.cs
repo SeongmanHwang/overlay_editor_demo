@@ -176,11 +176,11 @@ namespace SimpleOverlayEditor.ViewModels
                 var roundName = dialog.Result.Trim();
                 try
                 {
-                    _appStateStore.CreateRound(roundName);
+                    var created = _appStateStore.CreateRound(roundName);
                     LoadRounds();
-                    SelectedRound = roundName;
+                    SelectedRound = created.Name;
                     MessageBox.Show(
-                        $"회차 '{roundName}'가 생성되었습니다.",
+                        $"회차 '{created.Name}'가 생성되었습니다.",
                         "회차 생성",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);

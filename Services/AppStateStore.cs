@@ -141,6 +141,13 @@ namespace SimpleOverlayEditor.Services
                 {
                     var folderName = Path.GetFileName(folderPath);
                     
+                    // "기존 폴더"는 제외 (마이그레이션 기능 제거로 더 이상 사용하지 않음)
+                    if (folderName.Equals("기존 폴더", StringComparison.OrdinalIgnoreCase) ||
+                        PathService.SanitizeRoundName("기존 폴더").Equals(folderName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    
                     // 폴더명이 이미 알려진 SafeRoundName과 일치하는지 확인
                     var matchingRound = existingAppState.Rounds.FirstOrDefault(r => 
                         PathService.SanitizeRoundName(r.Name).Equals(folderName, StringComparison.OrdinalIgnoreCase));

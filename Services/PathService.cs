@@ -11,6 +11,7 @@ namespace SimpleOverlayEditor.Services
         private static string? _currentRound;
 
         /// <summary>
+
         /// 현재 선택된 회차 이름 (null이면 회차 시스템 미사용)
         /// </summary>
         public static string? CurrentRound
@@ -214,10 +215,8 @@ namespace SimpleOverlayEditor.Services
         public static void EnsureDirectories()
         {
             Directory.CreateDirectory(AppDataFolder);
-            Directory.CreateDirectory(OutputFolder);
-            Directory.CreateDirectory(AlignmentCacheFolder);
-            // barcode_debug는 DEBUG 빌드에서만 생성되지만, 존재해도 무방합니다.
-            Directory.CreateDirectory(BarcodeDebugFolder);
+            // aligned_cache, barcode_debug, output은 회차별 폴더에만 생성 (EnsureRoundDirectories에서 처리)
+            // 로그 폴더만 전역으로 생성
             Directory.CreateDirectory(LogsFolder);
         }
 

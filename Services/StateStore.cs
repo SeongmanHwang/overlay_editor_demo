@@ -118,51 +118,63 @@ namespace SimpleOverlayEditor.Services
 
         public Workspace Load()
         {
-            if (!File.Exists(PathService.StateFilePath))
-            {
-                return new Workspace { InputFolderPath = PathService.DefaultInputFolder };
-            }
-
             try
             {
-                var json = File.ReadAllText(PathService.StateFilePath);
-                var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
+                // state.json이 없어도 템플릿은 로드되어야 합니다.
+                // (첫 실행/새 회차에서 state.json이 아직 없을 수 있음)
+                var workspace = new Workspace { InputFolderPath = PathService.DefaultInputFolder };
 
-                var workspace = new Workspace
+                JsonElement? rootOpt = null;
+                if (File.Exists(PathService.StateFilePath))
                 {
-                    InputFolderPath = root.TryGetProperty("InputFolderPath", out var inputPath) 
-                        ? inputPath.GetString() ?? PathService.DefaultInputFolder 
-                        : PathService.DefaultInputFolder,
-                    SelectedDocumentId = root.TryGetProperty("SelectedDocumentId", out var selectedId) 
-                        ? selectedId.GetString() 
-                        : null
-                };
+                    var json = File.ReadAllText(PathService.StateFilePath);
+                    var doc = JsonDocument.Parse(json);
+                    rootOpt = doc.RootElement;
+                }
 
-                // 하위 호환성: state.json에 Template이 있으면 template.json으로 마이그레이션
-                if (root.TryGetProperty("Template", out var templateElement))
+                if (rootOpt.HasValue)
                 {
-                    Logger.Instance.Info("state.json에서 템플릿 발견. template.json으로 마이그레이션합니다.");
-                    try
+                    var root = rootOpt.Value;
+
+                    workspace.InputFolderPath = root.TryGetProperty("InputFolderPath", out var inputPath)
+                        ? inputPath.GetString() ?? PathService.DefaultInputFolder
+                        : PathService.DefaultInputFolder;
+
+                    workspace.SelectedDocumentId = root.TryGetProperty("SelectedDocumentId", out var selectedId)
+                        ? selectedId.GetString()
+                        : null;
+
+                    // 하위 호환성: state.json에 Template이 있으면 template.json으로 마이그레이션
+                    if (root.TryGetProperty("Template", out var templateElement))
                     {
-                        // 고정 슬롯 정책과 일관되게: state.json의 Template 오브젝트를 그대로 template.json으로 저장하고,
-                        // 실제 슬롯 매핑/호환 처리는 TemplateStore.Import/Load에서 수행합니다.
-                        PathService.EnsureDirectories();
-                        File.WriteAllText(PathService.TemplateFilePath, templateElement.GetRawText());
-                        Logger.Instance.Info("템플릿 마이그레이션 완료: template.json에 저장됨");
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Instance.Error("템플릿 마이그레이션 실패", ex);
+                        Logger.Instance.Info("state.json에서 템플릿 발견. template.json으로 마이그레이션합니다.");
+                        try
+                        {
+                            // 고정 슬롯 정책과 일관되게: state.json의 Template 오브젝트를 그대로 template.json으로 저장하고,
+                            // 실제 슬롯 매핑/호환 처리는 TemplateStore.Import/Load에서 수행합니다.
+                            PathService.EnsureDirectories();
+                            File.WriteAllText(PathService.TemplateFilePath, templateElement.GetRawText());
+                            Logger.Instance.Info("템플릿 마이그레이션 완료: template.json에 저장됨");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Instance.Error("템플릿 마이그레이션 실패", ex);
+                        }
                     }
                 }
 
-                // template.json에서 템플릿 로드
+                // template.json(또는 번들 기본값)에서 템플릿 로드: state.json 유무와 무관하게 항상 수행
                 var templateStore = new TemplateStore();
                 var loadedTemplate = templateStore.Load();
                 if (loadedTemplate != null)
                 {
                     workspace.Template = loadedTemplate;
+                }
+                else
+                {
+                    // 템플릿이 null인 경우 (파일이 없고 기본 템플릿도 로드 실패)
+                    Logger.Instance.Warning("템플릿 로드 실패, 빈 템플릿 사용");
+                    workspace.Template = new OmrTemplate();
                 }
 
                 // Documents, MarkingResults, BarcodeResults는 session.json에서 로드됨

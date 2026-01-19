@@ -34,11 +34,9 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
 
 아래 항목들은 기능 확장 및 운영 편의성을 위한 우선 과제입니다.
 
-- **홈 화면에 \"회차\" 설정 드랍박스 추가**
-  - 회차(예: 1회차/2회차/...)별로 `state/session/template/registry/scoring_rule` 데이터를 **개별 저장**하도록 분리
-  - UI에서 현재 회차가 무엇인지 항상 명확하게 표시
-
-- **홈 화면에 설정 버튼 추가**
+- **회차 시스템 UI 개선**
+  - ✅ 회차별 데이터 분리 저장 (이미 구현됨)
+  - 홈 화면에 현재 회차 표시 및 회차 선택 드롭다운 추가
   - 선택된 회차 데이터 **초기화(리셋)** 기능
   - 선택된 회차 데이터 **삭제** 기능 (삭제 전 확인 다이얼로그, 영향 범위 안내)
 
@@ -226,7 +224,7 @@ overlay_editor/
 - 타이밍 마크 기반 자동 정렬
 - 단일/전체 이미지 마킹 리딩 (병렬 처리)
 - 단일/전체 이미지 바코드 디코딩 (병렬 처리)
-- OMR 결과 요약 및 CSV 내보내기
+- OMR 결과 요약 및 Excel 내보내기
 - 오류 필터링 (중복, 오류만 표시 등)
 
 ---
@@ -719,6 +717,28 @@ MarkingAnalyzer.AnalyzeAllSheets() (OmrSheetResult 생성)
 UI에 결과 표시 (ICollectionView를 통한 정렬/필터링)
 ```
 
+### 5. 마킹 결과 내보내기
+
+```
+Marking 모드에서 OMR 결과 확인
+  ↓
+사용자 "Excel 내보내기" 버튼 클릭
+  ↓
+MarkingViewModel.OnExportToXlsx()
+  ↓
+  - SaveFileDialog 표시 (기본 파일명: OMR_Results_YYYYMMDD_HHMMSS.xlsx)
+  ↓
+  - ClosedXML을 사용하여 Excel 워크북 생성
+  - 헤더 행 작성 (파일명, 수험번호, 시각, 실, 순, 면접번호, 결합ID, 문항1-4, 오류, 오류 메시지)
+  - 필터링된 SheetResults 데이터를 행으로 추가
+  - 헤더 서식 적용 (굵게, 배경색)
+  - 자동 열 너비 조정
+  ↓
+Excel 파일 저장
+  ↓
+완료 메시지 표시
+```
+
 ### 6. 채점 처리
 
 ```
@@ -746,7 +766,24 @@ GradingResults 컬렉션 생성 (ICollectionView로 정렬/필터링)
 UI 표시
 ```
 
-### 7. 저장
+### 7. 회차 관리
+
+```
+애플리케이션 시작
+  ↓
+AppStateStore.LoadAppState()
+  ↓
+  - app_state.json에서 회차 목록 및 마지막 선택 회차 로드
+  - 폴더가 없는 회차 자동 정리
+  ↓
+PathService.CurrentRound 설정
+  ↓
+모든 데이터 저장/로드 시 회차별 경로 사용
+  - state.json, session.json, template.json → Rounds/{회차명}/
+  - output, aligned_cache, barcode_debug → Rounds/{회차명}/
+```
+
+### 8. 저장
 
 ```
 사용자 "저장" 버튼 클릭 또는 자동 저장
@@ -764,7 +801,7 @@ TemplateStore.SaveTemplate(OmrTemplate) (템플릿 편집 시)
   - template.json에 저장
 ```
 
-### 8. 종료 (Shutdown)
+### 9. 종료 (Shutdown)
 
 ```
 사용자 창 닫기
@@ -799,7 +836,7 @@ MainWindow.OnClosed()
 - **ZXing.Net 0.15.0**: 바코드 디코딩 라이브러리
   - 지원 포맷: CODE_128, CODE_39, EAN_13, EAN_8, CODABAR, ITF
   - 이미지 전처리 및 바코드 패턴 인식
-- **ClosedXML 0.102.2**: Excel 파일 생성/읽기 (CSV 내보내기, 명렬 관리)
+- **ClosedXML 0.102.2**: Excel 파일 생성/읽기 (마킹 결과 내보내기, 명렬 관리)
 
 ### 비동기 및 병렬 처리 기술
 - **async/await**: 비동기 프로그래밍 패턴
@@ -877,6 +914,7 @@ dotnet build
 - **폴더 로드**: 이미지가 있는 폴더 선택 (병렬 처리로 자동 로드 및 정렬)
 - **마킹 리딩**: "마킹 리딩" (단일) 또는 "전체 감지" (병렬 처리) 버튼 클릭
 - **결과 확인**: 오른쪽 패널에서 마킹/바코드 결과 확인, 하단 패널에서 OMR 결과 요약 확인
+- **Excel 내보내기**: 하단 패널에서 "Excel 내보내기" 버튼 클릭하여 현재 필터링된 결과를 Excel 파일로 저장
 
 ### 3. 명렬 관리
 - **Registry 모드**로 이동
@@ -887,24 +925,66 @@ dotnet build
 - **ScoringRule 모드**로 이동
 - **배점 입력**: 문항별 선택지 점수 입력 (자동 저장)
 
-### 5. 채점 처리
+### 5. 마킹 결과 내보내기
+- **Marking 모드**에서 OMR 결과 확인 후
+- **Excel 내보내기**: 현재 필터링된 결과를 Excel(.xlsx) 파일로 내보내기
+  - 파일명, 수험번호, 시각, 실, 순, 면접번호, 결합ID, 문항별 마킹, 오류 정보 포함
+
+### 6. 채점 처리
 - **Grading 모드**로 이동
 - **채점 결과 확인**: 면접위원별 점수 평균, 석차, 수험번호 불일치 검사 결과 확인
 - **Excel 내보내기**: 채점 결과를 Excel 파일로 내보내기
 
 ## 저장 위치
 
+애플리케이션은 **회차별 데이터 분리 시스템**을 사용합니다. 회차가 선택된 경우 모든 데이터는 회차별 폴더에 저장되며, 회차가 없으면 전역 폴더에 저장됩니다.
+
+### 회차별 저장 구조 (회차 선택 시)
+
+- **회차 루트 폴더**: `%AppData%/SimpleOverlayEditor/Rounds/{회차명}/`
+  - **상태 파일 (state.json)**: `Rounds/{회차명}/state.json`
+    - 프로그램 전반 상태: 입력 폴더 경로, 선택된 문서 ID
+  - **세션 파일 (session.json)**: `Rounds/{회차명}/session.json`
+    - 이미지 로드 및 리딩 작업 세션: 문서 목록, 정렬 정보, 마킹 결과, 바코드 결과
+  - **템플릿 파일 (template.json)**: `Rounds/{회차명}/template.json`
+    - OMR 템플릿 정보: 타이밍 마크, 채점 영역, 바코드 영역
+  - **출력 이미지**: `Rounds/{회차명}/output/`
+    - 오버레이가 합성된 이미지 파일 (재생성 가능한 캐시)
+    - 용량 상한: 512MB (초과 시 오래된 파일부터 자동 삭제)
+    - 보관 기간: 7일 이상 된 파일 자동 삭제
+  - **정렬된 이미지 캐시**: `Rounds/{회차명}/aligned_cache/`
+    - 정렬된 이미지 캐시 파일
+    - 용량 상한: 5GB (초과 시 오래된 파일부터 자동 삭제)
+    - 보관 기간: 14일 이상 된 파일 자동 삭제
+  - **바코드 디버그**: `Rounds/{회차명}/barcode_debug/`
+    - 바코드 디코딩 디버그용 크롭 이미지 (DEBUG 빌드에서만 생성)
+    - 용량 상한: 512MB
+    - 보관 기간: 3일 이상 된 파일 자동 삭제
+
+### 전역 저장 위치 (회차 미선택 시)
+
 - **상태 파일 (state.json)**: `%AppData%/SimpleOverlayEditor/state.json`
-  - 프로그램 전반 상태: 입력 폴더 경로, 선택된 문서 ID
 - **세션 파일 (session.json)**: `%AppData%/SimpleOverlayEditor/session.json`
-  - 이미지 로드 및 리딩 작업 세션: 문서 목록, 정렬 정보, 마킹 결과, 바코드 결과
 - **템플릿 파일 (template.json)**: `%AppData%/SimpleOverlayEditor/template.json`
-  - OMR 템플릿 정보: 타이밍 마크, 채점 영역, 바코드 영역
-- **출력 이미지**: `%AppData%/SimpleOverlayEditor/output/`
-- **정렬된 이미지 캐시**: `%AppData%/SimpleOverlayEditor/aligned_cache/`
+- **출력 이미지**: `%AppData%/SimpleOverlayEditor/output/` (용량 상한: 512MB)
+- **정렬된 이미지 캐시**: `%AppData%/SimpleOverlayEditor/aligned_cache/` (용량 상한: 5GB)
+- **바코드 디버그**: `%AppData%/SimpleOverlayEditor/barcode_debug/` (용량 상한: 512MB)
+
+### 공통 저장 위치 (회차와 무관)
+
 - **로그 파일**: `%AppData%/SimpleOverlayEditor/logs/overlay_editor_YYYYMMDD.log`
 - **명렬 파일**: `%AppData%/SimpleOverlayEditor/student_registry.json`, `interviewer_registry.json`
 - **배점 규칙 파일**: `%AppData%/SimpleOverlayEditor/scoring_rule.json`
+- **앱 상태 파일**: `%AppData%/SimpleOverlayEditor/app_state.json` (회차 목록 및 마지막 선택 회차)
+
+### 캐시 정리 정책
+
+애플리케이션 시작 시 자동으로 캐시 폴더를 정리합니다:
+- **output**: 7일 이상 된 파일 삭제, 512MB 초과 시 오래된 파일부터 삭제
+- **aligned_cache**: 14일 이상 된 파일 삭제, 5GB 초과 시 오래된 파일부터 삭제 (현재 세션에서 참조하는 파일은 보호)
+- **barcode_debug**: 3일 이상 된 파일 삭제, 512MB 초과 시 오래된 파일부터 삭제
+
+**참고**: output 폴더의 이미지는 UI 표시용이 아니라 내보내기/검수용 캐시입니다. UI에서는 문서 선택 시 메모리에서 즉석 렌더링하여 표시합니다.
 
 ## 로그 파일
 

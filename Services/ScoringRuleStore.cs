@@ -12,8 +12,17 @@ namespace SimpleOverlayEditor.Services
     /// </summary>
     public class ScoringRuleStore
     {
-        public static string ScoringRuleFilePath =>
-            Path.Combine(PathService.AppDataFolder, "scoring_rule.json");
+        public static string ScoringRuleFilePath
+        {
+            get
+            {
+                if (PathService.CurrentRound != null)
+                {
+                    return Path.Combine(PathService.GetRoundRoot(PathService.CurrentRound), "scoring_rule.json");
+                }
+                return Path.Combine(PathService.AppDataFolder, "scoring_rule.json");
+            }
+        }
 
         /// <summary>
         /// 정답 및 배점 정보를 저장합니다.

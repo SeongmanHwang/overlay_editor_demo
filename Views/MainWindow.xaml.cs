@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using SimpleOverlayEditor.Models;
@@ -39,10 +40,136 @@ namespace SimpleOverlayEditor.Views
                     Logger.Instance.Info("OMR 설정 검증 통과");
                 }
 
+                // 회차 시스템 초기화
+                var appStateStore = new AppStateStore();
+                var appState = appStateStore.LoadAppState();
+
+                // 회차 자동 발견 (재설치 시나리오 대응)
+                var discoveredRounds = appStateStore.DiscoverRounds();
+                foreach (var discovered in discoveredRounds)
+                {
+                    if (!appState.Rounds.Any(r => r.Name.Equals(discovered.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        appState.Rounds.Add(discovered);
+                        Logger.Instance.Info($"회차 자동 발견: {discovered.Name}");
+                    }
+                }
+
+                // 마이그레이션: 기존 단일 루트 데이터가 있으면 "기존 폴더" 회차로 이동
+                if (!Directory.Exists(PathService.RoundsFolder))
+                {
+                    var hasLegacyData = File.Exists(Path.Combine(PathService.AppDataFolder, "state.json")) ||
+                                       File.Exists(Path.Combine(PathService.AppDataFolder, "session.json")) ||
+                                       File.Exists(Path.Combine(PathService.AppDataFolder, "template.json")) ||
+                                       File.Exists(Path.Combine(PathService.AppDataFolder, "student_registry.json")) ||
+                                       File.Exists(Path.Combine(PathService.AppDataFolder, "interviewer_registry.json")) ||
+                                       File.Exists(Path.Combine(PathService.AppDataFolder, "scoring_rule.json")) ||
+                                       Directory.Exists(Path.Combine(PathService.AppDataFolder, "aligned_cache")) ||
+                                       Directory.Exists(Path.Combine(PathService.AppDataFolder, "output"));
+
+                    if (hasLegacyData)
+                    {
+                        Logger.Instance.Info("기존 단일 루트 데이터 발견. '기존 폴더' 회차로 마이그레이션합니다.");
+                        MigrateLegacyDataToRound(appStateStore, "기존 폴더");
+                        // 마이그레이션 후 app_state 다시 로드
+                        appState = appStateStore.LoadAppState();
+                    }
+                }
+
+                // 폴더가 없는 회차 정리 (수동 삭제 등으로 폴더만 삭제된 경우 대응)
+                var validRounds = appState.Rounds
+                    .Where(r => Directory.Exists(PathService.GetRoundRoot(r.Name)))
+                    .ToList();
+
+                if (validRounds.Count != appState.Rounds.Count)
+                {
+                    var removedCount = appState.Rounds.Count - validRounds.Count;
+                    var removedNames = appState.Rounds
+                        .Where(r => !Directory.Exists(PathService.GetRoundRoot(r.Name)))
+                        .Select(r => r.Name)
+                        .ToList();
+                    
+                    Logger.Instance.Info($"폴더가 없는 회차 {removedCount}개 정리: {string.Join(", ", removedNames)}");
+                    
+                    appState.Rounds = validRounds;
+                    
+                    // LastSelectedRound도 유효한 회차로 업데이트
+                    if (!string.IsNullOrEmpty(appState.LastSelectedRound) && 
+                        !validRounds.Any(r => r.Name.Equals(appState.LastSelectedRound, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        appState.LastSelectedRound = null;
+                    }
+                    
+                    appStateStore.SaveAppState(appState);
+                    appState = appStateStore.LoadAppState(); // 다시 로드
+                }
+
+                // 기본 회차 생성 (첫 실행 시, 마이그레이션 후가 아닐 때)
+                // 마이그레이션 후에는 이미 "기존 폴더"가 생성되었을 수 있으므로 확인 필요
+                if (appState.Rounds.Count == 0)
+                {
+                    Logger.Instance.Info("기본 회차 생성: 2027년, 2028년");
+                    
+                    // "2027년"이 이미 폴더로 존재하는지 확인
+                    var has2027 = Directory.Exists(PathService.GetRoundRoot("2027년"));
+                    var has2028 = Directory.Exists(PathService.GetRoundRoot("2028년"));
+                    
+                    if (!has2027)
+                    {
+                        appStateStore.CreateRound("2027년");
+                    }
+                    else
+                    {
+                        // 폴더는 있지만 app_state.json에 없는 경우 (마이그레이션 후)
+                        appState.Rounds.Add(new Models.RoundInfo
+                        {
+                            Name = "2027년",
+                            CreatedAt = Directory.GetCreationTimeUtc(PathService.GetRoundRoot("2027년")),
+                            LastAccessedAt = Directory.GetLastWriteTimeUtc(PathService.GetRoundRoot("2027년"))
+                        });
+                        Logger.Instance.Info("기존 '2027년' 폴더 발견, 목록에 추가");
+                    }
+                    
+                    if (!has2028)
+                    {
+                        appStateStore.CreateRound("2028년");
+                    }
+                    else
+                    {
+                        appState.Rounds.Add(new Models.RoundInfo
+                        {
+                            Name = "2028년",
+                            CreatedAt = Directory.GetCreationTimeUtc(PathService.GetRoundRoot("2028년")),
+                            LastAccessedAt = Directory.GetLastWriteTimeUtc(PathService.GetRoundRoot("2028년"))
+                        });
+                        Logger.Instance.Info("기존 '2028년' 폴더 발견, 목록에 추가");
+                    }
+                    
+                    appStateStore.SaveAppState(appState);
+                    appState = appStateStore.LoadAppState(); // 다시 로드
+                }
+
+                // 마지막 선택 회차 또는 기본 회차 선택
+                var selectedRound = appState.LastSelectedRound;
+                if (string.IsNullOrEmpty(selectedRound) || !appState.Rounds.Any(r => r.Name.Equals(selectedRound, StringComparison.OrdinalIgnoreCase)))
+                {
+                    // 가장 최근에 접근한 회차 선택 (LastAccessedAt 기준)
+                    selectedRound = appState.Rounds
+                        .OrderByDescending(r => r.LastAccessedAt)
+                        .FirstOrDefault()?.Name ?? appState.Rounds.FirstOrDefault()?.Name ?? "2027년";
+                }
+
+                // PathService.CurrentRound 설정
+                PathService.CurrentRound = selectedRound;
+                Logger.Instance.Info($"회차 선택: {selectedRound}");
+
+                // 회차 접근 시각 업데이트
+                appStateStore.UpdateRoundAccessTime(selectedRound);
+
                 // 서비스 초기화
                 _stateStore = new StateStore();
 
-                // Workspace 로드
+                // Workspace 로드 (현재 회차 기준)
                 _workspace = _stateStore.Load();
                 if (string.IsNullOrEmpty(_workspace.InputFolderPath))
                 {
@@ -60,7 +187,7 @@ namespace SimpleOverlayEditor.Views
                     if (_navigation.CurrentMode == ApplicationMode.Home && _navigation.CurrentViewModel == null)
                     {
                         // Home 모드로 전환 시 ViewModel 생성
-                        var homeViewModel = new HomeViewModel(_navigation);
+                        var homeViewModel = new HomeViewModel(_navigation, _workspace, _stateStore);
                         _navigation.SetHomeViewModel(homeViewModel);
                     }
                     else if (_navigation.CurrentMode == ApplicationMode.TemplateEdit && _navigation.CurrentViewModel == null)
@@ -120,7 +247,7 @@ namespace SimpleOverlayEditor.Views
                 if (_navigation.CurrentViewModel == null)
                 {
                     Logger.Instance.Info($"HomeViewModel 생성 시작");
-                    var homeViewModel = new HomeViewModel(_navigation);
+                    var homeViewModel = new HomeViewModel(_navigation, _workspace, _stateStore);
                     Logger.Instance.Info($"HomeViewModel 생성 완료. 타입: {homeViewModel.GetType().Name}");
                     Logger.Instance.Info($"SetHomeViewModel 호출 전. CurrentMode: {_navigation.CurrentMode}");
                     _navigation.SetHomeViewModel(homeViewModel);
@@ -164,6 +291,98 @@ namespace SimpleOverlayEditor.Views
 
             base.OnClosed(e);
         }
+
+        /// <summary>
+        /// 기존 단일 루트 데이터를 지정된 회차로 마이그레이션합니다.
+        /// </summary>
+        private void MigrateLegacyDataToRound(AppStateStore appStateStore, string roundName)
+        {
+            try
+            {
+                // 회차 생성 (이미 있으면 스킵)
+                var existingRound = appStateStore.LoadAppState().Rounds
+                    .FirstOrDefault(r => r.Name.Equals(roundName, StringComparison.OrdinalIgnoreCase));
+
+                if (existingRound == null)
+                {
+                    appStateStore.CreateRound(roundName);
+                }
+
+                var roundRoot = PathService.GetRoundRoot(roundName);
+                Directory.CreateDirectory(roundRoot);
+                PathService.EnsureRoundDirectories(roundName);
+
+                var appDataFolder = PathService.AppDataFolder;
+
+                // 파일 이동
+                var filesToMove = new[]
+                {
+                    ("state.json", "state.json"),
+                    ("session.json", "session.json"),
+                    ("template.json", "template.json"),
+                    ("student_registry.json", "student_registry.json"),
+                    ("interviewer_registry.json", "interviewer_registry.json"),
+                    ("scoring_rule.json", "scoring_rule.json")
+                };
+
+                foreach (var (sourceFile, destFile) in filesToMove)
+                {
+                    var sourcePath = Path.Combine(appDataFolder, sourceFile);
+                    var destPath = Path.Combine(roundRoot, destFile);
+
+                    if (File.Exists(sourcePath) && !File.Exists(destPath))
+                    {
+                        File.Move(sourcePath, destPath);
+                        Logger.Instance.Info($"마이그레이션: {sourceFile} → {roundName}/{destFile}");
+                    }
+                }
+
+                // 폴더 이동
+                var foldersToMove = new[]
+                {
+                    ("aligned_cache", "aligned_cache"),
+                    ("output", "output"),
+                    ("barcode_debug", "barcode_debug")
+                };
+
+                foreach (var (sourceFolder, destFolder) in foldersToMove)
+                {
+                    var sourcePath = Path.Combine(appDataFolder, sourceFolder);
+                    var destPath = Path.Combine(roundRoot, destFolder);
+
+                    if (Directory.Exists(sourcePath) && !Directory.Exists(destPath))
+                    {
+                        // 폴더 내부 파일들을 이동
+                        Directory.CreateDirectory(destPath);
+                        foreach (var file in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
+                        {
+                            var relativePath = Path.GetRelativePath(sourcePath, file);
+                            var destFile = Path.Combine(destPath, relativePath);
+                            var destDir = Path.GetDirectoryName(destFile);
+                            if (!string.IsNullOrEmpty(destDir))
+                            {
+                                Directory.CreateDirectory(destDir);
+                            }
+                            File.Move(file, destFile);
+                        }
+                        Directory.Delete(sourcePath, true);
+                        Logger.Instance.Info($"마이그레이션: {sourceFolder}/ → {roundName}/{destFolder}/");
+                    }
+                }
+
+                // app_state.json 업데이트
+                var appState = appStateStore.LoadAppState();
+                appState.LastSelectedRound = roundName;
+                appStateStore.SaveAppState(appState);
+
+                Logger.Instance.Info($"마이그레이션 완료: {roundName}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error($"마이그레이션 실패: {ex.Message}", ex);
+                // 마이그레이션 실패해도 계속 진행
+            }
+        }
     }
 
     /// <summary>
@@ -198,7 +417,7 @@ namespace SimpleOverlayEditor.Views
                         if (_navigation.CurrentMode == ApplicationMode.Home)
                         {
                             Services.Logger.Instance.Info($"MainNavigationViewModel: HomeViewModel 생성 시작");
-                            var homeViewModel = new HomeViewModel(_navigation);
+                            var homeViewModel = new HomeViewModel(_navigation, _workspace, _stateStore);
                             _navigation.SetHomeViewModel(homeViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: HomeViewModel 생성 완료");
                         }

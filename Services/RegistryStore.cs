@@ -13,11 +13,29 @@ namespace SimpleOverlayEditor.Services
     /// </summary>
     public class RegistryStore
     {
-        public static string StudentRegistryFilePath =>
-            Path.Combine(PathService.AppDataFolder, "student_registry.json");
+        public static string StudentRegistryFilePath
+        {
+            get
+            {
+                if (PathService.CurrentRound != null)
+                {
+                    return Path.Combine(PathService.GetRoundRoot(PathService.CurrentRound), "student_registry.json");
+                }
+                return Path.Combine(PathService.AppDataFolder, "student_registry.json");
+            }
+        }
 
-        public static string InterviewerRegistryFilePath =>
-            Path.Combine(PathService.AppDataFolder, "interviewer_registry.json");
+        public static string InterviewerRegistryFilePath
+        {
+            get
+            {
+                if (PathService.CurrentRound != null)
+                {
+                    return Path.Combine(PathService.GetRoundRoot(PathService.CurrentRound), "interviewer_registry.json");
+                }
+                return Path.Combine(PathService.AppDataFolder, "interviewer_registry.json");
+            }
+        }
 
         /// <summary>
         /// 수험생 명부를 저장합니다.

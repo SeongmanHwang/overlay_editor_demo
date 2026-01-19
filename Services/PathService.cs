@@ -8,28 +8,206 @@ namespace SimpleOverlayEditor.Services
 {
     public static class PathService
     {
+        private static string? _currentRound;
+
+        /// <summary>
+        /// 현재 선택된 회차 이름 (null이면 회차 시스템 미사용)
+        /// </summary>
+        public static string? CurrentRound
+        {
+            get => _currentRound;
+            set
+            {
+                _currentRound = value;
+                Logger.Instance.Debug($"PathService.CurrentRound 변경: {value ?? "(null)"}");
+            }
+        }
+
         public static string AppDataFolder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                          "SimpleOverlayEditor");
 
-        public static string StateFilePath =>
-            Path.Combine(AppDataFolder, "state.json");
+        /// <summary>
+        /// 전역 설정 파일 경로 (회차 목록 + 마지막 선택 회차)
+        /// </summary>
+        public static string AppStateFilePath =>
+            Path.Combine(AppDataFolder, "app_state.json");
 
-        public static string SessionFilePath =>
-            Path.Combine(AppDataFolder, "session.json");
+        /// <summary>
+        /// 회차별 데이터가 저장되는 루트 폴더
+        /// </summary>
+        public static string RoundsFolder =>
+            Path.Combine(AppDataFolder, "Rounds");
 
-        public static string TemplateFilePath =>
-            Path.Combine(AppDataFolder, "template.json");
+        /// <summary>
+        /// 현재 회차의 루트 경로를 반환합니다.
+        /// </summary>
+        public static string GetRoundRoot(string roundName)
+        {
+            var safeName = SanitizeRoundName(roundName);
+            return Path.Combine(RoundsFolder, safeName);
+        }
 
-        public static string OutputFolder =>
-            Path.Combine(AppDataFolder, "output");
+        /// <summary>
+        /// 회차 이름을 안전한 폴더명으로 변환합니다.
+        /// Windows 파일명으로 사용 불가능한 문자를 제거/치환합니다.
+        /// </summary>
+        public static string SanitizeRoundName(string roundName)
+        {
+            if (string.IsNullOrWhiteSpace(roundName))
+            {
+                return "Round";
+            }
 
-        public static string AlignmentCacheFolder =>
-            Path.Combine(AppDataFolder, "aligned_cache");
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var sanitized = roundName;
 
-        public static string BarcodeDebugFolder =>
-            Path.Combine(AppDataFolder, "barcode_debug");
+            foreach (var c in invalidChars)
+            {
+                sanitized = sanitized.Replace(c, '_');
+            }
 
+            // 추가로 위험한 문자들도 치환
+            sanitized = sanitized.Replace(':', '_')
+                                 .Replace('\\', '_')
+                                 .Replace('/', '_')
+                                 .Replace('*', '_')
+                                 .Replace('?', '_')
+                                 .Replace('"', '_')
+                                 .Replace('<', '_')
+                                 .Replace('>', '_')
+                                 .Replace('|', '_');
+
+            // 앞뒤 공백 및 점 제거 (Windows 제약)
+            sanitized = sanitized.Trim().TrimEnd('.');
+
+            if (string.IsNullOrWhiteSpace(sanitized))
+            {
+                return "Round";
+            }
+
+            return sanitized;
+        }
+
+        /// <summary>
+        /// 중복 처리를 위한 사용 가능한 회차 이름을 찾습니다 (연쇄 대응).
+        /// baseName의 SafeRoundName이 existingSafeNames에 없을 때까지 _2, _3, ... 접미사를 추가합니다.
+        /// </summary>
+        public static string FindAvailableRoundName(string baseName, ISet<string> existingSafeNames)
+        {
+            var baseSafeName = SanitizeRoundName(baseName);
+            var candidate = baseSafeName;
+            int suffix = 2;
+
+            while (existingSafeNames.Contains(candidate))
+            {
+                candidate = $"{baseSafeName}_{suffix}";
+                suffix++;
+                
+                // 무한 루프 방지
+                if (suffix > 10000)
+                {
+                    candidate = $"{baseSafeName}_{Guid.NewGuid():N}";
+                    break;
+                }
+            }
+
+            return candidate;
+        }
+
+        /// <summary>
+        /// 현재 회차 기준 상태 파일 경로를 반환합니다.
+        /// </summary>
+        public static string StateFilePath
+        {
+            get
+            {
+                if (CurrentRound != null)
+                {
+                    return Path.Combine(GetRoundRoot(CurrentRound), "state.json");
+                }
+                return Path.Combine(AppDataFolder, "state.json");
+            }
+        }
+
+        /// <summary>
+        /// 현재 회차 기준 세션 파일 경로를 반환합니다.
+        /// </summary>
+        public static string SessionFilePath
+        {
+            get
+            {
+                if (CurrentRound != null)
+                {
+                    return Path.Combine(GetRoundRoot(CurrentRound), "session.json");
+                }
+                return Path.Combine(AppDataFolder, "session.json");
+            }
+        }
+
+        /// <summary>
+        /// 현재 회차 기준 템플릿 파일 경로를 반환합니다.
+        /// </summary>
+        public static string TemplateFilePath
+        {
+            get
+            {
+                if (CurrentRound != null)
+                {
+                    return Path.Combine(GetRoundRoot(CurrentRound), "template.json");
+                }
+                return Path.Combine(AppDataFolder, "template.json");
+            }
+        }
+
+        /// <summary>
+        /// 현재 회차 기준 출력 폴더 경로를 반환합니다.
+        /// </summary>
+        public static string OutputFolder
+        {
+            get
+            {
+                if (CurrentRound != null)
+                {
+                    return Path.Combine(GetRoundRoot(CurrentRound), "output");
+                }
+                return Path.Combine(AppDataFolder, "output");
+            }
+        }
+
+        /// <summary>
+        /// 현재 회차 기준 정렬 캐시 폴더 경로를 반환합니다.
+        /// </summary>
+        public static string AlignmentCacheFolder
+        {
+            get
+            {
+                if (CurrentRound != null)
+                {
+                    return Path.Combine(GetRoundRoot(CurrentRound), "aligned_cache");
+                }
+                return Path.Combine(AppDataFolder, "aligned_cache");
+            }
+        }
+
+        /// <summary>
+        /// 현재 회차 기준 바코드 디버그 폴더 경로를 반환합니다.
+        /// </summary>
+        public static string BarcodeDebugFolder
+        {
+            get
+            {
+                if (CurrentRound != null)
+                {
+                    return Path.Combine(GetRoundRoot(CurrentRound), "barcode_debug");
+                }
+                return Path.Combine(AppDataFolder, "barcode_debug");
+            }
+        }
+
+        /// <summary>
+        /// 로그 폴더는 전역으로 유지 (회차별 분리하지 않음)
+        /// </summary>
         public static string LogsFolder =>
             Path.Combine(AppDataFolder, "logs");
 
@@ -40,6 +218,19 @@ namespace SimpleOverlayEditor.Services
             Directory.CreateDirectory(AlignmentCacheFolder);
             // barcode_debug는 DEBUG 빌드에서만 생성되지만, 존재해도 무방합니다.
             Directory.CreateDirectory(BarcodeDebugFolder);
+            Directory.CreateDirectory(LogsFolder);
+        }
+
+        /// <summary>
+        /// 특정 회차의 필요한 디렉토리를 생성합니다.
+        /// </summary>
+        public static void EnsureRoundDirectories(string roundName)
+        {
+            var roundRoot = GetRoundRoot(roundName);
+            Directory.CreateDirectory(roundRoot);
+            Directory.CreateDirectory(Path.Combine(roundRoot, "output"));
+            Directory.CreateDirectory(Path.Combine(roundRoot, "aligned_cache"));
+            Directory.CreateDirectory(Path.Combine(roundRoot, "barcode_debug"));
         }
 
         /// <summary>
@@ -191,7 +382,8 @@ namespace SimpleOverlayEditor.Services
 
                     // aligned_cache 폴더 내부 파일만 보호
                     var full = Path.GetFullPath(p);
-                    if (full.StartsWith(AlignmentCacheFolder, StringComparison.OrdinalIgnoreCase))
+                    var alignmentCacheFolder = AlignmentCacheFolder;
+                    if (full.StartsWith(alignmentCacheFolder, StringComparison.OrdinalIgnoreCase))
                     {
                         set.Add(full);
                     }

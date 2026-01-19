@@ -17,7 +17,7 @@ namespace SimpleOverlayEditor.Services
             {
                 PathService.EnsureDirectories();
 
-                // output 폴더 삭제 후 재생성
+                // overlay_cache 폴더 삭제 후 재생성
                 var outputFolder = PathService.OutputFolder;
                 if (Directory.Exists(outputFolder))
                 {

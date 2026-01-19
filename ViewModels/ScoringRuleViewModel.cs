@@ -178,7 +178,7 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Filter = "Excel 파일 (*.xlsx)|*.xlsx|모든 파일 (*.*)|*.*",
                 Title = "양식 파일 저장",
-                FileName = "정답_및_배점_양식.xlsx"
+                FileName = "문항_배점_양식.xlsx"
             };
 
             if (dialog.ShowDialog() == true)

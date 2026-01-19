@@ -151,7 +151,7 @@ namespace SimpleOverlayEditor.ViewModels
             InitializeFilterOptions();
 
             // ✅ 중요: 모드 진입 시 전체 문서 정렬을 동기로 수행하면 UI가 멈출 수 있습니다.
-            // (특히 aligned_cache가 정리되어 정렬된 이미지가 사라진 경우, 수천 장 재정렬이 발생)
+            // (특히 aligned_omr가 정리되어 정렬된 이미지가 사라진 경우, 수천 장 재정렬이 발생)
             // 세션 문서/결과는 즉시 바인딩만 하고, 정렬은 폴더 로드/전체 리딩 등의 작업에서(ProgressRunner로) 수행합니다.
             InitializeFromSessionWithoutBlocking();
         }
@@ -717,20 +717,30 @@ namespace SimpleOverlayEditor.ViewModels
                 // 오버레이 이미지 생성 및 표시
                 UpdateDisplayImage();
 
-                // 결과 이미지 파일 저장
-                if (SelectedDocument != null)
-                {
-                    try
-                    {
-                        _renderer.RenderSingleDocument(SelectedDocument, _session, _workspace);
-                        Logger.Instance.Info($"결과 이미지 파일 저장 완료: {SelectedDocument.SourcePath}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Instance.Error("결과 이미지 파일 저장 실패", ex);
-                        // 저장 실패해도 마킹 리딩은 완료되었으므로 계속 진행
-                    }
-                }
+                /*
+                 * [옵션 A 적용] 오버레이 파일 자동 저장 비활성화
+                 *
+                 * - 사용자 입장에서는 "마킹 리딩 완료" 시점에 작업이 끝난 것으로 인지합니다.
+                 * - 그런데 오버레이 이미지를 디스크(overlay_cache)에 추가로 생성/저장하면,
+                 *   사용자 모르게 백그라운드 I/O가 지속되고 폴더 용량이 급증할 수 있습니다.
+                 * - 따라서 아래 자동 저장은 추후 정책/UX를 재설계할 때까지 잠정 중단합니다.
+                 *
+                 * (필요 시) 명시적 버튼/옵션으로만 생성하도록 리팩토링 예정.
+                 */
+                // 결과 이미지 파일 저장 (비활성화)
+                // if (SelectedDocument != null)
+                // {
+                //     try
+                //     {
+                //         _renderer.RenderSingleDocument(SelectedDocument, _session, _workspace);
+                //         Logger.Instance.Info($"결과 이미지 파일 저장 완료: {SelectedDocument.SourcePath}");
+                //     }
+                //     catch (Exception ex)
+                //     {
+                //         Logger.Instance.Error("결과 이미지 파일 저장 실패", ex);
+                //         // 저장 실패해도 마킹 리딩은 완료되었으므로 계속 진행
+                //     }
+                // }
 
                 var markedCount = results.Count(r => r.IsMarked);
                 var message = $"마킹 리딩 완료\n\n" +
@@ -749,7 +759,7 @@ namespace SimpleOverlayEditor.ViewModels
                               $"실패: {barcodeResults.Count - barcodeSuccessCount}개";
                 }
 
-                message += "\n\n결과 이미지가 저장되었습니다.";
+                message += "\n\n(오버레이 이미지는 파일로 저장하지 않습니다)";
 
                 Logger.Instance.Info($"마킹 리딩 완료: {markedCount}/{results.Count}개 마킹 리딩");
                 MessageBox.Show(message, "마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -958,19 +968,26 @@ namespace SimpleOverlayEditor.ViewModels
 
                 MessageBox.Show(message, "전체 마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                // 모든 문서의 결과 이미지 파일 저장 (백그라운드)
-                _ = Task.Run(() =>
-                {
-                    try
-                    {
-                        _renderer.RenderAll(_session, _workspace);
-                        Logger.Instance.Info("전체 결과 이미지 파일 저장 완료");
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Instance.Error("전체 결과 이미지 파일 저장 실패", ex);
-                    }
-                });
+                /*
+                 * [옵션 A 적용] 전체 문서 오버레이 파일 자동 캐싱 비활성화
+                 *
+                 * 기존에는 "전체 마킹 리딩 완료" 후 사용자 모르게 백그라운드에서
+                 * overlay_cache에 PNG를 대량 생성했습니다.
+                 * 이 동작은 용량 폭증/백그라운드 작업 지속 문제를 만들 수 있어 잠정 중단합니다.
+                 */
+                // 모든 문서의 결과 이미지 파일 저장 (백그라운드) - 비활성화
+                // _ = Task.Run(() =>
+                // {
+                //     try
+                //     {
+                //         _renderer.RenderAll(_session, _workspace);
+                //         Logger.Instance.Info("전체 결과 이미지 파일 저장 완료");
+                //     }
+                //     catch (Exception ex)
+                //     {
+                //         Logger.Instance.Error("전체 결과 이미지 파일 저장 실패", ex);
+                //     }
+                // });
             }
             catch (Exception ex)
             {
@@ -989,7 +1006,7 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 var dialog = new System.Windows.Forms.FolderBrowserDialog
                 {
-                    Description = "이미지가 있는 폴더를 선택하세요",
+                    Description = "이미지 파일이 아니라 폴더를 선택합니다. 이미지 파일은 여기서 보이지 않습니다",
                     SelectedPath = _workspace.InputFolderPath
                 };
 
@@ -1230,6 +1247,9 @@ namespace SimpleOverlayEditor.ViewModels
             try
             {
                 PathService.EnsureDirectories();
+
+                // 캐시 폴더가 없으면 생성 (회차 생성/선택 타이밍과 무관하게 저장이 항상 가능해야 함)
+                Directory.CreateDirectory(PathService.AlignmentCacheFolder);
 
                 // 캐시 파일명 생성 (원본 파일명 + ImageId 해시)
                 var originalFileName = Path.GetFileNameWithoutExtension(document.SourcePath);
@@ -1660,7 +1680,7 @@ namespace SimpleOverlayEditor.ViewModels
                 var dialog = new Microsoft.Win32.SaveFileDialog
                 {
                     Filter = "Excel 파일 (*.xlsx)|*.xlsx|모든 파일 (*.*)|*.*",
-                    FileName = $"OMR_Results_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
+                    FileName = $"마킹 리딩 결과_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
                 };
 
                 if (dialog.ShowDialog() == true)

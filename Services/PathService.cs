@@ -168,11 +168,11 @@ namespace SimpleOverlayEditor.Services
         {
             get
             {
-                if (CurrentRound != null)
+                if (CurrentRound == null)
                 {
-                    return Path.Combine(GetRoundRoot(CurrentRound), "output");
+                    throw new InvalidOperationException("CurrentRound가 설정되지 않았습니다. (Rounds 전용 모드)");
                 }
-                return Path.Combine(AppDataFolder, "output");
+                return Path.Combine(GetRoundRoot(CurrentRound), "overlay_cache");
             }
         }
 
@@ -183,11 +183,11 @@ namespace SimpleOverlayEditor.Services
         {
             get
             {
-                if (CurrentRound != null)
+                if (CurrentRound == null)
                 {
-                    return Path.Combine(GetRoundRoot(CurrentRound), "aligned_cache");
+                    throw new InvalidOperationException("CurrentRound가 설정되지 않았습니다. (Rounds 전용 모드)");
                 }
-                return Path.Combine(AppDataFolder, "aligned_cache");
+                return Path.Combine(GetRoundRoot(CurrentRound), "aligned_omr");
             }
         }
 
@@ -198,11 +198,11 @@ namespace SimpleOverlayEditor.Services
         {
             get
             {
-                if (CurrentRound != null)
+                if (CurrentRound == null)
                 {
-                    return Path.Combine(GetRoundRoot(CurrentRound), "barcode_debug");
+                    throw new InvalidOperationException("CurrentRound가 설정되지 않았습니다. (Rounds 전용 모드)");
                 }
-                return Path.Combine(AppDataFolder, "barcode_debug");
+                return Path.Combine(GetRoundRoot(CurrentRound), "barcode_debug");
             }
         }
 
@@ -215,8 +215,7 @@ namespace SimpleOverlayEditor.Services
         public static void EnsureDirectories()
         {
             Directory.CreateDirectory(AppDataFolder);
-            // aligned_cache, barcode_debug, output은 회차별 폴더에만 생성 (EnsureRoundDirectories에서 처리)
-            // 로그 폴더만 전역으로 생성
+            // 로그 폴더는 전역으로 생성
             Directory.CreateDirectory(LogsFolder);
         }
 
@@ -227,8 +226,8 @@ namespace SimpleOverlayEditor.Services
         {
             var roundRoot = GetRoundRoot(roundName);
             Directory.CreateDirectory(roundRoot);
-            Directory.CreateDirectory(Path.Combine(roundRoot, "output"));
-            Directory.CreateDirectory(Path.Combine(roundRoot, "aligned_cache"));
+            Directory.CreateDirectory(Path.Combine(roundRoot, "overlay_cache"));
+            Directory.CreateDirectory(Path.Combine(roundRoot, "aligned_omr"));
             Directory.CreateDirectory(Path.Combine(roundRoot, "barcode_debug"));
         }
 
@@ -236,38 +235,57 @@ namespace SimpleOverlayEditor.Services
         /// AppData 하위 캐시/출력 폴더를 정리합니다.
         /// - 오래된 파일 삭제 (maxAgeDays)
         /// - 총 용량 상한 (maxTotalBytes) 초과 시 오래된 파일부터 삭제
-        /// 주의: aligned_cache/output는 "재생성 가능한 캐시" 성격입니다.
+        /// 주의: aligned_omr/overlay_cache는 "재생성 가능한 캐시" 성격입니다.
         /// </summary>
         public static void CleanupAppData()
         {
             EnsureDirectories();
 
-            // 현재 세션이 참조하는 aligned_cache 파일은 보존 (정리로 인해 Marking 모드에서 대량 재정렬이 발생하는 것을 방지)
-            var protectedAlignedCachePaths = GetSessionReferencedAlignedCachePaths();
+            // Rounds 전용 모드:
+            // 앱 시작 시점엔 CurrentRound가 아직 null일 수 있으므로,
+            // 특정 회차에 종속된 속성(OutputFolder/AlignmentCacheFolder/BarcodeDebugFolder)을 사용하지 않습니다.
+            // 대신 Rounds 하위의 모든 회차 폴더를 순회하며 캐시를 정리합니다.
+            if (!Directory.Exists(RoundsFolder))
+            {
+                return;
+            }
 
-            // aligned_cache가 폭증하기 쉬워서 가장 엄격하게 관리합니다.
-            CleanupFolder(
-                folderPath: AlignmentCacheFolder,
-                maxAgeDays: 14,
-                maxTotalBytes: 5L * 1024 * 1024 * 1024, // 5GB
-                searchPattern: "*.png",
-                protectedFilePaths: protectedAlignedCachePaths);
+            foreach (var roundRoot in Directory.EnumerateDirectories(RoundsFolder))
+            {
+                var alignedOmrFolder = Path.Combine(roundRoot, "aligned_omr");
+                var overlayCacheFolder = Path.Combine(roundRoot, "overlay_cache");
+                var barcodeDebugFolder = Path.Combine(roundRoot, "barcode_debug");
+                var sessionFilePath = Path.Combine(roundRoot, "session.json");
 
-            // output은 사용자에게 직접 노출되는 "내보내기" 용도가 아니라 내부 생성물에 가깝습니다.
-            CleanupFolder(
-                folderPath: OutputFolder,
-                maxAgeDays: 7,
-                maxTotalBytes: 512L * 1024 * 1024, // 512MB
-                searchPattern: "*.png",
-                protectedFilePaths: null);
+                // 현재 세션이 참조하는 aligned_omr 파일은 보존 (정리로 인해 Marking 모드에서 대량 재정렬이 발생하는 것을 방지)
+                var protectedAlignedCachePaths = GetSessionReferencedAlignedCachePaths(
+                    sessionFilePath: sessionFilePath,
+                    alignmentCacheFolder: alignedOmrFolder);
 
-            // 디버그 스냅샷은 너무 빨리 쌓이므로 더 짧게 유지합니다.
-            CleanupFolder(
-                folderPath: BarcodeDebugFolder,
-                maxAgeDays: 3,
-                maxTotalBytes: 512L * 1024 * 1024, // 512MB
-                searchPattern: "*.png",
-                protectedFilePaths: null);
+                // aligned_omr가 폭증하기 쉬워서 가장 엄격하게 관리합니다.
+                CleanupFolder(
+                    folderPath: alignedOmrFolder,
+                    maxAgeDays: 14,
+                    maxTotalBytes: 5L * 1024 * 1024 * 1024, // 5GB
+                    searchPattern: "*.png",
+                    protectedFilePaths: protectedAlignedCachePaths);
+
+                // overlay_cache은 사용자에게 직접 노출되는 "내보내기" 용도가 아니라 내부 생성물에 가깝습니다.
+                CleanupFolder(
+                    folderPath: overlayCacheFolder,
+                    maxAgeDays: 7,
+                    maxTotalBytes: 512L * 1024 * 1024, // 512MB
+                    searchPattern: "*.png",
+                    protectedFilePaths: null);
+
+                // 디버그 스냅샷은 너무 빨리 쌓이므로 더 짧게 유지합니다.
+                CleanupFolder(
+                    folderPath: barcodeDebugFolder,
+                    maxAgeDays: 3,
+                    maxTotalBytes: 512L * 1024 * 1024, // 512MB
+                    searchPattern: "*.png",
+                    protectedFilePaths: null);
+            }
         }
 
         private static void CleanupFolder(
@@ -338,16 +356,16 @@ namespace SimpleOverlayEditor.Services
             }
         }
 
-        private static ISet<string> GetSessionReferencedAlignedCachePaths()
+        private static ISet<string> GetSessionReferencedAlignedCachePaths(string sessionFilePath, string alignmentCacheFolder)
         {
             try
             {
-                if (!File.Exists(SessionFilePath))
+                if (!File.Exists(sessionFilePath))
                 {
                     return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 }
 
-                var json = File.ReadAllText(SessionFilePath);
+                var json = File.ReadAllText(sessionFilePath);
                 using var doc = JsonDocument.Parse(json);
 
                 if (!doc.RootElement.TryGetProperty("Documents", out var documentsElement) ||
@@ -379,9 +397,8 @@ namespace SimpleOverlayEditor.Services
                         continue;
                     }
 
-                    // aligned_cache 폴더 내부 파일만 보호
+                    // aligned_omr 폴더 내부 파일만 보호
                     var full = Path.GetFullPath(p);
-                    var alignmentCacheFolder = AlignmentCacheFolder;
                     if (full.StartsWith(alignmentCacheFolder, StringComparison.OrdinalIgnoreCase))
                     {
                         set.Add(full);

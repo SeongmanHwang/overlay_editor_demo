@@ -922,7 +922,7 @@ namespace SimpleOverlayEditor.ViewModels
             var saveDialog = new SaveFileDialog
             {
                 Filter = "Excel 파일 (*.xlsx)|*.xlsx|모든 파일 (*.*)|*.*",
-                FileName = "채점결과.xlsx",
+                FileName = "신입생 선발 성적처리.xlsx",
                 DefaultExt = "xlsx"
             };
 

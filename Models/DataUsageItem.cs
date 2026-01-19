@@ -17,7 +17,7 @@ namespace SimpleOverlayEditor.Models
         }
 
         /// <summary>
-        /// 항목명 (예: "템플릿", "정렬 캐시")
+        /// 항목명 (예: "템플릿", "스캔 이미지")
         /// </summary>
         public string Name { get; set; } = string.Empty;
 

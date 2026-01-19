@@ -78,7 +78,7 @@ namespace SimpleOverlayEditor.Services
         /// </summary>
         public ScoringRule LoadScoringRule()
         {
-            // 1) AppData에 배점 규칙이 있으면 로드
+            // 1) AppData에 문항 배점이 있으면 로드
             if (File.Exists(ScoringRuleFilePath))
             {
                 try
@@ -144,7 +144,7 @@ namespace SimpleOverlayEditor.Services
                 }
             }
 
-            // 2) 없으면 번들된 기본 배점 규칙을 찾아 설치/로드
+            // 2) 없으면 번들된 기본 문항 배점을 찾아 설치/로드
             var bundledPath = TryGetBundledDefaultScoringRulePath();
             if (bundledPath != null)
             {
@@ -203,22 +203,22 @@ namespace SimpleOverlayEditor.Services
                         }
                     }
 
-                    // 기본 배점 규칙을 AppData에 저장
+                    // 기본 문항 배점을 AppData에 저장
                     try
                     {
                         SaveScoringRule(scoringRule);
                     }
                     catch (Exception ex)
                     {
-                        // 저장 실패해도 배점 규칙은 반환 (첫 실행 UX 우선)
-                        Logger.Instance.Warning($"기본 배점 규칙 저장 실패(계속 진행): {ex.Message}");
+                        // 저장 실패해도 문항 배점은 반환 (첫 실행 UX 우선)
+                        Logger.Instance.Warning($"기본 문항 배점 저장 실패(계속 진행): {ex.Message}");
                     }
 
                     return scoringRule;
                 }
                 catch (Exception ex)
                 {
-                    Logger.Instance.Warning($"기본 배점 규칙 로드 실패: {ex.Message}");
+                    Logger.Instance.Warning($"기본 문항 배점 로드 실패: {ex.Message}");
                 }
             }
 

@@ -244,7 +244,7 @@ namespace SimpleOverlayEditor.Services
             Directory.CreateDirectory(roundRoot);
             PathService.EnsureRoundDirectories(finalRoundName);
 
-            // 기본값 복사 (템플릿, 배점 규칙, 면접위원 명렬)
+            // 기본값 복사 (템플릿, 문항 배점, 면접위원 명렬)
             InitializeRoundWithDefaults(finalRoundName);
 
             // app_state.json에 추가
@@ -257,7 +257,7 @@ namespace SimpleOverlayEditor.Services
         }
 
         /// <summary>
-        /// 새 회차에 기본값(템플릿, 배점 규칙, 면접위원 명렬)을 복사합니다.
+        /// 새 회차에 기본값(템플릿, 문항 배점, 면접위원 명렬)을 복사합니다.
         /// </summary>
         private void InitializeRoundWithDefaults(string roundName)
         {
@@ -289,11 +289,11 @@ namespace SimpleOverlayEditor.Services
                     Logger.Instance.Warning($"회차 '{roundName}' 기본 템플릿 로드 실패");
                 }
 
-                // 기본 배점 규칙 복사
+                // 기본 문항 배점 복사
                 var scoringRuleStore = new ScoringRuleStore();
                 var scoringRule = scoringRuleStore.LoadScoringRule();
                 scoringRuleStore.SaveScoringRule(scoringRule);
-                Logger.Instance.Info($"회차 '{roundName}'에 기본 배점 규칙 복사 완료");
+                Logger.Instance.Info($"회차 '{roundName}'에 기본 문항 배점 복사 완료");
 
                 // 기본 면접위원 명렬 복사
                 var registryStore = new RegistryStore();

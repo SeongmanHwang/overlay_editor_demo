@@ -14,6 +14,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ClosedXML.Excel;
 using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.Services;
 using SimpleOverlayEditor.Utils;
@@ -141,8 +142,8 @@ namespace SimpleOverlayEditor.ViewModels
                 OnDetectAllMarkings, 
                 () => Documents != null && Documents.Count() > 0 && ScoringAreas != null && ScoringAreas.Count() == OmrConstants.TotalScoringAreas);
             LoadFolderCommand = new RelayCommand(OnLoadFolder);
-            ExportToCsvCommand = new RelayCommand(
-                OnExportToCsv, 
+            ExportToXlsxCommand = new RelayCommand(
+                OnExportToXlsx,
                 () => SheetResults != null && SheetResults.Count > 0);
             SetFilterModeCommand = new RelayCommand<string>(OnSetFilterMode);
             
@@ -294,7 +295,7 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand DetectMarkingsCommand { get; }
         public ICommand DetectAllMarkingsCommand { get; }
         public ICommand LoadFolderCommand { get; }
-        public ICommand ExportToCsvCommand { get; }
+        public ICommand ExportToXlsxCommand { get; }
         public ICommand SetFilterModeCommand { get; }
         
         /// <summary>
@@ -324,7 +325,7 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(NullCombinedIdCount));
                 
                 // Command의 CanExecute 상태 업데이트
-                if (ExportToCsvCommand is RelayCommand cmd)
+                if (ExportToXlsxCommand is RelayCommand cmd)
                 {
                     cmd.RaiseCanExecuteChanged();
                 }
@@ -1644,9 +1645,9 @@ namespace SimpleOverlayEditor.ViewModels
         }
 
         /// <summary>
-        /// CSV 파일로 내보냅니다.
+        /// Excel(.xlsx) 파일로 내보냅니다.
         /// </summary>
-        private void OnExportToCsv()
+        private void OnExportToXlsx()
         {
             if (SheetResults == null || SheetResults.Count == 0)
             {
@@ -1658,68 +1659,87 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 var dialog = new Microsoft.Win32.SaveFileDialog
                 {
-                    Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
-                    FileName = $"OMR_Results_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+                    Filter = "Excel 파일 (*.xlsx)|*.xlsx|모든 파일 (*.*)|*.*",
+                    FileName = $"OMR_Results_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
                 };
 
                 if (dialog.ShowDialog() == true)
                 {
-                    ExportToCsv(dialog.FileName, SheetResults);
-                    MessageBox.Show("CSV 파일로 저장되었습니다.", "완료", MessageBoxButton.OK, MessageBoxImage.Information);
+                    // UI에 보이는(필터 적용된) 목록을 우선 내보냄
+                    var resultsToExport = (FilteredSheetResults != null)
+                        ? FilteredSheetResults.Cast<OmrSheetResult>()
+                        : SheetResults;
+
+                    ExportToXlsx(dialog.FileName, resultsToExport);
+                    MessageBox.Show("Excel(.xlsx) 파일로 저장되었습니다.", "완료", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error("CSV 내보내기 실패", ex);
-                MessageBox.Show($"CSV 내보내기 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Instance.Error("Excel 내보내기 실패", ex);
+                MessageBox.Show($"Excel 내보내기 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         /// <summary>
-        /// OMR 결과를 CSV 형식으로 저장합니다.
+        /// OMR 결과를 Excel(.xlsx) 형식으로 저장합니다.
         /// </summary>
-        private void ExportToCsv(string filePath, IEnumerable<OmrSheetResult> results)
+        private void ExportToXlsx(string filePath, IEnumerable<OmrSheetResult> results)
         {
-            using var writer = new StreamWriter(filePath, false, System.Text.Encoding.UTF8);
-            
-            // 헤더 작성 (UTF-8 BOM 추가)
-            writer.Write('\uFEFF'); // UTF-8 BOM
-            writer.WriteLine("파일명,수험번호,시각,실,순,면접번호,결합ID,문항1,문항2,문항3,문항4,오류,오류메시지");
-            
-            // 데이터 작성
-            foreach (var result in results)
-            {
-                writer.WriteLine($"{EscapeCsvField(result.ImageFileName)}," +
-                                $"{EscapeCsvField(result.StudentId ?? "")}," +
-                                $"{EscapeCsvField(result.Session ?? "")}," +
-                                $"{EscapeCsvField(result.RoomNumber ?? "")}," +
-                                $"{EscapeCsvField(result.OrderNumber ?? "")}," +
-                                $"{EscapeCsvField(result.InterviewId ?? "")}," +
-                                $"{EscapeCsvField(result.CombinedId ?? "")}," +
-                                $"{(result.Question1Marking?.ToString() ?? "")}," +
-                                $"{(result.Question2Marking?.ToString() ?? "")}," +
-                                $"{(result.Question3Marking?.ToString() ?? "")}," +
-                                $"{(result.Question4Marking?.ToString() ?? "")}," +
-                                $"{(result.HasErrors ? "예" : "아니오")}," +
-                                $"{EscapeCsvField(result.ErrorMessage ?? "")}");
-            }
-        }
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("OMR Results");
 
-        /// <summary>
-        /// CSV 필드를 이스케이프합니다 (쉼표, 따옴표, 개행 포함 시)
-        /// </summary>
-        private string EscapeCsvField(string field)
-        {
-            if (string.IsNullOrEmpty(field))
-                return "";
-
-            // 쉼표, 따옴표, 개행이 있으면 따옴표로 감싸고 따옴표는 두 개로 변환
-            if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
+            var headers = new[]
             {
-                return "\"" + field.Replace("\"", "\"\"") + "\"";
+                "파일명",
+                "수험번호",
+                "시각",
+                "실",
+                "순",
+                "면접번호",
+                "결합ID",
+                "문항1",
+                "문항2",
+                "문항3",
+                "문항4",
+                "오류",
+                "오류 메시지"
+            };
+
+            for (int c = 0; c < headers.Length; c++)
+            {
+                worksheet.Cell(1, c + 1).Value = headers[c];
             }
 
-            return field;
+            var headerRange = worksheet.Range(1, 1, 1, headers.Length);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#EDEDED");
+            headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+            int row = 2;
+            foreach (var r in results)
+            {
+                worksheet.Cell(row, 1).Value = r.ImageFileName ?? "";
+                worksheet.Cell(row, 2).Value = r.StudentId ?? "";
+                worksheet.Cell(row, 3).Value = r.Session ?? "";
+                worksheet.Cell(row, 4).Value = r.RoomNumber ?? "";
+                worksheet.Cell(row, 5).Value = r.OrderNumber ?? "";
+                worksheet.Cell(row, 6).Value = r.InterviewId ?? "";
+                worksheet.Cell(row, 7).Value = r.CombinedId ?? "";
+                worksheet.Cell(row, 8).Value = r.Question1Marking?.ToString() ?? "";
+                worksheet.Cell(row, 9).Value = r.Question2Marking?.ToString() ?? "";
+                worksheet.Cell(row, 10).Value = r.Question3Marking?.ToString() ?? "";
+                worksheet.Cell(row, 11).Value = r.Question4Marking?.ToString() ?? "";
+                worksheet.Cell(row, 12).Value = r.HasErrors ? "예" : "아니오";
+                worksheet.Cell(row, 13).Value = r.ErrorMessage ?? "";
+                row++;
+            }
+
+            worksheet.SheetView.FreezeRows(1);
+            worksheet.Range(1, 1, Math.Max(1, row - 1), headers.Length).SetAutoFilter();
+            worksheet.Columns(1, headers.Length).AdjustToContents(1, 200);
+
+            workbook.SaveAs(filePath);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

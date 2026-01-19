@@ -159,7 +159,7 @@ namespace SimpleOverlayEditor.Services
                 #if DEBUG
                 try
                 {
-                    var debugDir = Path.Combine(PathService.AppDataFolder, "barcode_debug");
+                    var debugDir = PathService.BarcodeDebugFolder;
                     Directory.CreateDirectory(debugDir);
                     var debugPath = Path.Combine(debugDir, $"barcode_area_{areaIndex}_{DateTime.Now:yyyyMMddHHmmss}.png");
                     systemBitmap.Save(debugPath, System.Drawing.Imaging.ImageFormat.Png);

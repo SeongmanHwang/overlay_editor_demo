@@ -257,7 +257,7 @@ namespace SimpleOverlayEditor.Services
             CleanupFolder(
                 folderPath: OutputFolder,
                 maxAgeDays: 7,
-                maxTotalBytes: 1L * 1024 * 1024 * 1024, // 1GB
+                maxTotalBytes: 512L * 1024 * 1024, // 512MB
                 searchPattern: "*.png",
                 protectedFilePaths: null);
 

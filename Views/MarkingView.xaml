@@ -584,10 +584,10 @@
                                   Margin="0,0,5,0"/>
                     </StackPanel>
                     
-                    <!-- CSV 내보내기 버튼 (오른쪽) -->
+                    <!-- Excel 내보내기 버튼 (오른쪽) -->
                     <Button Grid.Column="2" 
-                            Content="CSV 내보내기" 
-                            Command="{Binding ExportToCsvCommand}" 
+                            Content="Excel 내보내기" 
+                            Command="{Binding ExportToXlsxCommand}" 
                             Padding="10,5"
                             Background="#4CAF50"
                             Foreground="White"

@@ -19,21 +19,12 @@
                 BorderBrush="#212121">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0"
-                        Content="뒤로"
-                        Command="{Binding Navigation.GoBackCommand}"
-                        Style="{StaticResource CleanButtonSmall}"
-                        Background="#616161"
-                        Margin="0,0,10,0"
-                        VerticalAlignment="Center"/>
-
-                <StackPanel Grid.Column="1" Orientation="Vertical">
+                <StackPanel Grid.Column="0" Orientation="Vertical">
                     <TextBlock FontSize="22"
                                FontWeight="Bold"
                                Foreground="White"
@@ -55,13 +46,22 @@
                                Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
                 </StackPanel>
 
-                <Button Grid.Column="2"
+                <Button Grid.Column="1"
                         Content="다시 로드"
                         Command="{Binding ReloadCommand}"
                         Style="{StaticResource CleanButtonSmall}"
                         Background="#455A64"
                         Margin="10,0,0,0"
                         VerticalAlignment="Center"/>
+
+                <Button Grid.Column="2"
+                        Content="뒤로"
+                        Command="{Binding Navigation.GoBackCommand}"
+                        Style="{StaticResource CleanButtonSmall}"
+                        Background="#616161"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Right"/>
             </Grid>
         </Border>
 

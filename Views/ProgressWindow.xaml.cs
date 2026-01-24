@@ -11,12 +11,23 @@ namespace SimpleOverlayEditor.Views
     public partial class ProgressWindow : Window
     {
         private CancellationTokenSource? _cancellationTokenSource;
+        private readonly bool _ownsCancellationTokenSource;
         private bool _isCancelling = false;
 
-        public ProgressWindow()
+        public ProgressWindow(CancellationTokenSource? cancellationTokenSource = null)
         {
             InitializeComponent();
-            _cancellationTokenSource = new CancellationTokenSource();
+
+            if (cancellationTokenSource != null)
+            {
+                _cancellationTokenSource = cancellationTokenSource;
+                _ownsCancellationTokenSource = false;
+            }
+            else
+            {
+                _cancellationTokenSource = new CancellationTokenSource();
+                _ownsCancellationTokenSource = true;
+            }
         }
 
         /// <summary>
@@ -79,7 +90,10 @@ namespace SimpleOverlayEditor.Views
 
         protected override void OnClosed(EventArgs e)
         {
-            _cancellationTokenSource?.Dispose();
+            if (_ownsCancellationTokenSource)
+            {
+                _cancellationTokenSource?.Dispose();
+            }
             base.OnClosed(e);
         }
     }

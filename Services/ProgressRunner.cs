@@ -15,25 +15,79 @@ namespace SimpleOverlayEditor.Services
     {
         public sealed class Scope
         {
-            private readonly ProgressWindow _window;
+            private readonly CancellationTokenSource _cts;
+            private readonly object _sync = new();
+            private ProgressWindow? _window;
 
-            internal Scope(ProgressWindow window)
+            private int _lastCurrent;
+            private int _lastTotal;
+            private string? _lastStatus;
+
+            internal Scope(CancellationTokenSource cts)
             {
-                _window = window ?? throw new ArgumentNullException(nameof(window));
+                _cts = cts ?? throw new ArgumentNullException(nameof(cts));
             }
 
-            public CancellationToken CancellationToken => _window.CancellationToken;
+            public CancellationToken CancellationToken => _cts.Token;
 
             public void Report(int current, int total, string? statusMessage = null)
-                => _window.UpdateProgress(current, total, statusMessage);
+            {
+                lock (_sync)
+                {
+                    _lastCurrent = current;
+                    _lastTotal = total;
+                    if (statusMessage != null) _lastStatus = statusMessage;
+                }
+
+                _window?.UpdateProgress(current, total, statusMessage);
+            }
 
             public void Status(string message)
-                => _window.UpdateStatus(message);
+            {
+                lock (_sync)
+                {
+                    _lastStatus = message;
+                }
+
+                _window?.UpdateStatus(message);
+            }
 
             public void Ui(Action action)
             {
                 if (action == null) throw new ArgumentNullException(nameof(action));
                 UiThread.Invoke(action);
+            }
+
+            internal void AttachWindow(ProgressWindow window, string? title, string? initialStatus)
+            {
+                if (window == null) throw new ArgumentNullException(nameof(window));
+
+                _window = window;
+
+                if (!string.IsNullOrEmpty(title))
+                {
+                    _window.Title = title;
+                }
+
+                if (!string.IsNullOrEmpty(initialStatus))
+                {
+                    _window.UpdateStatus(initialStatus);
+                }
+
+                int current, total;
+                string? status;
+                lock (_sync)
+                {
+                    current = _lastCurrent;
+                    total = _lastTotal;
+                    status = _lastStatus;
+                }
+
+                // 작업이 창 표시 전에 이미 진행률/상태를 보고했을 수 있으므로 마지막 값을 반영
+                if (current != 0 || total != 0 || status != null)
+                {
+                    _window.UpdateProgress(current, total, status);
+                }
             }
         }
 
@@ -46,7 +100,8 @@ namespace SimpleOverlayEditor.Services
             Window? owner,
             Func<Scope, Task> work,
             string? title = null,
-            string? initialStatus = null)
+            string? initialStatus = null,
+            int showDelayMs = 1000)
         {
             if (work == null) throw new ArgumentNullException(nameof(work));
 
@@ -56,31 +111,56 @@ namespace SimpleOverlayEditor.Services
                 owner = Application.Current?.MainWindow;
             }
 
-            var progressWindow = new ProgressWindow();
-            
-            // owner가 유효하고 로드된 경우에만 Owner 설정
-            if (owner != null && owner.IsLoaded)
-            {
-                progressWindow.Owner = owner;
-            }
-
-            if (!string.IsNullOrEmpty(title))
-            {
-                progressWindow.Title = title;
-            }
-
-            progressWindow.Show();
-
-            if (!string.IsNullOrEmpty(initialStatus))
-            {
-                progressWindow.UpdateStatus(initialStatus);
-            }
-
-            var scope = new Scope(progressWindow);
+            var cts = new CancellationTokenSource();
+            var scope = new Scope(cts);
+            ProgressWindow? progressWindow = null;
 
             try
             {
-                await Task.Run(() => work(scope), scope.CancellationToken);
+                var workTask = Task.Run(() => work(scope), scope.CancellationToken);
+
+                if (showDelayMs < 0) showDelayMs = 0;
+
+                if (showDelayMs == 0)
+                {
+                    UiThread.Invoke(() =>
+                    {
+                        progressWindow = new ProgressWindow(cts);
+
+                        // owner가 유효하고 로드된 경우에만 Owner 설정
+                        if (owner != null && owner.IsLoaded)
+                        {
+                            progressWindow.Owner = owner;
+                        }
+
+                        progressWindow.Show();
+                        scope.AttachWindow(progressWindow, title, initialStatus);
+                    });
+                }
+                else
+                {
+                    var delayTask = Task.Delay(showDelayMs);
+                    var first = await Task.WhenAny(workTask, delayTask);
+
+                    if (first == delayTask && !workTask.IsCompleted)
+                    {
+                        UiThread.Invoke(() =>
+                        {
+                            progressWindow = new ProgressWindow(cts);
+
+                            // owner가 유효하고 로드된 경우에만 Owner 설정
+                            if (owner != null && owner.IsLoaded)
+                            {
+                                progressWindow.Owner = owner;
+                            }
+
+                            progressWindow.Show();
+                            scope.AttachWindow(progressWindow, title, initialStatus);
+                        });
+                    }
+                }
+
+                await workTask;
                 return false;
             }
             catch (OperationCanceledException)
@@ -91,11 +171,13 @@ namespace SimpleOverlayEditor.Services
             {
                 scope.Ui(() =>
                 {
-                    if (progressWindow.IsVisible)
+                    if (progressWindow?.IsVisible == true)
                     {
                         progressWindow.Close();
                     }
                 });
+
+                cts.Dispose();
             }
         }
     }

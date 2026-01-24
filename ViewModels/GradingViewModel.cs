@@ -20,7 +20,7 @@ namespace SimpleOverlayEditor.ViewModels
     /// <summary>
     /// 채점 및 성적 처리 ViewModel입니다.
     /// </summary>
-    public class GradingViewModel : INotifyPropertyChanged
+    public class GradingViewModel : INotifyPropertyChanged, INavigationAware
     {
         private readonly NavigationViewModel _navigation;
         private readonly GradingCalculator _gradingCalculator = GradingCalculator.Instance;
@@ -86,6 +86,7 @@ namespace SimpleOverlayEditor.ViewModels
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
             ExportToExcelCommand = new RelayCommand(OnExportToExcel, () => GradingResults != null && GradingResults.Count > 0);
             SetFilterModeCommand = new RelayCommand<string>(OnSetFilterMode);
+            ResetFiltersCommand = new RelayCommand(OnResetFilters);
 
             // 필터 옵션 초기화
             InitializeFilterOptions();
@@ -154,6 +155,7 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand NavigateToHomeCommand { get; }
         public ICommand ExportToExcelCommand { get; }
         public ICommand SetFilterModeCommand { get; }
+        public ICommand ResetFiltersCommand { get; }
 
         public NavigationViewModel Navigation => _navigation;
 
@@ -482,6 +484,24 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 FilterMode = filterMode;
             }
+        }
+
+        /// <summary>
+        /// 모든 필터(라디오 + 시각/실/순)를 기본값으로 리셋합니다.
+        /// </summary>
+        private void OnResetFilters()
+        {
+            _filterMode = "All";
+            _selectedSessionFilter = OmrFilterUtils.AllLabel;
+            _selectedRoomFilter = OmrFilterUtils.AllLabel;
+            _selectedOrderFilter = OmrFilterUtils.AllLabel;
+
+            OnPropertyChanged(nameof(FilterMode));
+            OnPropertyChanged(nameof(SelectedSessionFilter));
+            OnPropertyChanged(nameof(SelectedRoomFilter));
+            OnPropertyChanged(nameof(SelectedOrderFilter));
+
+            ApplyFilter();
         }
 
         /// <summary>
@@ -1117,6 +1137,18 @@ namespace SimpleOverlayEditor.ViewModels
         protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public void OnNavigatedTo(object? parameter)
+        {
+            // 정책: 모드 재진입 시 항상 기본 정렬로 복구
+            _userHasSorted = false;
+            UpdateFilteredResults();
+        }
+
+        public void OnNavigatedFrom()
+        {
+            // no-op
         }
     }
 }

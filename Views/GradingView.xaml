@@ -183,6 +183,18 @@
                           Width="80"
                           VerticalAlignment="Center"
                           Margin="0,0,5,0"/>
+
+                <!-- 필터 초기화 (작고 평평하게, 필터 옆에 붙임) -->
+                <Button Content="초기화"
+                        Command="{Binding ResetFiltersCommand}"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="6,0,0,0"
+                        Background="Transparent"
+                        BorderBrush="#C0C0C0"
+                        BorderThickness="1"
+                        Foreground="#666"
+                        VerticalAlignment="Center"/>
             </StackPanel>
         </Border>
 

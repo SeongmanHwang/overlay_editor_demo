@@ -582,18 +582,31 @@
                                   Width="80"
                                   VerticalAlignment="Center"
                                   Margin="0,0,5,0"/>
+
+                        <!-- 필터 초기화 (작고 평평하게, 필터 옆에 붙임) -->
+                        <Button Content="초기화"
+                                Command="{Binding ResetFiltersCommand}"
+                                FontSize="11"
+                                Padding="6,2"
+                                Margin="6,0,0,0"
+                                Background="Transparent"
+                                BorderBrush="#C0C0C0"
+                                BorderThickness="1"
+                                Foreground="#666"
+                                VerticalAlignment="Center"/>
                     </StackPanel>
                     
-                    <!-- Excel 내보내기 버튼 (오른쪽) -->
-                    <Button Grid.Column="2" 
-                            Content="Excel 내보내기" 
-                            Command="{Binding ExportToXlsxCommand}" 
-                            Padding="10,5"
-                            Background="#4CAF50"
-                            Foreground="White"
-                            FontWeight="Bold"
-                            MinWidth="120"
-                            VerticalAlignment="Center"/>
+                    <!-- 우측 버튼 영역 -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Excel 내보내기" 
+                                Command="{Binding ExportToXlsxCommand}" 
+                                Padding="10,5"
+                                Background="#4CAF50"
+                                Foreground="White"
+                                FontWeight="Bold"
+                                MinWidth="120"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Grid>
                 
                 <!-- 안내 메시지 (데이터 없을 때) -->

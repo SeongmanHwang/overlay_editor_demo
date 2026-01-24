@@ -25,7 +25,7 @@ namespace SimpleOverlayEditor.ViewModels
     /// <summary>
     /// 마킹 리딩 전용 ViewModel입니다.
     /// </summary>
-    public class MarkingViewModel : INotifyPropertyChanged
+    public class MarkingViewModel : INotifyPropertyChanged, INavigationAware
     {
         private readonly MarkingDetector _markingDetector;
         private readonly BarcodeReaderService _barcodeReaderService;
@@ -146,6 +146,7 @@ namespace SimpleOverlayEditor.ViewModels
                 OnExportToXlsx,
                 () => SheetResults != null && SheetResults.Count > 0);
             SetFilterModeCommand = new RelayCommand<string>(OnSetFilterMode);
+            ResetFiltersCommand = new RelayCommand(OnResetFilters);
             
             // 필터 옵션 초기화
             InitializeFilterOptions();
@@ -297,6 +298,7 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand LoadFolderCommand { get; }
         public ICommand ExportToXlsxCommand { get; }
         public ICommand SetFilterModeCommand { get; }
+        public ICommand ResetFiltersCommand { get; }
         
         /// <summary>
         /// 네비게이션 ViewModel (홈으로 이동 등)
@@ -506,6 +508,24 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 FilterMode = filterMode;
             }
+        }
+
+        /// <summary>
+        /// 모든 필터(라디오 + 시각/실/순)를 기본값으로 리셋합니다.
+        /// </summary>
+        private void OnResetFilters()
+        {
+            _filterMode = "All";
+            _selectedSessionFilter = OmrFilterUtils.AllLabel;
+            _selectedRoomFilter = OmrFilterUtils.AllLabel;
+            _selectedOrderFilter = OmrFilterUtils.AllLabel;
+
+            OnPropertyChanged(nameof(FilterMode));
+            OnPropertyChanged(nameof(SelectedSessionFilter));
+            OnPropertyChanged(nameof(SelectedRoomFilter));
+            OnPropertyChanged(nameof(SelectedOrderFilter));
+
+            ApplyFilter();
         }
 
         /// <summary>
@@ -1767,6 +1787,41 @@ namespace SimpleOverlayEditor.ViewModels
         protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public void OnNavigatedTo(object? parameter)
+        {
+            // 정책: 모드 재진입 시 항상 기본 정렬로 복구
+            if (FilteredSheetResults == null) return;
+
+            FilteredSheetResults.SortDescriptions.Clear();
+
+            // 1. IsDuplicate 내림차순 (중복이 먼저)
+            FilteredSheetResults.SortDescriptions.Add(
+                new SortDescription(nameof(OmrSheetResult.IsDuplicate), ListSortDirection.Descending));
+
+            // 2. IsSimpleError 내림차순 (단순 오류가 그 다음)
+            FilteredSheetResults.SortDescriptions.Add(
+                new SortDescription(nameof(OmrSheetResult.IsSimpleError), ListSortDirection.Descending));
+
+            // 3. StudentId 오름차순 (수험번호 순)
+            FilteredSheetResults.SortDescriptions.Add(
+                new SortDescription(nameof(OmrSheetResult.StudentId), ListSortDirection.Ascending));
+
+            // 4. CombinedId 오름차순 (결합ID 순)
+            FilteredSheetResults.SortDescriptions.Add(
+                new SortDescription(nameof(OmrSheetResult.CombinedId), ListSortDirection.Ascending));
+
+            // 5. ImageFileName 오름차순 (파일명 순)
+            FilteredSheetResults.SortDescriptions.Add(
+                new SortDescription(nameof(OmrSheetResult.ImageFileName), ListSortDirection.Ascending));
+
+            FilteredSheetResults.Refresh();
+        }
+
+        public void OnNavigatedFrom()
+        {
+            // no-op
         }
     }
 }

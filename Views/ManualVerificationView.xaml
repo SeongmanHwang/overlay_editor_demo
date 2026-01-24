@@ -1,50 +1,265 @@
 <UserControl x:Class="SimpleOverlayEditor.Views.ManualVerificationView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1000">
-    <Grid>
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:SimpleOverlayEditor.Models"
+             xmlns:vm="clr-namespace:SimpleOverlayEditor.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="1200">
+    <Grid Background="#F5F5F5">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- 상단 헤더 -->
-        <Border Grid.Row="0" 
+        <!-- Header -->
+        <Border Grid.Row="0"
                 Background="#424242"
-                Padding="30,25"
+                Padding="20,16"
                 BorderThickness="0,0,0,2"
                 BorderBrush="#212121">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="수기 검산" 
-                          FontSize="24" 
-                          FontWeight="Bold" 
-                          Foreground="White" 
-                          VerticalAlignment="Center"
-                          TextOptions.TextRenderingMode="ClearType"
-                          TextOptions.TextFormattingMode="Display"/>
+
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="수기 검산 (학생 기준)"
+                               FontSize="22"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               TextOptions.TextRenderingMode="ClearType"/>
+                    <TextBlock Text="{Binding BusyMessage}"
+                               FontSize="12"
+                               Foreground="#DDDDDD"
+                               Margin="0,4,0,0"
+                               Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                </StackPanel>
+
                 <Button Grid.Column="1"
-                       Content="홈으로"
-                       Command="{Binding NavigateToHomeCommand}"
-                       Style="{StaticResource CleanButton}"
-                       Background="#616161"
-                       Margin="10,0,0,0"/>
+                        Content="샘플 재추출"
+                        Command="{Binding RegenerateSampleCommand}"
+                        Style="{StaticResource CleanButtonSmall}"
+                        Background="#1976D2"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"/>
+                <Button Grid.Column="2"
+                        Content="다시 로드"
+                        Command="{Binding ReloadCommand}"
+                        Style="{StaticResource CleanButtonSmall}"
+                        Background="#455A64"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"/>
+                <Button Grid.Column="3"
+                        Content="홈으로"
+                        Command="{Binding NavigateToHomeCommand}"
+                        Style="{StaticResource CleanButtonSmall}"
+                        Background="#616161"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
-        <!-- 메인 콘텐츠 (빈 화면) -->
-        <Grid Grid.Row="1" Background="#F5F5F5">
-            <TextBlock Text="수기 검산 기능은 추후 구현 예정입니다." 
-                      FontSize="18" 
-                      Foreground="#666"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Center"/>
+        <!-- Main -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" MinWidth="220"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="360" MinWidth="300"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: students -->
+            <DockPanel Grid.Column="0" Background="#FAFAFA">
+                <TextBlock DockPanel.Dock="Top"
+                           Text="샘플 수험번호 (20명)"
+                           FontWeight="Bold"
+                           Margin="12,12,12,6"/>
+                <TextBlock DockPanel.Dock="Top"
+                           Text="{Binding SampleSeed, StringFormat='Seed: {0}'}"
+                           Foreground="#666"
+                           FontSize="11"
+                           Margin="12,0,12,10"/>
+                <ListBox ItemsSource="{Binding SampledStudents}"
+                         SelectedItem="{Binding SelectedStudent}"
+                         Margin="12,0,12,12"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         DisplayMemberPath="StudentId"/>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Width="5"
+                          Background="#E0E0E0"
+                          ShowsPreview="False"
+                          ResizeDirection="Columns"/>
+
+            <!-- Center: image -->
+            <DockPanel Grid.Column="2" Background="#E0E0E0">
+                <ScrollViewer x:Name="ImageScrollViewer"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              Background="#E0E0E0"
+                              VerticalContentAlignment="Top"
+                              PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel">
+                    <Grid>
+                        <!-- Hint -->
+                        <TextBlock Text="왼쪽에서 수험번호를 선택하세요."
+                                   FontSize="14"
+                                   Foreground="#666"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DisplayImage}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <Canvas x:Name="ImageCanvas"
+                                Background="White"
+                                SizeChanged="ImageCanvas_SizeChanged"
+                                VerticalAlignment="Top"
+                                HorizontalAlignment="Left">
+                            <Image x:Name="SourceImage"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   IsHitTestVisible="False"/>
+                        </Canvas>
+                    </Grid>
+                </ScrollViewer>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="3"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Width="5"
+                          Background="#E0E0E0"
+                          ShowsPreview="False"
+                          ResizeDirection="Columns"/>
+
+            <!-- Right: sheets + details -->
+            <DockPanel Grid.Column="4" Background="#FAFAFA">
+                <StackPanel DockPanel.Dock="Top" Margin="12,12,12,8">
+                    <TextBlock Text="선택 학생"
+                               FontWeight="Bold"
+                               FontSize="14"/>
+                    <TextBlock Text="{Binding SelectedStudent.StudentId, TargetNullValue='-'}"
+                               FontSize="18"
+                               FontWeight="Bold"
+                               Margin="0,4,0,8"/>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="이전"
+                                Command="{Binding PreviousImageCommand}"
+                                Style="{StaticResource CleanButtonSmall}"
+                                Background="#1976D2"
+                                Margin="0,0,6,0"/>
+                        <Button Content="다음"
+                                Command="{Binding NextImageCommand}"
+                                Style="{StaticResource CleanButtonSmall}"
+                                Background="#1976D2"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,0,12,12">
+                        <GroupBox Header="이미지 목록" Margin="0,0,0,10">
+                            <ListBox ItemsSource="{Binding StudentSheets}"
+                                     SelectedItem="{Binding SelectedSheet}"
+                                     DisplayMemberPath="ImageFileName"
+                                     MaxHeight="180"/>
+                        </GroupBox>
+
+                        <GroupBox Header="선택 이미지 정보" Margin="0,0,0,10">
+                            <StackPanel Margin="8">
+                                <TextBlock TextWrapping="Wrap" Margin="0,2">
+                                    <Run Text="파일명: " FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedSheet.ImageFileName, TargetNullValue='-'}"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,2">
+                                    <Run Text="수험번호: " FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedSheet.StudentId, TargetNullValue='-'}"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,2">
+                                    <Run Text="면접번호: " FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedSheet.InterviewId, TargetNullValue='-'}"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,2">
+                                    <Run Text="오류: " FontWeight="Bold"/>
+                                    <Run Text="{Binding SelectedSheet.ErrorMessage, TargetNullValue='-'}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="문항별 검산 (리딩 → 점수명/환산)" Margin="0,0,0,10">
+                            <DataGrid ItemsSource="{Binding QuestionRows}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      IsReadOnly="True"
+                                      HeadersVisibility="Column"
+                                      MinHeight="160">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="문항" Binding="{Binding QuestionNumber}" Width="50"/>
+                                    <DataGridTextColumn Header="마킹" Binding="{Binding MarkingStatus}" Width="*"/>
+                                    <DataGridTextColumn Header="점수명" Binding="{Binding ScoreName}" Width="90"/>
+                                    <DataGridTextColumn Header="환산" Binding="{Binding ScoreValueDisplay}" Width="70"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </GroupBox>
+
+                        <GroupBox Header="성적처리(표 결과, 가상 호출)" Margin="0,0,0,0">
+                            <StackPanel Margin="8">
+                                <TextBlock Text="(검산 모드에서 GradingViewModel을 UI 없이 생성하여 결과를 표시합니다)"
+                                           Foreground="#666"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8"/>
+
+                                <StackPanel>
+                                    <TextBlock Margin="0,0,0,4">
+                                        <Run Text="문항1: " FontWeight="Bold"/>
+                                        <Run Text="{Binding SelectedStudentGradingResult.Question1Marking, StringFormat=F1, TargetNullValue='-'}"/>
+                                    </TextBlock>
+                                    <TextBlock Margin="0,0,0,4">
+                                        <Run Text="문항2: " FontWeight="Bold"/>
+                                        <Run Text="{Binding SelectedStudentGradingResult.Question2Marking, StringFormat=F1, TargetNullValue='-'}"/>
+                                    </TextBlock>
+                                    <TextBlock Margin="0,0,0,4">
+                                        <Run Text="문항3: " FontWeight="Bold"/>
+                                        <Run Text="{Binding SelectedStudentGradingResult.Question3Marking, StringFormat=F1, TargetNullValue='-'}"/>
+                                    </TextBlock>
+                                    <TextBlock Margin="0,0,0,8">
+                                        <Run Text="문항4: " FontWeight="Bold"/>
+                                        <Run Text="{Binding SelectedStudentGradingResult.Question4Marking, StringFormat=F1, TargetNullValue='-'}"/>
+                                    </TextBlock>
+
+                                    <TextBlock Margin="0,0,0,4">
+                                        <Run Text="총점: " FontWeight="Bold"/>
+                                        <Run Text="{Binding SelectedStudentGradingResult.TotalScore, StringFormat=F1, TargetNullValue='-'}"/>
+                                    </TextBlock>
+                                    <TextBlock Margin="0,0,0,0">
+                                        <Run Text="석차: " FontWeight="Bold"/>
+                                        <Run Text="{Binding SelectedStudentGradingResult.Rank, TargetNullValue='-'}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Grid>
     </Grid>
 </UserControl>

@@ -37,6 +37,17 @@ namespace SimpleOverlayEditor.Services.Mappers
     }
 
     /// <summary>
+    /// 문항별 점수(실수) 매핑을 위한 Mapper 인터페이스입니다.
+    /// (GradingResult의 문항별 평균 점수처럼 소수점이 필요한 경우 사용)
+    /// </summary>
+    public interface IQuestionScoreMapper<T>
+    {
+        void SetQuestionScore(T target, int questionNumber, double? score);
+        double? GetQuestionScore(T source, int questionNumber);
+        IEnumerable<int> GetAllQuestionNumbers();
+    }
+
+    /// <summary>
     /// OmrSheetResult용 Mapper 구현
     /// </summary>
     public class OmrSheetResultMapper : IQuestionResultMapper<OmrSheetResult>
@@ -134,6 +145,68 @@ namespace SimpleOverlayEditor.Services.Mappers
         }
 
         public int? GetQuestionMarking(GradingResult source, int questionNumber)
+        {
+            if (!OmrConstants.IsValidQuestionNumber(questionNumber))
+            {
+                throw new ArgumentOutOfRangeException(nameof(questionNumber),
+                    $"문항 번호는 1부터 {OmrConstants.QuestionsCount}까지여야 합니다. 현재: {questionNumber}");
+            }
+
+            return questionNumber switch
+            {
+                // 하위 호환성: double?을 int?로 반환해야 하므로 반올림하여 반환
+                1 => source.Question1Marking.HasValue ? (int?)Math.Round(source.Question1Marking.Value) : null,
+                2 => source.Question2Marking.HasValue ? (int?)Math.Round(source.Question2Marking.Value) : null,
+                3 => source.Question3Marking.HasValue ? (int?)Math.Round(source.Question3Marking.Value) : null,
+                4 => source.Question4Marking.HasValue ? (int?)Math.Round(source.Question4Marking.Value) : null,
+                _ => throw new ArgumentOutOfRangeException(nameof(questionNumber),
+                    $"현재 QuestionsCount({OmrConstants.QuestionsCount})보다 큰 문항 번호: {questionNumber}")
+            };
+        }
+
+        public IEnumerable<int> GetAllQuestionNumbers()
+        {
+            for (int i = 1; i <= OmrConstants.QuestionsCount; i++)
+            {
+                yield return i;
+            }
+        }
+    }
+
+    /// <summary>
+    /// GradingResult용 점수(실수) Mapper 구현 (문항별 평균 점수 등)
+    /// </summary>
+    public class GradingResultScoreMapper : IQuestionScoreMapper<GradingResult>
+    {
+        public void SetQuestionScore(GradingResult target, int questionNumber, double? score)
+        {
+            if (!OmrConstants.IsValidQuestionNumber(questionNumber))
+            {
+                throw new ArgumentOutOfRangeException(nameof(questionNumber),
+                    $"문항 번호는 1부터 {OmrConstants.QuestionsCount}까지여야 합니다. 현재: {questionNumber}");
+            }
+
+            switch (questionNumber)
+            {
+                case 1:
+                    target.Question1Marking = score;
+                    break;
+                case 2:
+                    target.Question2Marking = score;
+                    break;
+                case 3:
+                    target.Question3Marking = score;
+                    break;
+                case 4:
+                    target.Question4Marking = score;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(questionNumber),
+                        $"현재 QuestionsCount({OmrConstants.QuestionsCount})보다 큰 문항 번호: {questionNumber}");
+            }
+        }
+
+        public double? GetQuestionScore(GradingResult source, int questionNumber)
         {
             if (!OmrConstants.IsValidQuestionNumber(questionNumber))
             {

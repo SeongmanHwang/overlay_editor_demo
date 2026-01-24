@@ -120,9 +120,12 @@ namespace SimpleOverlayEditor.Services
                             if (questionElem.TryGetProperty("Scores", out var scoresElement))
                             {
                                 question.Scores.Clear();
+                                int optionIndex = 0;
                                 foreach (var scoreElem in scoresElement.EnumerateArray())
                                 {
-                                    question.Scores.Add(scoreElem.GetDouble());
+                                    optionIndex++;
+                                    var scoreInt = ParseIntScoreOrThrow(scoreElem, questionNumber, optionIndex);
+                                    question.Scores.Add(scoreInt);
                                 }
                                 
                                 // {OmrConstants.OptionsPerQuestion}개가 안 되면 0으로 채움
@@ -187,9 +190,12 @@ namespace SimpleOverlayEditor.Services
                             if (questionElem.TryGetProperty("Scores", out var scoresElement))
                             {
                                 question.Scores.Clear();
+                                int optionIndex = 0;
                                 foreach (var scoreElem in scoresElement.EnumerateArray())
                                 {
-                                    question.Scores.Add(scoreElem.GetDouble());
+                                    optionIndex++;
+                                    var scoreInt = ParseIntScoreOrThrow(scoreElem, questionNumber, optionIndex);
+                                    question.Scores.Add(scoreInt);
                                 }
                                 
                                 // {OmrConstants.OptionsPerQuestion}개가 안 되면 0으로 채움
@@ -275,24 +281,36 @@ namespace SimpleOverlayEditor.Services
                     for (int col = 2; col <= lastScoreCol; col++)
                     {
                         var scoreCell = worksheet.Cell(row, col);
-                        var score = 0.0;
+                        int score;
                         
-                        // 숫자로 읽기 시도
+                        // 숫자로 읽기 시도 (정수만 허용)
                         if (scoreCell.DataType == XLDataType.Number)
                         {
-                            score = scoreCell.GetDouble();
+                            var d = scoreCell.GetDouble();
+                            if (d % 1 != 0)
+                            {
+                                throw new InvalidOperationException($"1 이상의 정수 점수만 허용됩니다. (문항 {questionNumber}, {col - 1}번 선택지): {d}");
+                            }
+                            score = (int)d;
                         }
                         else
                         {
-                            // 텍스트나 빈 셀인 경우 문자열로 읽어서 파싱 시도
+                            // 텍스트나 빈 셀인 경우 문자열로 읽어서 파싱 시도 (정수만 허용)
                             var cellValue = scoreCell.GetValue<string>();
                             if (!string.IsNullOrWhiteSpace(cellValue))
                             {
-                                if (double.TryParse(cellValue.Trim(), out var parsedScore))
-                                {
-                                    score = parsedScore;
-                                }
+                                if (!int.TryParse(cellValue.Trim(), out score))
+                                    throw new InvalidOperationException($"1 이상의 정수 점수만 허용됩니다. (문항 {questionNumber}, {col - 1}번 선택지): '{cellValue}'");
                             }
+                            else
+                            {
+                                throw new InvalidOperationException($"1 이상의 정수 점수만 허용됩니다. (문항 {questionNumber}, {col - 1}번 선택지): 빈 셀");
+                            }
+                        }
+
+                        if (score <= 0)
+                        {
+                            throw new InvalidOperationException($"1 이상의 정수 점수만 허용됩니다. (문항 {questionNumber}, {col - 1}번 선택지): {score}");
                         }
                         
                         question.Scores.Add(score);
@@ -362,6 +380,38 @@ namespace SimpleOverlayEditor.Services
                 }
 
                 workbook.SaveAs(filePath);
+            }
+        }
+
+        private static int ParseIntScoreOrThrow(JsonElement scoreElem, int questionNumber, int optionNumber)
+        {
+            try
+            {
+                // JSON 숫자가 30처럼 정수로 저장돼 있으면 GetInt32가 가장 명확함
+                var i = scoreElem.GetInt32();
+                if (i <= 0)
+                {
+                    throw new InvalidOperationException(
+                        $"1 이상의 정수 점수만 허용됩니다. (문항 {questionNumber}, {optionNumber}번 선택지): {i}");
+                }
+                return i;
+            }
+            catch
+            {
+                // 30.0 같은 형태(또는 부정확한 값)를 허용하지 않고 명시적으로 차단
+                var asDouble = scoreElem.GetDouble();
+                if (asDouble % 1 != 0)
+                {
+                    throw new InvalidOperationException(
+                        $"1 이상의 정수 점수만 허용됩니다. (문항 {questionNumber}, {optionNumber}번 선택지): {asDouble}");
+                }
+                var i = (int)asDouble;
+                if (i <= 0)
+                {
+                    throw new InvalidOperationException(
+                        $"1 이상의 정수 점수만 허용됩니다. (문항 {questionNumber}, {optionNumber}번 선택지): {i}");
+                }
+                return i;
             }
         }
     }

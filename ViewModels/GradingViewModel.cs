@@ -27,7 +27,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly MarkingAnalyzer _markingAnalyzer;
         private readonly ScoringRuleStore _scoringRuleStore;
         private readonly IQuestionResultMapper<OmrSheetResult> _sheetMapper;
-        private readonly IQuestionResultMapper<GradingResult> _gradingMapper;
+        private readonly IQuestionScoreMapper<GradingResult> _gradingScoreMapper;
         private ObservableCollection<GradingResult>? _gradingResults;
         private ICollectionView? _filteredGradingResults;
         private bool _hasMismatch;
@@ -59,7 +59,7 @@ namespace SimpleOverlayEditor.ViewModels
         /// 기본 생성자 (기본 구현 사용)
         /// </summary>
         public GradingViewModel(NavigationViewModel navigation)
-            : this(navigation, new OmrSheetResultMapper(), new GradingResultMapper())
+            : this(navigation, new OmrSheetResultMapper(), new GradingResultScoreMapper())
         {
         }
 
@@ -69,11 +69,11 @@ namespace SimpleOverlayEditor.ViewModels
         private GradingViewModel(
             NavigationViewModel navigation,
             IQuestionResultMapper<OmrSheetResult> sheetMapper,
-            IQuestionResultMapper<GradingResult> gradingMapper)
+            IQuestionScoreMapper<GradingResult> gradingScoreMapper)
         {
             _navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
             _sheetMapper = sheetMapper ?? throw new ArgumentNullException(nameof(sheetMapper));
-            _gradingMapper = gradingMapper ?? throw new ArgumentNullException(nameof(gradingMapper));
+            _gradingScoreMapper = gradingScoreMapper ?? throw new ArgumentNullException(nameof(gradingScoreMapper));
             
             _sessionStore = new SessionStore();
             _registryStore = new RegistryStore();
@@ -525,7 +525,7 @@ namespace SimpleOverlayEditor.ViewModels
                 // 3. StudentRegistry 로드
                 var studentRegistry = _registryStore.LoadStudentRegistry();
 
-                // 4. ScoringRule 로드 (배점 정보)
+                // 4. ScoringRule 로드 (배점 정보) - 정수 점수만 허용
                 var scoringRule = _scoringRuleStore.LoadScoringRule();
 
                 // 5. 수험번호별로 그룹화
@@ -556,8 +556,8 @@ namespace SimpleOverlayEditor.ViewModels
                     bool hasDuplicate = studentSheets.Any(s => s.IsDuplicate);
                     int duplicateCount = studentSheets.Count(s => s.IsDuplicate);
 
-                    // 면접위원별 점수를 문항별로 평균 계산 - 반복문으로 개선
-                    var questionSums = new double[OmrConstants.QuestionsCount];
+                    // 면접위원별 점수를 문항별로 합산(정수) - 석차/총점 왜곡 방지
+                    var questionRawSums = new int[OmrConstants.QuestionsCount];
                     var questionCounts = new int[OmrConstants.QuestionsCount];
                     bool hasSimpleErrors = false;
 
@@ -570,7 +570,7 @@ namespace SimpleOverlayEditor.ViewModels
                             if (marking.HasValue)
                             {
                                 var score = scoringRule.GetScore(q, marking.Value);
-                                questionSums[q - 1] += score;
+                                questionRawSums[q - 1] += score;
                                 questionCounts[q - 1]++;
                             }
                         }
@@ -594,14 +594,16 @@ namespace SimpleOverlayEditor.ViewModels
                         BirthDate = studentInfo?.BirthDate
                     };
 
-                    // 평균 계산 및 Mapper를 통한 설정
+                    // ✅ 석차용 총점(정수 합계, 분자)
+                    result.TotalScoreRaw = questionRawSums.Sum();
+
+                    // ✅ 표시용 평균 점수(유효 개수로 나눔). 반올림은 UI에서만 처리.
                     for (int q = 1; q <= OmrConstants.QuestionsCount; q++)
                     {
                         var avg = questionCounts[q - 1] > 0
-                            ? questionSums[q - 1] / questionCounts[q - 1]
+                            ? (double)questionRawSums[q - 1] / questionCounts[q - 1]
                             : (double?)null;
-                        _gradingMapper.SetQuestionMarking(result, q,
-                            avg.HasValue ? (int?)Math.Round(avg.Value) : null);
+                        _gradingScoreMapper.SetQuestionScore(result, q, avg);
                     }
 
                     CalculateScores(result);
@@ -611,7 +613,7 @@ namespace SimpleOverlayEditor.ViewModels
                 // 7. 수험번호 비교 검사
                 CheckStudentIdMismatch(gradingResults, studentRegistry);
 
-                // 8. 석차 계산 (TotalScore 기준)
+                // 8. 석차 계산 (정수 합계 TotalScoreRaw 기준)
                 CalculateRank(gradingResults);
 
                 // 9. GradingResults 설정 (이때 UpdateFilteredResults가 호출되어 기본 정렬이 자동 적용됨)
@@ -709,10 +711,10 @@ namespace SimpleOverlayEditor.ViewModels
             var scores = new System.Collections.Generic.List<double>();
 
             // Mapper를 통한 반복 접근
-            foreach (var qNum in _gradingMapper.GetAllQuestionNumbers())
+            foreach (var qNum in _gradingScoreMapper.GetAllQuestionNumbers())
             {
-                var marking = _gradingMapper.GetQuestionMarking(result, qNum);
-                if (marking.HasValue) scores.Add(marking.Value);
+                var score = _gradingScoreMapper.GetQuestionScore(result, qNum);
+                if (score.HasValue) scores.Add(score.Value);
             }
 
             result.TotalScore = scores.Count > 0 ? scores.Sum() : (double?)null;
@@ -818,13 +820,13 @@ namespace SimpleOverlayEditor.ViewModels
         {
             // 전형명별로 그룹화하여 각 전형명 내에서 석차 계산
             var groupedByExamType = results
-                .Where(r => !string.IsNullOrEmpty(r.ExamType) && r.TotalScore.HasValue)
+                .Where(r => !string.IsNullOrEmpty(r.ExamType) && r.TotalScoreRaw.HasValue)
                 .GroupBy(r => r.ExamType!)
                 .ToList();
 
             // 전형명이 없는 경우도 처리
             var withoutExamType = results
-                .Where(r => string.IsNullOrEmpty(r.ExamType) || !r.TotalScore.HasValue)
+                .Where(r => string.IsNullOrEmpty(r.ExamType) || !r.TotalScoreRaw.HasValue)
                 .ToList();
 
             // 각 전형명별로 석차 계산
@@ -832,8 +834,8 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 var examType = group.Key;
                 var students = group
-                    .OrderByDescending(r => r.TotalScore ?? 0)
-                    .ThenByDescending(r => r.AverageScore ?? 0)
+                    .OrderByDescending(r => r.TotalScoreRaw ?? 0)
+                    .ThenByDescending(r => r.TotalScore ?? 0) // 표시용 평균 총점으로 2차 정렬(타이 브레이커)
                     .ToList();
 
                 int currentRank = 1;
@@ -841,12 +843,12 @@ namespace SimpleOverlayEditor.ViewModels
 
                 while (index < students.Count)
                 {
-                    var currentScore = students[index].TotalScore ?? 0;
+                    var currentScore = students[index].TotalScoreRaw ?? 0;
                     
                     // 같은 점수를 가진 학생들 찾기
                     var sameScoreStudents = students
                         .Skip(index)
-                        .TakeWhile(r => (r.TotalScore ?? 0) == currentScore)
+                        .TakeWhile(r => (r.TotalScoreRaw ?? 0) == currentScore)
                         .ToList();
                     
                     int sameScoreCount = sameScoreStudents.Count;
@@ -995,9 +997,9 @@ namespace SimpleOverlayEditor.ViewModels
                     // 문항별 마킹
                     for (int q = 1; q <= OmrConstants.QuestionsCount; q++)
                     {
-                        var marking = _gradingMapper.GetQuestionMarking(result, q);
-                        if (marking.HasValue)
-                            worksheet.Cell(row, col++).Value = (int)marking;
+                        var score = _gradingScoreMapper.GetQuestionScore(result, q);
+                        if (score.HasValue)
+                            worksheet.Cell(row, col++).Value = (double)score;
                         else
                             worksheet.Cell(row, col++).Value = "";
                     }

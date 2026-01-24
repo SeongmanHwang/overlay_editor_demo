@@ -135,7 +135,21 @@ namespace SimpleOverlayEditor.ViewModels
                 catch (Exception ex)
                 {
                     Logger.Instance.Error("정답 및 배점 로드 실패", ex);
-                    MessageBox.Show($"정답 및 배점 로드 실패:\n{ex.Message}", 
+
+                    // 정수-only/양수-only 정책 위반(소수점, 0, 음수 포함 등)
+                    if (ex is InvalidOperationException && ex.Message.Contains("1 이상의 정수 점수만 허용"))
+                    {
+                        MessageBox.Show(
+                            "점수는 1 이상의 정수만 입력해야 합니다.\n\n" +
+                            "불러오려는 파일에 소수점/0/음수 점수가 포함되어 있어 중단했습니다.\n\n" +
+                            ex.Message,
+                            "점수 입력 오류 (파일 불러오기)",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                        return;
+                    }
+
+                    MessageBox.Show($"정답 및 배점 로드 실패:\n{ex.Message}",
                         "오류", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }

@@ -189,7 +189,7 @@ namespace SimpleOverlayEditor.Views
                     else if (_navigation.CurrentMode == ApplicationMode.ManualVerification && _navigation.CurrentViewModel == null)
                     {
                         // ManualVerification 모드로 전환 시 ViewModel 생성
-                        var manualVerificationViewModel = new ManualVerificationViewModel(_navigation);
+                        var manualVerificationViewModel = new ManualVerificationViewModel(_navigation, _workspace);
                         _navigation.SetManualVerificationViewModel(manualVerificationViewModel);
                     }
                 }
@@ -332,7 +332,7 @@ namespace SimpleOverlayEditor.Views
                         else if (_navigation.CurrentMode == ApplicationMode.ManualVerification)
                         {
                             Services.Logger.Instance.Info($"MainNavigationViewModel: ManualVerificationViewModel 생성 시작");
-                            var manualVerificationViewModel = new ManualVerificationViewModel(_navigation);
+                            var manualVerificationViewModel = new ManualVerificationViewModel(_navigation, _workspace);
                             _navigation.SetManualVerificationViewModel(manualVerificationViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: ManualVerificationViewModel 생성 완료");
                         }

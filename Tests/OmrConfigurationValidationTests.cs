@@ -163,10 +163,10 @@ namespace SimpleOverlayEditor.Tests
         }
 
         [TestMethod]
-        public void GradingResultMapper_ShouldSetAndGetQuestionMarking()
+        public void GradingResultScoreMapper_ShouldSetAndGetQuestionScore()
         {
             // Arrange
-            var mapper = new GradingResultMapper();
+            var mapper = new GradingResultScoreMapper();
             var result = new GradingResult();
 
             // Act & Assert
@@ -174,12 +174,12 @@ namespace SimpleOverlayEditor.Tests
             foreach (var questionNumber in mapper.GetAllQuestionNumbers())
             {
                 // Set 테스트
-                mapper.SetQuestionMarking(result, questionNumber, questionNumber);
+                mapper.SetQuestionScore(result, questionNumber, questionNumber + 0.5);
 
                 // Get 테스트
-                var retrieved = mapper.GetQuestionMarking(result, questionNumber);
-                Assert.AreEqual(questionNumber, retrieved,
-                    $"문항 {questionNumber}의 마킹 값을 올바르게 설정하고 가져와야 합니다.");
+                var retrieved = mapper.GetQuestionScore(result, questionNumber);
+                Assert.AreEqual(questionNumber + 0.5, retrieved,
+                    $"문항 {questionNumber}의 점수 값을 올바르게 설정하고 가져와야 합니다.");
             }
         }
     }

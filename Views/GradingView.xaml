@@ -227,42 +227,42 @@
                 <DataGridTextColumn Header="성명" Binding="{Binding StudentName}" SortMemberPath="StudentName" Width="100"/>
                 <DataGridTextColumn Header="생년월일" Binding="{Binding BirthDate}" SortMemberPath="BirthDate" Width="120"/>
                 <DataGridTextColumn Header="출신교명" Binding="{Binding MiddleSchool}" SortMemberPath="MiddleSchool" Width="150"/>
-                <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking}" SortMemberPath="Question1Marking" Width="60">
+                <DataGridTextColumn Header="문항1" Binding="{Binding Question1Marking, StringFormat=F1}" SortMemberPath="Question1Marking" Width="70">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="문항2" Binding="{Binding Question2Marking}" SortMemberPath="Question2Marking" Width="60">
+                <DataGridTextColumn Header="문항2" Binding="{Binding Question2Marking, StringFormat=F1}" SortMemberPath="Question2Marking" Width="70">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="문항3" Binding="{Binding Question3Marking}" SortMemberPath="Question3Marking" Width="60">
+                <DataGridTextColumn Header="문항3" Binding="{Binding Question3Marking, StringFormat=F1}" SortMemberPath="Question3Marking" Width="70">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="문항4" Binding="{Binding Question4Marking}" SortMemberPath="Question4Marking" Width="60">
+                <DataGridTextColumn Header="문항4" Binding="{Binding Question4Marking, StringFormat=F1}" SortMemberPath="Question4Marking" Width="70">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="총점" Binding="{Binding TotalScore}" SortMemberPath="TotalScore" Width="70">
+                <DataGridTextColumn Header="총점" Binding="{Binding TotalScore, StringFormat=F1}" SortMemberPath="TotalScore" Width="75">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="석차" Binding="{Binding Rank}" SortMemberPath="Rank" Width="60">
+                <DataGridTextColumn Header="석차(감점 미반영)" Binding="{Binding Rank}" SortMemberPath="Rank" Width="120">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>

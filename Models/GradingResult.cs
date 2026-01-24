@@ -14,12 +14,13 @@ namespace SimpleOverlayEditor.Models
         private string? _studentId;
         private string? _studentName;  // StudentInfo에서 lookup
         private string? _interviewId;
-        private int? _question1Marking;
-        private int? _question2Marking;
-        private int? _question3Marking;
-        private int? _question4Marking;
+        private double? _question1Marking;
+        private double? _question2Marking;
+        private double? _question3Marking;
+        private double? _question4Marking;
         private double? _totalScore;
         private double? _averageScore;
+        private int? _totalScoreRaw;
         private int? _rank;
         private bool _isDuplicate;  // "수험번호 + 면접번호" 결합 ID 기준 중복 여부
         private int _duplicateCount;  // 같은 "수험번호 + 면접번호" 조합을 가진 시트 수
@@ -121,25 +122,25 @@ namespace SimpleOverlayEditor.Models
             set { _interviewId = value; OnPropertyChanged(); }
         }
 
-        public int? Question1Marking
+        public double? Question1Marking
         {
             get => _question1Marking;
             set { _question1Marking = value; OnPropertyChanged(); }
         }
 
-        public int? Question2Marking
+        public double? Question2Marking
         {
             get => _question2Marking;
             set { _question2Marking = value; OnPropertyChanged(); }
         }
 
-        public int? Question3Marking
+        public double? Question3Marking
         {
             get => _question3Marking;
             set { _question3Marking = value; OnPropertyChanged(); }
         }
 
-        public int? Question4Marking
+        public double? Question4Marking
         {
             get => _question4Marking;
             set { _question4Marking = value; OnPropertyChanged(); }
@@ -149,6 +150,15 @@ namespace SimpleOverlayEditor.Models
         {
             get => _totalScore;
             set { _totalScore = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// 석차 계산에 사용하는 총점(정수 합계, 분자). 평균/반올림/부동소수점과 무관하게 안정적입니다.
+        /// </summary>
+        public int? TotalScoreRaw
+        {
+            get => _totalScoreRaw;
+            set { _totalScoreRaw = value; OnPropertyChanged(); }
         }
 
         public double? AverageScore

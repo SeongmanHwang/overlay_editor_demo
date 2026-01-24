@@ -62,7 +62,7 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 특정 문항, 특정 선택지의 배점을 가져옵니다.
         /// </summary>
-        public double GetScore(int questionNumber, int optionNumber)
+        public int GetScore(int questionNumber, int optionNumber)
         {
             var question = Questions.FirstOrDefault(q => q.QuestionNumber == questionNumber);
             if (question == null || optionNumber < 1 || optionNumber > OmrConstants.OptionsPerQuestion)
@@ -84,11 +84,11 @@ namespace SimpleOverlayEditor.Models
     public class QuestionScoringRule : INotifyPropertyChanged
     {
         private int _questionNumber;
-        private ObservableCollection<double> _scores;
+        private ObservableCollection<int> _scores;
 
         public QuestionScoringRule()
         {
-            _scores = new ObservableCollection<double>();
+            _scores = new ObservableCollection<int>();
             
             // {OmrConstants.OptionsPerQuestion}개 선택지 초기화 (모두 0점)
             for (int i = 0; i < OmrConstants.OptionsPerQuestion; i++)
@@ -110,12 +110,12 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 선택지별 배점 (인덱스 0~11 = 1번~12번 선택지)
         /// </summary>
-        public ObservableCollection<double> Scores
+        public ObservableCollection<int> Scores
         {
             get => _scores;
             set
             {
-                _scores = value ?? new ObservableCollection<double>();
+                _scores = value ?? new ObservableCollection<int>();
                 OnPropertyChanged();
             }
         }
@@ -123,7 +123,7 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 특정 선택지 번호(1~{OmrConstants.OptionsPerQuestion})의 배점을 가져옵니다.
         /// </summary>
-        public double GetScore(int optionNumber)
+        public int GetScore(int optionNumber)
         {
             if (optionNumber < 1 || optionNumber > OmrConstants.OptionsPerQuestion)
                 return 0;
@@ -138,7 +138,7 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 특정 선택지 번호(1~{OmrConstants.OptionsPerQuestion})의 배점을 설정합니다.
         /// </summary>
-        public void SetScore(int optionNumber, double score)
+        public void SetScore(int optionNumber, int score)
         {
             if (optionNumber < 1 || optionNumber > OmrConstants.OptionsPerQuestion)
                 return;

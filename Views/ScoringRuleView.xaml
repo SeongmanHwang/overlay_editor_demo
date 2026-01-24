@@ -157,17 +157,20 @@
             <Border.Effect>
                 <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="15" ShadowDepth="2"/>
             </Border.Effect>
-            <DataGrid ItemsSource="{Binding ScoringRule.Questions}"
+            <DataGrid x:Name="ScoresDataGrid"
+                      ItemsSource="{Binding ScoringRule.Questions}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
-                      IsReadOnly="True"
+                      IsReadOnly="False"
                       SelectionMode="Single"
                       GridLinesVisibility="All"
                       HeadersVisibility="Column"
                       AlternatingRowBackground="#F5F5F5"
                       BorderThickness="0"
-                      Background="White">
+                      Background="White"
+                      Validation.Error="ScoresDataGrid_ValidationError"
+                      CellEditEnding="ScoresDataGrid_CellEditEnding">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="문항" 
                                    Binding="{Binding QuestionNumber}" 
@@ -180,84 +183,84 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="1번" Binding="{Binding Scores[0], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="1번" Binding="{Binding Scores[0], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="2번" Binding="{Binding Scores[1], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="2번" Binding="{Binding Scores[1], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="3번" Binding="{Binding Scores[2], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="3번" Binding="{Binding Scores[2], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="4번" Binding="{Binding Scores[3], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="4번" Binding="{Binding Scores[3], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="5번" Binding="{Binding Scores[4], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="5번" Binding="{Binding Scores[4], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="6번" Binding="{Binding Scores[5], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="6번" Binding="{Binding Scores[5], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="7번" Binding="{Binding Scores[6], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="7번" Binding="{Binding Scores[6], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="8번" Binding="{Binding Scores[7], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="8번" Binding="{Binding Scores[7], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="9번" Binding="{Binding Scores[8], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="9번" Binding="{Binding Scores[8], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="10번" Binding="{Binding Scores[9], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="10번" Binding="{Binding Scores[9], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="11번" Binding="{Binding Scores[10], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="11번" Binding="{Binding Scores[10], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="12번" Binding="{Binding Scores[11], UpdateSourceTrigger=PropertyChanged}" Width="60">
+                <DataGridTextColumn Header="12번" Binding="{Binding Scores[11], UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="60">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>

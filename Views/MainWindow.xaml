@@ -31,6 +31,9 @@
         <DataTemplate DataType="{x:Type vm:ManualVerificationViewModel}">
             <views:ManualVerificationView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SingleStudentVerificationViewModel}">
+            <views:SingleStudentVerificationView/>
+        </DataTemplate>
     </Window.Resources>
     <Grid>
         <!-- ContentControl: 현재 모드에 따라 View 전환 -->

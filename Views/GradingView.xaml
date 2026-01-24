@@ -194,11 +194,13 @@
                   CanUserDeleteRows="False"
                   IsReadOnly="True"
                   SelectionMode="Extended"
+                  SelectedItem="{Binding SelectedGradingResult, Mode=TwoWay}"
                   GridLinesVisibility="All"
                   HeadersVisibility="Column"
                   AlternatingRowBackground="#F5F5F5"
                   Margin="10"
-                  Sorting="GradingDataGrid_Sorting">
+                  Sorting="GradingDataGrid_Sorting"
+                  MouseDoubleClick="GradingDataGrid_MouseDoubleClick">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="수험번호" Binding="{Binding StudentId}" SortMemberPath="StudentId" Width="100"/>
                 <DataGridTextColumn Header="시각" Binding="{Binding Session}" SortMemberPath="Session" Width="50">

@@ -137,63 +137,9 @@ namespace SimpleOverlayEditor.Views
                 // NavigationViewModel 생성
                 _navigation = new NavigationViewModel();
 
-            // Navigation의 모드 변경 감지 (ViewModel 생성)
-            _navigation.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == nameof(_navigation.CurrentMode))
-                {
-                    if (_navigation.CurrentMode == ApplicationMode.Home && _navigation.CurrentViewModel == null)
-                    {
-                        // Home 모드로 전환 시 ViewModel 생성
-                        var homeViewModel = new HomeViewModel(_navigation, _workspace, _stateStore);
-                        _navigation.SetHomeViewModel(homeViewModel);
-                    }
-                    else if (_navigation.CurrentMode == ApplicationMode.TemplateEdit && _navigation.CurrentViewModel == null)
-                    {
-                        // TemplateEdit 모드로 전환 시 ViewModel 생성
-                        var templateEditViewModel = new TemplateEditViewModel(_navigation, _workspace, _stateStore);
-                        _navigation.SetTemplateEditViewModel(templateEditViewModel);
-                    }
-                    else if (_navigation.CurrentMode == ApplicationMode.Marking && _navigation.CurrentViewModel == null)
-                    {
-                        // Marking 모드로 전환 시 ViewModel 생성
-                        // 완전히 빈 상태로 시작 (이전 세션 데이터 로드 안 함)
-                        var markingDetector = new Services.MarkingDetector();
-                        var markingViewModel = new MarkingViewModel(markingDetector, _navigation, _workspace, _stateStore);
-                        
-                        // ScoringAreas만 설정 (템플릿은 공유)
-                        markingViewModel.ScoringAreas = _workspace.Template.ScoringAreas;
-                        
-                        // Documents와 SelectedDocument는 null로 시작 (사용자가 폴더를 로드해야 함)
-                        
-                        _navigation.SetMarkingViewModel(markingViewModel);
-                    }
-                    else if (_navigation.CurrentMode == ApplicationMode.Registry && _navigation.CurrentViewModel == null)
-                    {
-                        // Registry 모드로 전환 시 ViewModel 생성
-                        var registryViewModel = new RegistryViewModel(_navigation);
-                        _navigation.SetRegistryViewModel(registryViewModel);
-                    }
-                    else if (_navigation.CurrentMode == ApplicationMode.Grading && _navigation.CurrentViewModel == null)
-                    {
-                        // Grading 모드로 전환 시 ViewModel 생성
-                        var gradingViewModel = new GradingViewModel(_navigation);
-                        _navigation.SetGradingViewModel(gradingViewModel);
-                    }
-                    else if (_navigation.CurrentMode == ApplicationMode.ScoringRule && _navigation.CurrentViewModel == null)
-                    {
-                        // ScoringRule 모드로 전환 시 ViewModel 생성
-                        var scoringRuleViewModel = new ScoringRuleViewModel(_navigation);
-                        _navigation.SetScoringRuleViewModel(scoringRuleViewModel);
-                    }
-                    else if (_navigation.CurrentMode == ApplicationMode.ManualVerification && _navigation.CurrentViewModel == null)
-                    {
-                        // ManualVerification 모드로 전환 시 ViewModel 생성
-                        var manualVerificationViewModel = new ManualVerificationViewModel(_navigation, _workspace);
-                        _navigation.SetManualVerificationViewModel(manualVerificationViewModel);
-                    }
-                }
-            };
+                // NOTE:
+                // ViewModel 생성 로직은 MainNavigationViewModel에서 단일화하여 처리합니다.
+                // (Navigation이 ViewModel을 캐시/재사용할 수 있도록 중복 생성 경로 제거)
 
                 // 초기 모드: 홈 화면 (DataContext 설정 전에 ViewModel 생성)
                 Logger.Instance.Info($"NavigateTo 호출 전. CurrentMode: {_navigation.CurrentMode}, CurrentViewModel: {(_navigation.CurrentViewModel != null ? _navigation.CurrentViewModel.GetType().Name : "null")}");
@@ -335,6 +281,13 @@ namespace SimpleOverlayEditor.Views
                             var manualVerificationViewModel = new ManualVerificationViewModel(_navigation, _workspace);
                             _navigation.SetManualVerificationViewModel(manualVerificationViewModel);
                             Services.Logger.Instance.Info($"MainNavigationViewModel: ManualVerificationViewModel 생성 완료");
+                        }
+                        else if (_navigation.CurrentMode == ApplicationMode.SingleStudentVerification)
+                        {
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: SingleStudentVerificationViewModel 생성 시작");
+                            var singleStudentVerificationViewModel = new SingleStudentVerificationViewModel(_navigation, _workspace);
+                            _navigation.SetSingleStudentVerificationViewModel(singleStudentVerificationViewModel);
+                            Services.Logger.Instance.Info($"MainNavigationViewModel: SingleStudentVerificationViewModel 생성 완료");
                         }
                     }
                 }

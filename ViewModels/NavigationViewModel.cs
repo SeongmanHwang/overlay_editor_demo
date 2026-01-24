@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
@@ -13,6 +14,10 @@ namespace SimpleOverlayEditor.ViewModels
     {
         private ApplicationMode _currentMode = ApplicationMode.Home;
         private object? _currentViewModel;
+        private readonly Stack<ApplicationMode> _history = new();
+        private readonly Dictionary<ApplicationMode, object> _cache = new();
+        private ApplicationMode? _pendingMode;
+        private object? _pendingParameter;
 
         public NavigationViewModel()
         {
@@ -23,6 +28,7 @@ namespace SimpleOverlayEditor.ViewModels
             NavigateToGradingCommand = new RelayCommand(() => NavigateTo(ApplicationMode.Grading));
             NavigateToScoringRuleCommand = new RelayCommand(() => NavigateTo(ApplicationMode.ScoringRule));
             NavigateToManualVerificationCommand = new RelayCommand(() => NavigateTo(ApplicationMode.ManualVerification));
+            GoBackCommand = new RelayCommand(GoBack, () => CanGoBack);
         }
 
         /// <summary>
@@ -95,64 +101,111 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand NavigateToManualVerificationCommand { get; }
 
         /// <summary>
+        /// 뒤로가기 가능 여부
+        /// </summary>
+        public bool CanGoBack => _history.Count > 0;
+
+        /// <summary>
+        /// 뒤로가기
+        /// </summary>
+        public ICommand GoBackCommand { get; }
+
+        /// <summary>
         /// 특정 모드로 이동합니다.
         /// </summary>
         public void NavigateTo(ApplicationMode mode)
+            => NavigateTo(mode, parameter: null, addToHistory: true);
+
+        /// <summary>
+        /// 특정 모드로 이동합니다. (필요 시 파라미터 전달)
+        /// </summary>
+        public void NavigateTo(ApplicationMode mode, object? parameter, bool addToHistory = true)
         {
             Services.Logger.Instance.Info($"모드 전환: {CurrentMode} → {mode}");
 
+            if (mode == CurrentMode)
+            {
+                // 같은 화면 내에서 파라미터만 갱신하는 경우
+                if (CurrentViewModel is INavigationAware sameVm)
+                {
+                    sameVm.OnNavigatedTo(parameter);
+                }
+                return;
+            }
+
+            // 현재 화면 이탈 콜백
+            if (CurrentViewModel is INavigationAware leavingVm)
+            {
+                leavingVm.OnNavigatedFrom();
+            }
+
+            if (addToHistory)
+            {
+                _history.Push(CurrentMode);
+                OnPropertyChanged(nameof(CanGoBack));
+                if (GoBackCommand is RelayCommand goBack) goBack.RaiseCanExecuteChanged();
+            }
+
             CurrentMode = mode;
 
-            // 모드에 따라 ViewModel 생성/설정
-            // 순환 참조를 피하기 위해 HomeViewModel은 외부에서 설정
-            if (mode == ApplicationMode.Home)
+            // 캐시된 ViewModel이 있으면 재사용 (상태 유지)
+            if (_cache.TryGetValue(mode, out var cachedVm))
             {
-                // HomeViewModel은 외부에서 생성하여 설정하도록 함
-                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
-                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
-            }
-            else if (mode == ApplicationMode.TemplateEdit)
-            {
-                // TemplateEdit 모드는 외부에서 ViewModel을 설정하도록 함
-                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
-                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
-            }
-            else if (mode == ApplicationMode.Marking)
-            {
-                // Marking 모드는 외부에서 ViewModel을 설정하도록 함
-                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
-                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
-            }
-            else if (mode == ApplicationMode.Registry)
-            {
-                // Registry 모드는 외부에서 ViewModel을 설정하도록 함
-                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
-                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
-            }
-            else if (mode == ApplicationMode.Grading)
-            {
-                // Grading 모드는 외부에서 ViewModel을 설정하도록 함
-                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
-                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
-            }
-            else if (mode == ApplicationMode.ScoringRule)
-            {
-                // ScoringRule 모드는 외부에서 ViewModel을 설정하도록 함
-                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
-                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
-            }
-            else if (mode == ApplicationMode.ManualVerification)
-            {
-                // ManualVerification 모드는 외부에서 ViewModel을 설정하도록 함
-                // MainWindow에서 PropertyChanged 이벤트를 통해 ViewModel 생성
-                CurrentViewModel = null; // 임시로 null 설정, MainWindow에서 설정됨
+                _pendingMode = null;
+                _pendingParameter = null;
+                CurrentViewModel = cachedVm;
+
+                if (cachedVm is INavigationAware enteringVm)
+                {
+                    enteringVm.OnNavigatedTo(parameter);
+                }
             }
             else
             {
-                throw new ArgumentException($"알 수 없는 모드: {mode}", nameof(mode));
+                // 아직 생성되지 않은 모드: MainWindow에서 생성하도록 트리거 (CurrentViewModel=null)
+                _pendingMode = mode;
+                _pendingParameter = parameter;
+                CurrentViewModel = null;
             }
 
             Services.Logger.Instance.Info($"모드 전환 완료. CurrentViewModel 타입: {CurrentViewModel?.GetType().Name ?? "null"}");
+        }
+
+        private void ApplyPendingNavigationIfMatched(ApplicationMode mode, object viewModel)
+        {
+            if (_pendingMode != mode) return;
+
+            var param = _pendingParameter;
+            _pendingMode = null;
+            _pendingParameter = null;
+
+            if (viewModel is INavigationAware nav)
+            {
+                nav.OnNavigatedTo(param);
+            }
+        }
+
+        private void CacheAndSet(ApplicationMode mode, object viewModel)
+        {
+            _cache[mode] = viewModel;
+
+            if (CurrentMode == mode)
+            {
+                CurrentViewModel = viewModel;
+            }
+
+            ApplyPendingNavigationIfMatched(mode, viewModel);
+        }
+
+        public void GoBack()
+        {
+            if (_history.Count == 0) return;
+
+            var previous = _history.Pop();
+            OnPropertyChanged(nameof(CanGoBack));
+            if (GoBackCommand is RelayCommand goBack) goBack.RaiseCanExecuteChanged();
+
+            NavigateTo(previous, parameter: null, addToHistory: false);
         }
 
         /// <summary>
@@ -160,10 +213,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public void SetHomeViewModel(object viewModel)
         {
-            Services.Logger.Instance.Info($"SetHomeViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetHomeViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
             if (CurrentMode == ApplicationMode.Home)
             {
-                CurrentViewModel = viewModel;
+                CacheAndSet(ApplicationMode.Home, viewModel);
                 Services.Logger.Instance.Info($"SetHomeViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
             }
             else
@@ -177,10 +231,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public void SetTemplateEditViewModel(object viewModel)
         {
-            Services.Logger.Instance.Info($"SetTemplateEditViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetTemplateEditViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
             if (CurrentMode == ApplicationMode.TemplateEdit)
             {
-                CurrentViewModel = viewModel;
+                CacheAndSet(ApplicationMode.TemplateEdit, viewModel);
                 Services.Logger.Instance.Info($"SetTemplateEditViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
             }
             else
@@ -194,10 +249,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public void SetMarkingViewModel(object viewModel)
         {
-            Services.Logger.Instance.Info($"SetMarkingViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetMarkingViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
             if (CurrentMode == ApplicationMode.Marking)
             {
-                CurrentViewModel = viewModel;
+                CacheAndSet(ApplicationMode.Marking, viewModel);
                 Services.Logger.Instance.Info($"SetMarkingViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
             }
             else
@@ -211,10 +267,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public void SetRegistryViewModel(object viewModel)
         {
-            Services.Logger.Instance.Info($"SetRegistryViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetRegistryViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
             if (CurrentMode == ApplicationMode.Registry)
             {
-                CurrentViewModel = viewModel;
+                CacheAndSet(ApplicationMode.Registry, viewModel);
                 Services.Logger.Instance.Info($"SetRegistryViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
             }
             else
@@ -228,10 +285,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public void SetGradingViewModel(object viewModel)
         {
-            Services.Logger.Instance.Info($"SetGradingViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetGradingViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
             if (CurrentMode == ApplicationMode.Grading)
             {
-                CurrentViewModel = viewModel;
+                CacheAndSet(ApplicationMode.Grading, viewModel);
                 Services.Logger.Instance.Info($"SetGradingViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
             }
             else
@@ -245,10 +303,11 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public void SetScoringRuleViewModel(object viewModel)
         {
-            Services.Logger.Instance.Info($"SetScoringRuleViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetScoringRuleViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
             if (CurrentMode == ApplicationMode.ScoringRule)
             {
-                CurrentViewModel = viewModel;
+                CacheAndSet(ApplicationMode.ScoringRule, viewModel);
                 Services.Logger.Instance.Info($"SetScoringRuleViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
             }
             else
@@ -262,15 +321,34 @@ namespace SimpleOverlayEditor.ViewModels
         /// </summary>
         public void SetManualVerificationViewModel(object viewModel)
         {
-            Services.Logger.Instance.Info($"SetManualVerificationViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel?.GetType().Name}");
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetManualVerificationViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
             if (CurrentMode == ApplicationMode.ManualVerification)
             {
-                CurrentViewModel = viewModel;
+                CacheAndSet(ApplicationMode.ManualVerification, viewModel);
                 Services.Logger.Instance.Info($"SetManualVerificationViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
             }
             else
             {
                 Services.Logger.Instance.Warning($"SetManualVerificationViewModel 실패: CurrentMode가 ManualVerification이 아님 (CurrentMode: {CurrentMode})");
+            }
+        }
+
+        /// <summary>
+        /// 외부에서 SingleStudentVerificationViewModel을 설정할 수 있도록 합니다.
+        /// </summary>
+        public void SetSingleStudentVerificationViewModel(object viewModel)
+        {
+            if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
+            Services.Logger.Instance.Info($"SetSingleStudentVerificationViewModel 호출. CurrentMode: {CurrentMode}, ViewModel 타입: {viewModel.GetType().Name}");
+            if (CurrentMode == ApplicationMode.SingleStudentVerification)
+            {
+                CacheAndSet(ApplicationMode.SingleStudentVerification, viewModel);
+                Services.Logger.Instance.Info($"SetSingleStudentVerificationViewModel 완료. CurrentViewModel: {(CurrentViewModel != null ? CurrentViewModel.GetType().Name : "null")}");
+            }
+            else
+            {
+                Services.Logger.Instance.Warning($"SetSingleStudentVerificationViewModel 실패: CurrentMode가 SingleStudentVerification이 아님 (CurrentMode: {CurrentMode})");
             }
         }
 

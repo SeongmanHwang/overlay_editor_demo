@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
+using SimpleOverlayEditor.Models;
 using SimpleOverlayEditor.ViewModels;
 
 namespace SimpleOverlayEditor.Views
@@ -77,6 +79,17 @@ namespace SimpleOverlayEditor.Views
                 col.SortDirection = null;
 
             e.Column.SortDirection = newDir;
+        }
+
+        private void GradingDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (ViewModel == null) return;
+
+            if (sender is not DataGrid grid) return;
+            if (grid.SelectedItem is not GradingResult selected) return;
+            if (string.IsNullOrWhiteSpace(selected.StudentId)) return;
+
+            ViewModel.Navigation.NavigateTo(SimpleOverlayEditor.Models.ApplicationMode.SingleStudentVerification, selected.StudentId);
         }
     }
 }

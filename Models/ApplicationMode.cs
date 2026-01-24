@@ -41,6 +41,11 @@ namespace SimpleOverlayEditor.Models
         /// <summary>
         /// 수기 검산 모드 (프로그램 결과를 사람이 직접 확인)
         /// </summary>
-        ManualVerification
+        ManualVerification,
+
+        /// <summary>
+        /// 성적처리에서 특정 수험번호를 더블클릭하여 진입하는 단일 학생 검산 모드
+        /// </summary>
+        SingleStudentVerification
     }
 }

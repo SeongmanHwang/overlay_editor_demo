@@ -24,7 +24,6 @@ namespace SimpleOverlayEditor.Services
             ("수험생 명렬", "student_registry.json", DataUsageItem.ItemType.JsonFile),
             ("스캔 이미지", "aligned_omr", DataUsageItem.ItemType.Folder),
             ("바코드 디버그", "barcode_debug", DataUsageItem.ItemType.Folder),
-            ("오버레이 캐시", "overlay_cache", DataUsageItem.ItemType.Folder),
             ("로그", "logs", DataUsageItem.ItemType.Folder) // 전역
         };
 

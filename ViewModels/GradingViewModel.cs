@@ -30,6 +30,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly IQuestionScoreMapper<GradingResult> _gradingScoreMapper;
         private ObservableCollection<GradingResult>? _gradingResults;
         private ICollectionView? _filteredGradingResults;
+        private GradingResult? _selectedGradingResult;
         private bool _hasMismatch;
         private int _missingInGradingCount;
         private int _missingInRegistryCount;
@@ -115,6 +116,19 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 _filteredGradingResults = value;
                 OnPropertyChanged();
+            }
+        }
+
+        public GradingResult? SelectedGradingResult
+        {
+            get => _selectedGradingResult;
+            set
+            {
+                if (!ReferenceEquals(_selectedGradingResult, value))
+                {
+                    _selectedGradingResult = value;
+                    OnPropertyChanged();
+                }
             }
         }
 

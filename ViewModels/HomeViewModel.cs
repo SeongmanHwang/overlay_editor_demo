@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -15,7 +16,7 @@ namespace SimpleOverlayEditor.ViewModels
     /// <summary>
     /// 홈 화면용 ViewModel입니다.
     /// </summary>
-    public class HomeViewModel : INotifyPropertyChanged
+    public class HomeViewModel : INotifyPropertyChanged, INavigationAware
     {
         private readonly NavigationViewModel _navigation;
         private readonly AppStateStore _appStateStore;
@@ -25,6 +26,11 @@ namespace SimpleOverlayEditor.ViewModels
         private string? _selectedRound;
         private bool _isScanning;
         private System.Threading.CancellationTokenSource? _scanCancellation;
+        
+        // 회차별 마지막 스캔 시간 추적
+        private readonly Dictionary<string, DateTime> _lastScanTimes = new();
+        // 회차별 마지막 스캔 결과 캐시
+        private readonly Dictionary<string, List<DataUsageItem>> _cachedDataUsage = new();
 
         public HomeViewModel(NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {
@@ -79,7 +85,35 @@ namespace SimpleOverlayEditor.ViewModels
             RenameRoundCommand = new RelayCommand(OnRenameRound, () => !string.IsNullOrEmpty(SelectedRound));
             RefreshDataUsageCommand = new RelayCommand(OnRefreshDataUsage, () => !IsScanning && !string.IsNullOrEmpty(SelectedRound));
 
-            // 초기 데이터 로드는 HomeView의 Loaded 이벤트에서 처리
+            // 초기 데이터 로드 (프로그램 시작 시)
+            if (!string.IsNullOrEmpty(_selectedRound))
+            {
+                // UI가 완전히 로드된 후 실행하기 위해 비동기로 처리
+                Application.Current?.Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    CheckAndRefreshIfNeeded(_selectedRound);
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+        }
+
+        /// <summary>
+        /// 화면 진입 시 호출됩니다.
+        /// </summary>
+        public void OnNavigatedTo(object? parameter)
+        {
+            // 화면 진입 시 데이터 변경 여부 확인 후 필요시 새로고침
+            if (!string.IsNullOrEmpty(SelectedRound))
+            {
+                CheckAndRefreshIfNeeded(SelectedRound);
+            }
+        }
+
+        /// <summary>
+        /// 화면 이탈 시 호출됩니다.
+        /// </summary>
+        public void OnNavigatedFrom()
+        {
+            // 필요시 정리 작업
         }
 
         /// <summary>
@@ -126,10 +160,110 @@ namespace SimpleOverlayEditor.ViewModels
                                 MessageBoxImage.Warning);
                         }
 
-                        // 데이터 사용 정보 자동 갱신
-                        RefreshDataUsageAsync(value);
+                        // 데이터 변경 여부 확인 후 필요시 새로고침
+                        CheckAndRefreshIfNeeded(value);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// 데이터 변경 여부를 확인하고 필요시 새로고침합니다.
+        /// </summary>
+        private void CheckAndRefreshIfNeeded(string roundName)
+        {
+            if (string.IsNullOrEmpty(roundName))
+                return;
+
+            // 마지막 스캔 시간 확인
+            var lastScanTime = _lastScanTimes.GetValueOrDefault(roundName, DateTime.MinValue);
+            
+            // 마지막 스캔 이후 파일이 변경되었는지 확인
+            bool needsRefresh = false;
+            
+            if (lastScanTime == DateTime.MinValue)
+            {
+                // 첫 스캔이면 새로고침 필요
+                needsRefresh = true;
+            }
+            else
+            {
+                // 주요 파일들의 마지막 수정 시간 확인
+                var roundRoot = PathService.GetRoundRoot(roundName);
+                var filesToCheck = new[]
+                {
+                    Path.Combine(roundRoot, "template.json"),
+                    Path.Combine(roundRoot, "scoring_rule.json"),
+                    Path.Combine(roundRoot, "state.json"),
+                    Path.Combine(roundRoot, "session.json")
+                };
+
+                foreach (var filePath in filesToCheck)
+                {
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            var fileInfo = new FileInfo(filePath);
+                            if (fileInfo.LastWriteTime > lastScanTime)
+                            {
+                                needsRefresh = true;
+                                break;
+                            }
+                        }
+                        catch
+                        {
+                            // 파일 접근 실패 시 무시
+                        }
+                    }
+                }
+
+                // 폴더들도 확인 (간단하게 폴더 자체의 LastWriteTime만 확인)
+                if (!needsRefresh)
+                {
+                    var foldersToCheck = new[]
+                    {
+                        Path.Combine(roundRoot, "aligned_cache"),
+                        Path.Combine(roundRoot, "output"),
+                        Path.Combine(roundRoot, "barcode_debug")
+                    };
+
+                    foreach (var folderPath in foldersToCheck)
+                    {
+                        if (Directory.Exists(folderPath))
+                        {
+                            try
+                            {
+                                var dirInfo = new DirectoryInfo(folderPath);
+                                if (dirInfo.LastWriteTime > lastScanTime)
+                                {
+                                    needsRefresh = true;
+                                    break;
+                                }
+                            }
+                            catch
+                            {
+                                // 폴더 접근 실패 시 무시
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (needsRefresh)
+            {
+                // 변경이 있으면 새로고침
+                RefreshDataUsageAsync(roundName);
+            }
+            else if (_cachedDataUsage.TryGetValue(roundName, out var cached))
+            {
+                // 변경이 없으면 캐시된 데이터 복원
+                DataUsageItems.Clear();
+                foreach (var item in cached)
+                {
+                    DataUsageItems.Add(item);
+                }
+                Logger.Instance.Debug($"데이터 변경 없음, 캐시된 데이터 사용: {roundName}");
             }
         }
 
@@ -354,6 +488,10 @@ namespace SimpleOverlayEditor.ViewModels
                                 }
                                 DataUsageItems.Add(item);
                             }
+
+                            // 스캔 결과 캐시 및 스캔 시간 기록
+                            _cachedDataUsage[roundName] = result.ToList(); // 복사본 저장
+                            _lastScanTimes[roundName] = DateTime.Now;
                         });
                     },
                     "데이터 정보 스캔",

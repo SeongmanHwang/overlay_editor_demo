@@ -32,25 +32,21 @@ namespace SimpleOverlayEditor.ViewModels
 
             NavigateToHomeCommand = new RelayCommand(() => _navigation.NavigateTo(ApplicationMode.Home));
 
-            RegenerateSampleCommand = new RelayCommand(RegenerateSample, () => !IsBusy);
-            ReloadCommand = new RelayCommand(() => _ = ReloadAsync(), () => !IsBusy);
+            RefreshSampleCommand = new RelayCommand(() => _ = RefreshSampleAsync(), () => !IsBusy);
 
             PreviousImageCommand = _core.PreviousImageCommand;
             NextImageCommand = _core.NextImageCommand;
 
             // 기본 seed: 매 진입마다 고정되지 않게
             _sampleSeed = Environment.TickCount;
-
-            _ = ReloadAsync();
         }
 
         public NavigationViewModel Navigation => _navigation;
 
         public ICommand NavigateToHomeCommand { get; }
-        public ICommand RegenerateSampleCommand { get; }
+        public ICommand RefreshSampleCommand { get; }
         public ICommand PreviousImageCommand { get; }
         public ICommand NextImageCommand { get; }
-        public ICommand ReloadCommand { get; }
 
         public bool IsBusy => _core.IsBusy;
         public string? BusyMessage => _core.BusyMessage;
@@ -120,15 +116,10 @@ namespace SimpleOverlayEditor.ViewModels
 
         public void UpdateImageDisplayRect(Size availableSize) => _core.UpdateImageDisplayRect(availableSize);
 
-        private async Task ReloadAsync()
-        {
-            await _core.ReloadAsync();
-            ApplySampling(SampleSeed);
-        }
-
-        private void RegenerateSample()
+        private async Task RefreshSampleAsync()
         {
             SampleSeed = Environment.TickCount;
+            await _core.ReloadAsync();
             ApplySampling(SampleSeed);
         }
 

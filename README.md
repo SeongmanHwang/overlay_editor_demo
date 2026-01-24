@@ -42,9 +42,9 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
   - 폴더 전체 리딩뿐 아니라 **일부만 리딩 후 결과를 세션에 누적**
   - 특히 **스캐너에서 바로 스캔되는 이미지를 지속적으로 수집/리딩**할 수 있는 입력 방식 지원
 
-- **NavigationViewModel 히스토리 기록 정책(모드별) 도입**
-  - 현재: 모든 `ApplicationMode` 전환을 기본적으로 `_history`에 기록(addToHistory 기본값 true)
-  - 목표: 히스토리가 필요한 모드만 기록(예: `Grading`, `SingleStudentVerification`)하도록 `NavigateTo`에서 정책/분기 추가
+- **NavigationViewModel 히스토리 기록 정책(모드별) 점검/확장**
+  - 현재: 상세 화면 진입에 한해 히스토리 기록 (현재는 `SingleStudentVerification` 진입 시에만 기록)
+  - 목표: 필요 시 다른 상세 화면 진입도 정책에 포함 (예: 향후 상세 화면 추가 시 `ShouldAddToHistory` 확장)
 
 
 ## 프로젝트 구조
@@ -84,6 +84,8 @@ overlay_editor/
 │   ├── RegistryViewModel.cs       # 명렬 관리 뷰모델
 │   ├── ScoringRuleViewModel.cs    # 정답 및 배점 관리 뷰모델
 │   ├── ManualVerificationViewModel.cs # 수기 검산 뷰모델
+│   ├── SingleStudentVerificationViewModel.cs # 단일 학생 검산 뷰모델 (Grading 서브모드)
+│   ├── OmrVerificationCore.cs      # 검산 공통 코어 (Manual/SingleStudent 공용)
 │   └── RelayCommand.cs            # 커맨드 패턴 구현
 │
 ├── Views/                         # UI 뷰
@@ -95,6 +97,7 @@ overlay_editor/
 │   ├── RegistryView.xaml / .cs    # 명렬 관리 화면
 │   ├── ScoringRuleView.xaml / .cs # 정답 및 배점 화면
 │   ├── ManualVerificationView.xaml / .cs # 수기 검산 화면
+│   ├── SingleStudentVerificationView.xaml / .cs # 단일 학생 검산 화면
 │   └── ProgressWindow.xaml / .cs  # 진행률 표시 윈도우
 │
 ├── Services/                      # 비즈니스 로직 서비스
@@ -131,7 +134,7 @@ overlay_editor/
 
 ## 애플리케이션 모드 및 아키텍처
 
-이 애플리케이션은 7가지 모드를 지원하며, 각 모드는 독립적인 ViewModel과 View를 가진 MVVM 아키텍처로 구성되어 있습니다.
+이 애플리케이션은 8가지 모드를 지원하며, 각 모드는 독립적인 ViewModel과 View를 가진 MVVM 아키텍처로 구성되어 있습니다.
 
 ### 1. Home 모드
 **목적**: 애플리케이션 진입점 및 모드 선택 화면
@@ -303,7 +306,7 @@ overlay_editor/
 ---
 
 ### 7. ManualVerification 모드
-**목적**: 수기 검산 (프로그램 결과를 사람이 직접 확인)
+**목적**: 수기 검산 (표본 수험번호를 추출하여 프로그램 결과를 사람이 직접 확인)
 
 **구현 위치**: `ManualVerificationViewModel`, `ManualVerificationView`
 
@@ -311,8 +314,19 @@ overlay_editor/
 - **MVVM 패턴**: 기본적인 View-ViewModel 구조
 
 **특징**:
-- 단순한 네비게이션 역할
-- 향후 수기 검산 기능 확장 예정
+- 진입 시 자동 실행을 하지 않고, 사용자가 상단의 **"샘플 새로고침"** 버튼을 눌러 샘플을 추출/로딩
+- 현재는 표본(샘플) 기반의 검산 UI이며, 향후 검산 기능 확장 예정
+
+---
+
+### 8. SingleStudentVerification 모드
+**목적**: 성적 처리(Grading)에서 특정 수험번호를 선택(더블클릭)하여 진입하는 **단일 학생 전용 검산 화면**
+
+**구현 위치**: `SingleStudentVerificationViewModel`, `SingleStudentVerificationView`
+
+**특징**:
+- 네비게이션 파라미터로 전달된 `StudentId`를 기준으로 해당 학생의 결과만 로드하여 표시
+- 상단의 "다시 로드"는 전체 데이터 재로딩 후 동일 학생을 다시 탐색(진단/복구용)
 
 ---
 
@@ -532,6 +546,61 @@ view.SortDescriptions.Add(new SortDescription("IsDuplicate", ListSortDirection.D
 view.SortDescriptions.Add(new SortDescription("HasErrors", ListSortDirection.Descending));
 ```
 
+#### 4.1 Marking/Grading 기본 정렬 정책 (유지보수/교육용)
+
+이 섹션은 **마킹 리딩(Marking)**과 **성적 처리(Grading)** 화면에서 DataGrid/ICollectionView 정렬이 어떻게 동작하는지(기본 정렬, 사용자 정렬, 데이터 갱신 시 유지 여부)를 정리합니다.
+
+##### Marking 모드 (마킹 리딩)
+
+- **기본 정렬(초기 1회만)**:
+  - 조건: `FilteredSheetResults.SortDescriptions.Count == 0`일 때만 설정 (이미 정렬이 있으면 덮어쓰지 않음)
+  - 키 순서:
+    - `IsDuplicate` DESC (중복 우선)
+    - `IsSimpleError` DESC (단순 오류 우선)
+    - `StudentId` ASC
+    - `CombinedId` ASC
+    - `ImageFileName` ASC
+  - 구현 위치: `ViewModels/MarkingViewModel.cs`의 `ApplyInitialSort()`
+
+- **사용자 정렬(열 헤더 클릭)**:
+  - 클릭한 열을 **1순위 정렬 키로 올리고**, 기존 정렬 키는 **차순위로 유지**
+  - UI 정렬 아이콘은 **1순위만 표시**
+  - 구현 위치: `Views/MarkingView.xaml.cs`의 `OmrDataGrid_Sorting`
+
+- **데이터 갱신 시 정렬 유지**:
+  - 원칙: 리딩 결과 갱신이 잦으므로 사용자 정렬을 최대한 보존
+  - 구현: `SheetResults` 컬렉션 인스턴스를 유지(Clear/Add)하여 `ICollectionView` 인스턴스가 재사용되도록 함
+  - 결과: 초기 기본 정렬은 1회만 적용되고, 이후 사용자 정렬은 데이터 갱신 후에도 유지되기 쉬움
+
+##### Grading 모드 (성적 처리)
+
+- **기본 정렬(사용자 정렬 전까지 적용 가능)**:
+  - 조건: 사용자가 정렬을 바꾼 적이 없을 때(`_userHasSorted == false`) 기본 정렬을 적용
+  - 키 순서:
+    - `IsDuplicate` DESC
+    - `IsSimpleError` DESC
+    - `ExamType` ASC
+    - `Rank` ASC
+    - `RegistrationNumber` ASC
+  - 구현 위치: `ViewModels/GradingViewModel.cs`의 `UpdateFilteredResults()`
+
+- **사용자 정렬(열 헤더 클릭)**:
+  - Marking과 동일한 멀티키 정렬 UX(클릭한 열 1순위 + 나머지 유지, 아이콘 1순위만)
+  - 추가 정책: 사용자가 헤더 정렬을 수행하면 `_userHasSorted = true`로 전환하여 이후 기본 정렬 강제 적용을 중단
+  - 구현 위치:
+    - `Views/GradingView.xaml.cs`의 `GradingDataGrid_Sorting()` → `ViewModel.MarkUserHasSorted()`
+    - `ViewModels/GradingViewModel.cs`의 `MarkUserHasSorted()` / `_userHasSorted`
+
+- **데이터 갱신 시 정렬 유지**:
+  - `GradingResults`는 새 `ObservableCollection<GradingResult>`로 교체(assign)되는 경로가 있어,
+    교체 시점에 `_userHasSorted = false`로 초기화되고 기본 정렬이 다시 적용될 수 있음
+  - 구현 위치: `ViewModels/GradingViewModel.cs`의 `GradingResults` setter (`_userHasSorted = false; UpdateFilteredResults();`)
+
+##### 왜 정책이 다른가?
+
+- **Marking**: 결과 갱신이 잦고 사용자가 특정 정렬(오류만 먼저 보기 등)을 고정해두고 작업하는 경우가 많아, “초기 기본 정렬 1회 + 이후 사용자 정렬 보존”을 우선합니다.
+- **Grading**: 기본 우선순위(중복/오류 우선)가 명확하고, 사용자가 정렬을 시작하기 전까지는 일관된 기본 보기(전형/석차/접수번호)를 제공하되, 사용자가 정렬을 시작하면 그 이후엔 사용자 의도를 최우선으로 둡니다.
+
 ---
 
 ### 5. 로그 버퍼링
@@ -573,12 +642,10 @@ App.xaml.cs OnStartup()
   ↓
 MainWindow.xaml.cs 생성자
   ↓
-  - StateStore 생성
-  - SessionStore 생성
-  - TemplateStore 생성
-  - Workspace 로드 (state.json에서 복구)
-  - Session 로드 (session.json에서 복구)
-  - Template 로드 (template.json에서 복구, 없으면 기본 템플릿 자동 설치)
+  - 회차(AppState) 로드/선택 및 `PathService.CurrentRound` 설정
+  - `StateStore` 생성 및 Workspace 로드
+    - 작업 상황(state.json: 입력 폴더, 선택 문서 ID)
+    - 템플릿(template.json: 없으면 기본 템플릿 자동 설치/로드)
   - NavigationViewModel 생성
   - 초기 모드: Home
   - HomeViewModel 생성 및 설정
@@ -588,7 +655,7 @@ MainWindow 표시
 
 ### 2. 모드 전환 (Navigation)
 
-애플리케이션은 7가지 모드를 지원합니다:
+애플리케이션은 8가지 모드를 지원합니다:
 - **Home**: 모드 선택 화면
 - **TemplateEdit**: 템플릿 편집 화면
 - **Marking**: 마킹 리딩 화면
@@ -596,6 +663,7 @@ MainWindow 표시
 - **Grading**: 채점 및 성적 처리 화면
 - **ScoringRule**: 정답 및 배점 화면
 - **ManualVerification**: 수기 검산 화면
+- **SingleStudentVerification**: 성적처리에서 특정 수험번호를 선택하여 진입하는 단일 학생 검산 화면
 
 모드 전환 흐름:
 
@@ -607,7 +675,7 @@ NavigationViewModel.NavigateTo(mode)
   - CurrentMode 변경
   - CurrentViewModel을 null로 설정 (지연 생성)
   ↓
-MainWindow.PropertyChanged 이벤트 감지
+MainNavigationViewModel(Navigation.PropertyChanged)에서 변경 감지
   ↓
   - 현재 모드에 맞는 ViewModel 생성
     - Home → HomeViewModel
@@ -617,6 +685,7 @@ MainWindow.PropertyChanged 이벤트 감지
     - Grading → GradingViewModel
     - ScoringRule → ScoringRuleViewModel
     - ManualVerification → ManualVerificationViewModel
+    - SingleStudentVerification → SingleStudentVerificationViewModel
   ↓
 NavigationViewModel.SetXXXViewModel(viewModel)
   ↓
@@ -739,12 +808,14 @@ Grading 모드 진입
   ↓
 GradingViewModel 초기화
   ↓
-LoadGradingData()
+LoadGradingDataAsync() / GradingCalculator.GetAllAsync()
   ↓
-  - SessionStore.Load() (마킹 결과 로드)
-  - MarkingAnalyzer.AnalyzeAllSheets() (OmrSheetResult 생성)
-  - RegistryStore.LoadStudentRegistry() (명렬 로드)
-  - ScoringRuleStore.LoadScoringRule() (배점 로드)
+  - OmrAnalysisCache를 통해 데이터 로드/캐시
+    - Session
+    - 전체 OMR 결과(OmrSheetResult)
+    - 수험생 명렬(StudentRegistry)
+    - 배점(ScoringRule)
+  - GradingCalculator에서 성적처리 결과 계산 및 내부 캐시 유지
   ↓
 수험번호별로 그룹화
   ↓

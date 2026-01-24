@@ -12,20 +12,8 @@ namespace SimpleOverlayEditor.Views
         public HomeView()
         {
             InitializeComponent();
-            Loaded += HomeView_Loaded;
-        }
-
-        private void HomeView_Loaded(object sender, RoutedEventArgs e)
-        {
-            // View가 로드된 후 초기 데이터 로드
-            if (DataContext is HomeViewModel viewModel && !string.IsNullOrEmpty(viewModel.SelectedRound))
-            {
-                // 약간의 지연을 두어 UI가 완전히 렌더링된 후 실행
-                Dispatcher.BeginInvoke(new System.Action(() =>
-                {
-                    viewModel.RefreshDataUsageCommand.Execute(null);
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
-            }
+            // Loaded 이벤트에서 자동 새로고침 제거
+            // OnNavigatedTo에서 변경 여부 확인 후 필요시만 새로고침
         }
     }
 }

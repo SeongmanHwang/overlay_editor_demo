@@ -14,8 +14,9 @@ namespace SimpleOverlayEditor.ViewModels
     {
         private ApplicationMode _currentMode = ApplicationMode.Home;
         private object? _currentViewModel;
-        private readonly Stack<ApplicationMode> _history = new();
+        private readonly Stack<(ApplicationMode Mode, object? Parameter)> _history = new();
         private readonly Dictionary<ApplicationMode, object> _cache = new();
+        private readonly Dictionary<ApplicationMode, object?> _lastParameters = new();
         private ApplicationMode? _pendingMode;
         private object? _pendingParameter;
 
@@ -111,17 +112,51 @@ namespace SimpleOverlayEditor.ViewModels
         public ICommand GoBackCommand { get; }
 
         /// <summary>
-        /// 특정 모드로 이동합니다.
+        /// 히스토리 기록이 필요한 전환인지 판단합니다.
+        /// 뒤로가기가 필요한 상세 화면으로 진입할 때만 히스토리를 기록합니다.
         /// </summary>
+        /// <param name="from">현재 모드</param>
+        /// <param name="to">전환할 모드</param>
+        /// <returns>히스토리에 기록해야 하면 true, 아니면 false</returns>
+        private static bool ShouldAddToHistory(ApplicationMode from, ApplicationMode to)
+        {
+            // SingleStudentVerification으로 진입할 때만 히스토리 기록
+            // (다른 상세 화면이 추가되면 여기에 추가)
+            return to == ApplicationMode.SingleStudentVerification;
+        }
+
+        /// <summary>
+        /// 특정 모드로 이동합니다.
+        /// 히스토리 기록 여부는 ShouldAddToHistory 정책에 따라 자동 결정됩니다.
+        /// </summary>
+        /// <param name="mode">전환할 모드</param>
         public void NavigateTo(ApplicationMode mode)
-            => NavigateTo(mode, parameter: null, addToHistory: true);
+            => NavigateTo(mode, parameter: null);
 
         /// <summary>
         /// 특정 모드로 이동합니다. (필요 시 파라미터 전달)
+        /// 히스토리 기록 여부는 ShouldAddToHistory 정책에 따라 자동 결정됩니다.
         /// </summary>
-        public void NavigateTo(ApplicationMode mode, object? parameter, bool addToHistory = true)
+        /// <param name="mode">전환할 모드</param>
+        /// <param name="parameter">모드에 전달할 파라미터 (예: SingleStudentVerification의 경우 studentId)</param>
+        public void NavigateTo(ApplicationMode mode, object? parameter)
+            => NavigateTo(mode, parameter, ShouldAddToHistory(CurrentMode, mode));
+
+        /// <summary>
+        /// 특정 모드로 이동합니다. (필요 시 파라미터 전달, 히스토리 기록 여부 명시적 제어)
+        /// </summary>
+        public void NavigateTo(ApplicationMode mode, object? parameter, bool addToHistory)
         {
             Services.Logger.Instance.Info($"모드 전환: {CurrentMode} → {mode}");
+
+            // Home 진입 시 히스토리 리셋
+            if (mode == ApplicationMode.Home && addToHistory)
+            {
+                _history.Clear();
+                OnPropertyChanged(nameof(CanGoBack));
+                if (GoBackCommand is RelayCommand goBack) goBack.RaiseCanExecuteChanged();
+                addToHistory = false; // Home으로는 히스토리 기록하지 않음
+            }
 
             if (mode == CurrentMode)
             {
@@ -130,6 +165,8 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     sameVm.OnNavigatedTo(parameter);
                 }
+                // 파라미터 추적 업데이트
+                _lastParameters[mode] = parameter;
                 return;
             }
 
@@ -141,12 +178,18 @@ namespace SimpleOverlayEditor.ViewModels
 
             if (addToHistory)
             {
-                _history.Push(CurrentMode);
+                // 현재 모드와 마지막 파라미터를 히스토리에 저장
+                // 히스토리에 저장된 파라미터는 GoBack() 시 복원됩니다.
+                var lastParameter = _lastParameters.GetValueOrDefault(CurrentMode);
+                _history.Push((CurrentMode, lastParameter));
                 OnPropertyChanged(nameof(CanGoBack));
                 if (GoBackCommand is RelayCommand goBack) goBack.RaiseCanExecuteChanged();
             }
 
             CurrentMode = mode;
+            
+            // 파라미터 추적
+            _lastParameters[mode] = parameter;
 
             // 캐시된 ViewModel이 있으면 재사용 (상태 유지)
             if (_cache.TryGetValue(mode, out var cachedVm))
@@ -197,15 +240,21 @@ namespace SimpleOverlayEditor.ViewModels
             ApplyPendingNavigationIfMatched(mode, viewModel);
         }
 
+        /// <summary>
+        /// 히스토리를 사용하여 이전 화면으로 돌아갑니다.
+        /// 히스토리에 저장된 모드와 파라미터를 함께 복원합니다.
+        /// </summary>
         public void GoBack()
         {
             if (_history.Count == 0) return;
 
-            var previous = _history.Pop();
+            // 히스토리에서 이전 모드와 파라미터를 함께 꺼내서 복원
+            var (previousMode, previousParameter) = _history.Pop();
             OnPropertyChanged(nameof(CanGoBack));
             if (GoBackCommand is RelayCommand goBack) goBack.RaiseCanExecuteChanged();
 
-            NavigateTo(previous, parameter: null, addToHistory: false);
+            // 뒤로가기 시에는 히스토리에 다시 기록하지 않음 (addToHistory: false)
+            NavigateTo(previousMode, previousParameter, addToHistory: false);
         }
 
         /// <summary>

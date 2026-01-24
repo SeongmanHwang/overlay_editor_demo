@@ -42,6 +42,10 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
   - 폴더 전체 리딩뿐 아니라 **일부만 리딩 후 결과를 세션에 누적**
   - 특히 **스캐너에서 바로 스캔되는 이미지를 지속적으로 수집/리딩**할 수 있는 입력 방식 지원
 
+- **NavigationViewModel 히스토리 기록 정책(모드별) 도입**
+  - 현재: 모든 `ApplicationMode` 전환을 기본적으로 `_history`에 기록(addToHistory 기본값 true)
+  - 목표: 히스토리가 필요한 모드만 기록(예: `Grading`, `SingleStudentVerification`)하도록 `NavigateTo`에서 정책/분기 추가
+
 
 ## 프로젝트 구조
 

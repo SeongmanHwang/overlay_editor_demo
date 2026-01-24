@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using SimpleOverlayEditor.Models;
+using SimpleOverlayEditor.Services;
+using SimpleOverlayEditor.Utils;
 
 namespace SimpleOverlayEditor.ViewModels
 {
@@ -17,6 +19,8 @@ namespace SimpleOverlayEditor.ViewModels
     {
         private readonly NavigationViewModel _navigation;
         private readonly OmrVerificationCore _core;
+        private readonly OmrAnalysisCache _analysisCache = OmrAnalysisCache.Instance;
+        private readonly GradingCalculator _gradingCalculator = GradingCalculator.Instance;
         private int _sampleSeed;
         private StudentSampleItem? _selectedStudent;
 
@@ -132,37 +136,38 @@ namespace SimpleOverlayEditor.ViewModels
         {
             SampledStudents.Clear();
 
-            var studentIds = _core.AllSheetResults
-                .Where(r => !string.IsNullOrEmpty(r.StudentId))
-                .Select(r => r.StudentId!)
-                .Distinct()
-                .OrderBy(id => id)
-                .ToList();
-
-            if (studentIds.Count == 0)
+            // NOTE: 전체 AnalyzeAllSheets를 강제하지 않도록 barcode-only 인덱스를 활용
+            _ = Task.Run(async () =>
             {
-                SelectedStudent = null;
-                return;
-            }
+                var sampledIds = await _gradingCalculator.GetRandomSampleStudentIdsAsync(20, seed);
+                if (sampledIds.Count == 0)
+                {
+                    UiThread.Invoke(() => SelectedStudent = null);
+                    return;
+                }
 
-            var rng = new Random(seed);
-            var sampled = studentIds
-                .OrderBy(_ => rng.Next())
-                .Take(20)
-                .ToList();
+                var idx = await _analysisCache.GetStudentIdIndexByImageIdAsync();
+                var counts = idx.Values
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .GroupBy(id => id!, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
 
-            var sampledSorted = sampled
-                .OrderBy(id => TryParseIntOrMax(id))
-                .ThenBy(id => id, StringComparer.Ordinal)
-                .ToList();
+                var sampledSorted = sampledIds
+                    .OrderBy(id => TryParseIntOrMax(id))
+                    .ThenBy(id => id, StringComparer.Ordinal)
+                    .ToList();
 
-            foreach (var studentId in sampledSorted)
-            {
-                var imageCount = _core.AllSheetResults.Count(r => r.StudentId == studentId);
-                SampledStudents.Add(new StudentSampleItem(studentId, imageCount));
-            }
-
-            SelectedStudent = SampledStudents.FirstOrDefault();
+                UiThread.Invoke(() =>
+                {
+                    SampledStudents.Clear();
+                    foreach (var studentId in sampledSorted)
+                    {
+                        counts.TryGetValue(studentId, out var imageCount);
+                        SampledStudents.Add(new StudentSampleItem(studentId, imageCount));
+                    }
+                    SelectedStudent = SampledStudents.FirstOrDefault();
+                });
+            });
         }
 
         private static int TryParseIntOrMax(string? s)

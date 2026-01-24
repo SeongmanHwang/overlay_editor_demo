@@ -23,15 +23,13 @@ namespace SimpleOverlayEditor.ViewModels
     {
         private readonly NavigationViewModel _navigation;
         private readonly Workspace _workspace;
-        private readonly SessionStore _sessionStore;
-        private readonly ScoringRuleStore _scoringRuleStore;
-        private readonly MarkingAnalyzer _markingAnalyzer;
+        private readonly OmrAnalysisCache _analysisCache = OmrAnalysisCache.Instance;
+        private readonly GradingCalculator _gradingCalculator = GradingCalculator.Instance;
 
         private Session? _session;
         private ScoringRule? _scoringRule;
         private Dictionary<string, ImageDocument> _documentByImageId = new();
         private List<OmrSheetResult> _allSheetResults = new();
-        private Dictionary<string, GradingResult> _gradingByStudentId = new();
 
         private bool _isBusy;
         private string? _busyMessage;
@@ -49,10 +47,6 @@ namespace SimpleOverlayEditor.ViewModels
         {
             _navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
             _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
-
-            _sessionStore = new SessionStore();
-            _scoringRuleStore = new ScoringRuleStore();
-            _markingAnalyzer = new MarkingAnalyzer();
 
             PreviousImageCommand = new RelayCommand(SelectPreviousImage, () => !IsBusy && StudentSheets.Count > 0 && SelectedSheet != null);
             NextImageCommand = new RelayCommand(SelectNextImage, () => !IsBusy && StudentSheets.Count > 0 && SelectedSheet != null);
@@ -210,6 +204,43 @@ namespace SimpleOverlayEditor.ViewModels
             await ReloadAsync();
         }
 
+        public async Task EnsureLoadedForStudentAsync(string studentId)
+        {
+            if (string.IsNullOrWhiteSpace(studentId)) return;
+            if (_session != null && _scoringRule != null && _documentByImageId.Count > 0) return;
+
+            if (IsBusy) return;
+            IsBusy = true;
+            BusyMessage = "검산 데이터 로드 중...";
+            try
+            {
+                var session = await _analysisCache.GetSessionAsync();
+                var scoringRule = await _analysisCache.GetScoringRuleAsync();
+                var docById = await _analysisCache.GetDocumentByImageIdAsync();
+                var sheets = await _analysisCache.GetSheetResultsForStudentAsync(studentId.Trim());
+
+                UiThread.Invoke(() =>
+                {
+                    _session = session;
+                    _scoringRule = scoringRule;
+                    _documentByImageId = docById;
+                    _allSheetResults = sheets;
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("검산 코어 로드 실패(학생 단위)", ex);
+            }
+            finally
+            {
+                UiThread.Invoke(() =>
+                {
+                    BusyMessage = null;
+                    IsBusy = false;
+                });
+            }
+        }
+
         public async Task ReloadAsync()
         {
             if (IsBusy) return;
@@ -218,15 +249,26 @@ namespace SimpleOverlayEditor.ViewModels
 
             try
             {
-                var loadResult = await Task.Run(() => LoadCore());
+                UiThread.Invoke(() =>
+                {
+                    // clear first to avoid stale state
+                    _session = null;
+                    _scoringRule = null;
+                    _allSheetResults = new List<OmrSheetResult>();
+                    _documentByImageId = new Dictionary<string, ImageDocument>();
+                });
+
+                var session = await _analysisCache.GetSessionAsync();
+                var scoringRule = await _analysisCache.GetScoringRuleAsync();
+                var docById = await _analysisCache.GetDocumentByImageIdAsync();
+                var sheetResults = await _analysisCache.GetAllSheetResultsAsync();
 
                 UiThread.Invoke(() =>
                 {
-                    _session = loadResult.Session;
-                    _scoringRule = loadResult.ScoringRule;
-                    _allSheetResults = loadResult.SheetResults;
-                    _documentByImageId = loadResult.DocumentByImageId;
-                    _gradingByStudentId = loadResult.GradingByStudentId;
+                    _session = session;
+                    _scoringRule = scoringRule;
+                    _allSheetResults = sheetResults;
+                    _documentByImageId = docById;
                 });
             }
             catch (Exception ex)
@@ -238,7 +280,6 @@ namespace SimpleOverlayEditor.ViewModels
                     _scoringRule = null;
                     _allSheetResults = new List<OmrSheetResult>();
                     _documentByImageId = new Dictionary<string, ImageDocument>();
-                    _gradingByStudentId = new Dictionary<string, GradingResult>();
                     CurrentStudentId = null;
                     StudentSheets = new ObservableCollection<OmrSheetResult>();
                     SelectedSheet = null;
@@ -256,41 +297,6 @@ namespace SimpleOverlayEditor.ViewModels
                     IsBusy = false;
                 });
             }
-        }
-
-        private record LoadResult(
-            Session Session,
-            ScoringRule ScoringRule,
-            List<OmrSheetResult> SheetResults,
-            Dictionary<string, ImageDocument> DocumentByImageId,
-            Dictionary<string, GradingResult> GradingByStudentId);
-
-        private LoadResult LoadCore()
-        {
-            var session = _sessionStore.Load();
-            var scoringRule = _scoringRuleStore.LoadScoringRule();
-            var sheetResults = _markingAnalyzer.AnalyzeAllSheets(session);
-
-            var docById = session.Documents
-                .Where(d => !string.IsNullOrEmpty(d.ImageId))
-                .GroupBy(d => d.ImageId)
-                .ToDictionary(g => g.Key, g => g.First());
-
-            // 성적처리 결과(표) 조회: 기존과 동일하게 GradingViewModel을 headless로 생성
-            var gradingVm = new GradingViewModel(_navigation);
-            var gradingByStudentId = new Dictionary<string, GradingResult>();
-            if (gradingVm.GradingResults != null)
-            {
-                foreach (var r in gradingVm.GradingResults)
-                {
-                    if (!string.IsNullOrEmpty(r.StudentId))
-                    {
-                        gradingByStudentId[r.StudentId!] = r;
-                    }
-                }
-            }
-
-            return new LoadResult(session, scoringRule, sheetResults, docById, gradingByStudentId);
         }
 
         public bool SetStudent(string studentId)
@@ -320,7 +326,8 @@ namespace SimpleOverlayEditor.ViewModels
             CurrentStudentId = id;
             StudentSheets = new ObservableCollection<OmrSheetResult>(sheets);
             SelectedSheet = StudentSheets.FirstOrDefault();
-            SelectedStudentGradingResult = _gradingByStudentId.TryGetValue(id, out var result) ? result : null;
+            SelectedStudentGradingResult = null;
+            _ = UpdateGradingForStudentAsync(id);
             return true;
         }
 
@@ -379,7 +386,8 @@ namespace SimpleOverlayEditor.ViewModels
             if (!string.IsNullOrEmpty(SelectedSheet.StudentId))
             {
                 CurrentStudentId = SelectedSheet.StudentId;
-                SelectedStudentGradingResult = _gradingByStudentId.TryGetValue(SelectedSheet.StudentId, out var result) ? result : null;
+                SelectedStudentGradingResult = null;
+                _ = UpdateGradingForStudentAsync(SelectedSheet.StudentId);
             }
 
             if (_documentByImageId.TryGetValue(SelectedSheet.ImageId, out var doc))
@@ -399,6 +407,26 @@ namespace SimpleOverlayEditor.ViewModels
                 : null;
 
             QuestionRows = new ObservableCollection<QuestionVerificationRow>(BuildQuestionRows(markingResults));
+        }
+
+        private async Task UpdateGradingForStudentAsync(string studentId)
+        {
+            try
+            {
+                var id = studentId.Trim();
+                var result = await _gradingCalculator.GetByStudentIdAsync(id);
+                UiThread.Invoke(() =>
+                {
+                    if (string.Equals(CurrentStudentId, id, StringComparison.Ordinal))
+                    {
+                        SelectedStudentGradingResult = result;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Warning($"단일 학생 성적 조회 실패: {ex.Message}");
+            }
         }
 
         private IEnumerable<QuestionVerificationRow> BuildQuestionRows(List<MarkingResult>? markingResults)

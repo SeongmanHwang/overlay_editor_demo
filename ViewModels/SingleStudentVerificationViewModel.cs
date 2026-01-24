@@ -120,7 +120,7 @@ namespace SimpleOverlayEditor.ViewModels
                 return;
             }
 
-            await _core.EnsureLoadedAsync();
+            await _core.EnsureLoadedForStudentAsync(studentId);
 
             var ok = _core.SetStudent(studentId);
             StatusMessage = ok ? null : $"해당 수험번호의 OMR 결과가 없습니다: {studentId}";

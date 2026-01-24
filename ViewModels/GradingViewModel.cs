@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -22,6 +23,7 @@ namespace SimpleOverlayEditor.ViewModels
     public class GradingViewModel : INotifyPropertyChanged
     {
         private readonly NavigationViewModel _navigation;
+        private readonly GradingCalculator _gradingCalculator = GradingCalculator.Instance;
         private readonly SessionStore _sessionStore;
         private readonly RegistryStore _registryStore;
         private readonly MarkingAnalyzer _markingAnalyzer;
@@ -88,7 +90,65 @@ namespace SimpleOverlayEditor.ViewModels
             // 필터 옵션 초기화
             InitializeFilterOptions();
 
-            LoadGradingData();
+            _ = LoadGradingDataAsync();
+        }
+
+        private async Task LoadGradingDataAsync()
+        {
+            try
+            {
+                Logger.Instance.Info("채점 데이터 로드 시작(GradingCalculator)");
+                var (results, summary) = await _gradingCalculator.GetAllAsync();
+
+                UiThread.Invoke(() =>
+                {
+                    GradingResults = results;
+
+                    TotalSheetCount = summary.TotalSheetCount;
+                    ErrorSheetCount = summary.ErrorSheetCount;
+                    DuplicateCombinedIdCount = summary.DuplicateCombinedIdCount;
+                    NullCombinedIdCount = summary.NullCombinedIdCount;
+                    ErrorSheetList = summary.ErrorSheetList;
+                    DuplicateCombinedIdList = summary.DuplicateCombinedIdList;
+                    NullCombinedIdList = summary.NullCombinedIdList;
+                    OnPropertyChanged(nameof(HasWarnings));
+
+                    HasMismatch = summary.HasMismatch;
+                    MissingInGradingCount = summary.MissingInGradingCount;
+                    MissingInRegistryCount = summary.MissingInRegistryCount;
+                    MismatchMessage = summary.MismatchMessage;
+                    MissingInGradingList = summary.MissingInGradingList;
+                    MissingInRegistryList = summary.MissingInRegistryList;
+
+                    UpdateFilterOptions();
+                    if (ExportToExcelCommand is RelayCommand export) export.RaiseCanExecuteChanged();
+                });
+
+                Logger.Instance.Info($"채점 데이터 로드 완료(GradingCalculator): {results.Count}개 항목");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("채점 데이터 로드 실패(GradingCalculator)", ex);
+                UiThread.Invoke(() =>
+                {
+                    GradingResults = new ObservableCollection<GradingResult>();
+                    HasMismatch = false;
+                    MissingInGradingCount = 0;
+                    MissingInRegistryCount = 0;
+                    MismatchMessage = null;
+                    MissingInGradingList = null;
+                    MissingInRegistryList = null;
+                    ErrorSheetList = null;
+                    DuplicateCombinedIdList = null;
+                    NullCombinedIdList = null;
+                    TotalSheetCount = 0;
+                    ErrorSheetCount = 0;
+                    DuplicateCombinedIdCount = 0;
+                    NullCombinedIdCount = 0;
+                    OnPropertyChanged(nameof(HasWarnings));
+                    if (ExportToExcelCommand is RelayCommand export) export.RaiseCanExecuteChanged();
+                });
+            }
         }
 
         public ICommand NavigateToHomeCommand { get; }
@@ -491,11 +551,14 @@ namespace SimpleOverlayEditor.ViewModels
             targetView.Refresh();
         }
 
+        [Obsolete("Legacy synchronous grading load is disabled. Use LoadGradingDataAsync() / GradingCalculator instead.", error: true)]
         private void LoadGradingData()
         {
             try
             {
-                Logger.Instance.Info("채점 데이터 로드 시작");
+                // NOTE: 기존 동기 로딩 경로(전체 로딩)는 성능 이슈로 사용하지 않습니다.
+                // 새 경로는 LoadGradingDataAsync() + GradingCalculator를 사용합니다.
+                Logger.Instance.Info("채점 데이터 로드(legacy) 시작");
 
                 // 1. Session에서 마킹 결과 로드
                 var session = _sessionStore.Load();
@@ -699,7 +762,7 @@ namespace SimpleOverlayEditor.ViewModels
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error("채점 데이터 로드 실패", ex);
+                Logger.Instance.Error("채점 데이터 로드 실패(legacy)", ex);
                 GradingResults = new ObservableCollection<GradingResult>();
                 // 불일치 정보 초기화
                 HasMismatch = false;

@@ -1,10 +1,11 @@
-# Simple Overlay Editor
+﻿# Simple Overlay Editor
 
 OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 리딩하는 WPF 애플리케이션입니다.
 
 ## 목차
 
 - [프로젝트 개요](#프로젝트-개요)
+- [프로젝트 메트릭](#프로젝트-메트릭)
 - [로드맵 / TODO](#로드맵--todo)
 - [프로젝트 구조](#프로젝트-구조)
 - [애플리케이션 모드 및 아키텍처](#애플리케이션-모드-및-아키텍처)
@@ -17,6 +18,52 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
 - [저장 위치](#저장-위치)
 - [로그 파일](#로그-파일)
 - [주의사항](#주의사항)
+
+## 프로젝트 메트릭
+
+이 섹션은 프로젝트 규모(파일 수/라인 수)를 **날짜와 함께 자동 기록**합니다.
+
+- **갱신 방법**:
+  - PowerShell:
+    - `powershell -ExecutionPolicy Bypass -File tools\\metrics\\project-metrics.ps1 -Root . -WriteMarkdownReport docs\\metrics\\latest.md -UpdateReadme README.md`
+- **집계에서 제외되는 항목**: `bin/`, `obj/`, `.git/`, `tools/metrics/`, `docs/metrics/`
+
+<!-- METRICS:START -->
+#### Project metrics (2026-01-25)
+
+- Root: "overlay_editor"
+- Files (excluding bin/obj/.git/tools/metrics/docs/metrics): **102**
+- Code-like files (.cs, .xaml, .csproj, .json, .md, .xml): **99**
+- Total lines (code-like): **24498**
+
+**By extension (lines)**
+
+| Ext | Files | Lines |
+|---:|---:|---:|
+| .cs | 81 | 18529 |
+| .xaml | 12 | 3509 |
+| .md | 2 | 1287 |
+| .json | 3 | 1128 |
+| .csproj | 1 | 45 |
+| .xml | 0 | 0 |
+
+**Top folders by lines**
+
+| Folder | Lines |
+|---|---:|
+| ViewModels | 6643 |
+| Services | 5884 |
+| Views | 5267 |
+| Models | 1946 |
+| . | 1929 |
+| Assets | 1128 |
+| Utils | 850 |
+| Tests | 264 |
+| Services\Mappers | 236 |
+| Utils\Commands | 172 |
+| Services\Validators | 93 |
+| Services\Strategies | 86 |
+<!-- METRICS:END -->
 
 ## 프로젝트 개요
 
@@ -34,17 +81,9 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
 
 아래 항목들은 기능 확장 및 운영 편의성을 위한 우선 과제입니다.
 
-- **수기 검산(ManualVerification) 모드 구체 구현**
-  - 리딩된 결과(마킹/바코드/오류/중복)를 사람이 확인/수정하는 작업 흐름 정의
-  - 수정 이력/검산 완료 상태(예: Verified 플래그) 저장
-
 - **OMR 리딩을 부분적으로 수행하여 누적 추가 가능하도록 개선**
   - 폴더 전체 리딩뿐 아니라 **일부만 리딩 후 결과를 세션에 누적**
   - 특히 **스캐너에서 바로 스캔되는 이미지를 지속적으로 수집/리딩**할 수 있는 입력 방식 지원
-
-- **NavigationViewModel 히스토리 기록 정책(모드별) 점검/확장**
-  - 현재: 상세 화면 진입에 한해 히스토리 기록 (현재는 `SingleStudentVerification` 진입 시에만 기록)
-  - 목표: 필요 시 다른 상세 화면 진입도 정책에 포함 (예: 향후 상세 화면 추가 시 `ShouldAddToHistory` 확장)
 
 
 ## 프로젝트 구조
@@ -1091,3 +1130,5 @@ dotnet build
 - **채점 처리**:
   - 면접위원 3명 기준으로 점수 평균을 계산합니다
   - 석차는 전형명별로 그룹화하여 계산됩니다
+
+

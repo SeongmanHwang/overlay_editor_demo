@@ -675,6 +675,22 @@ namespace SimpleOverlayEditor.ViewModels
                 return;
             }
 
+
+            if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
+            {
+                if (!_session.BarcodeResults.TryGetValue(SelectedDocument.ImageId, out var cachedBarcodeResults) ||
+                    cachedBarcodeResults.Count == 0)
+                {
+                    Logger.Instance.Warning($"바코드 결과가 없어 마킹 리딩을 건너뜁니다: {SelectedDocument.SourcePath}");
+                    MessageBox.Show("바코드 결과가 없어 마킹 리딩을 진행할 수 없습니다.\n먼저 폴더 로드에서 바코드를 디코딩해주세요.", "알림",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                CurrentBarcodeResults = cachedBarcodeResults;
+            }
+
+
             try
             {
                 Logger.Instance.Info($"마킹 리딩 시작: {SelectedDocument.SourcePath}");
@@ -698,41 +714,6 @@ namespace SimpleOverlayEditor.ViewModels
                     _sessionStore.Save(_session); // 세션 저장
                 }
 
-                // 바코드 디코딩 (바코드 영역이 있는 경우)
-                List<BarcodeResult>? barcodeResults = null;
-                if (SelectedDocument != null && 
-                    _workspace.Template.BarcodeAreas != null && 
-                    _workspace.Template.BarcodeAreas.Count > 0)
-                {
-                    try
-                    {
-                        Logger.Instance.Info($"바코드 디코딩 시작: {SelectedDocument.SourcePath}");
-                        barcodeResults = _barcodeReaderService.DecodeBarcodes(
-                            SelectedDocument,
-                            _workspace.Template.BarcodeAreas);
-
-                        CurrentBarcodeResults = barcodeResults;
-
-                        // Session에 바코드 결과 저장
-                        if (_session.BarcodeResults == null)
-                        {
-                            _session.BarcodeResults = new Dictionary<string, List<BarcodeResult>>();
-                        }
-                        _session.BarcodeResults[SelectedDocument.ImageId] = barcodeResults;
-                        _sessionStore.Save(_session); // 세션 저장
-
-                        if (barcodeResults != null)
-                        {
-                            var successCount = barcodeResults.Count(r => r.Success);
-                            Logger.Instance.Info($"바코드 디코딩 완료: 총 {barcodeResults.Count}개 영역 중 {successCount}개 성공");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Instance.Error("바코드 디코딩 실패", ex);
-                        // 바코드 디코딩 실패해도 마킹 리딩은 완료되었으므로 계속 진행
-                    }
-                }
 
                 // 오버레이 이미지 생성 및 표시
                 UpdateDisplayImage();
@@ -770,13 +751,13 @@ namespace SimpleOverlayEditor.ViewModels
                              $"임계값: {MarkingThreshold}";
                 
                 // 바코드 결과 추가
-                if (barcodeResults != null && barcodeResults.Count > 0)
+                if (CurrentBarcodeResults != null && CurrentBarcodeResults.Count > 0)
                 {
-                    var barcodeSuccessCount = barcodeResults.Count(r => r.Success);
+                    var barcodeSuccessCount = CurrentBarcodeResults.Count(r => r.Success);
                     message += $"\n\n바코드 디코딩:\n" +
-                              $"총 영역: {barcodeResults.Count}개\n" +
+                              $"총 영역: {CurrentBarcodeResults.Count}개\n"
                               $"성공: {barcodeSuccessCount}개\n" +
-                              $"실패: {barcodeResults.Count - barcodeSuccessCount}개";
+                              $"실패: {CurrentBarcodeResults.Count - barcodeSuccessCount}개";
                 }
 
                 message += "\n\n(오버레이 이미지는 파일로 저장하지 않습니다)";
@@ -814,7 +795,7 @@ namespace SimpleOverlayEditor.ViewModels
             try
             {
                 Dictionary<string, List<MarkingResult>>? allResults = null;
-                Dictionary<string, List<BarcodeResult>>? allBarcodeResults = null;
+                var skippedBarcodeCount = 0;
 
                 var cancelled = await ProgressRunner.RunAsync(
                     Application.Current.MainWindow,
@@ -822,54 +803,33 @@ namespace SimpleOverlayEditor.ViewModels
                     {
                         var cancellationToken = scope.CancellationToken;
                         var documentsList = Documents.ToList();
-                        Logger.Instance.Info($"전체 문서 바코드/마킹 리딩 시작: {documentsList.Count}개 문서");
+                        var originalCount = documentsList.Count;
+                        Logger.Instance.Info($"전체 문서 마킹 리딩 시작: {documentsList.Count}개 문서");
 
-                        // 바코드 디코딩 (바코드 영역이 있는 경우) - 마킹 리딩보다 먼저 실행
                         if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
                         {
-                            try
+                            var filteredDocuments = new List<ImageDocument>();
+                            foreach (var document in documentsList)
                             {
-                                Logger.Instance.Info("전체 문서 바코드 디코딩 시작");
-                                scope.Report(0, documentsList.Count, "바코드 디코딩 시작");
-
-                                cancellationToken.ThrowIfCancellationRequested();
-
-                                allBarcodeResults = new Dictionary<string, List<BarcodeResult>>();
-                                int barcodeIndex = 0;
-                                foreach (var document in documentsList)
+                                if (_session.BarcodeResults.TryGetValue(document.ImageId, out var barcodeResults) &&
+                                    barcodeResults.Count > 0)
                                 {
-                                    cancellationToken.ThrowIfCancellationRequested();
-
-                                    barcodeIndex++;
-                                    var fileName = Path.GetFileName(document.SourcePath);
-                                    scope.Report(barcodeIndex, documentsList.Count, $"바코드 디코딩 중: {fileName}");
-
-                                    try
-                                    {
-                                        var barcodeResults = _barcodeReaderService.DecodeBarcodes(document, _workspace.Template.BarcodeAreas);
-                                        allBarcodeResults[document.ImageId] = barcodeResults;
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Logger.Instance.Warning($"바코드 디코딩 실패: {document.SourcePath}, {ex.Message}");
-                                        allBarcodeResults[document.ImageId] = new List<BarcodeResult>();
-                                    }
+                                    filteredDocuments.Add(document);
                                 }
-
-                                cancellationToken.ThrowIfCancellationRequested();
-
-                                scope.Ui(() =>
-                                {
-                                    _session.BarcodeResults = allBarcodeResults;
-                                });
-
-                                Logger.Instance.Info("전체 문서 바코드 디코딩 완료");
                             }
-                            catch (Exception ex) when (ex is not OperationCanceledException)
+                            documentsList = filteredDocuments;
+                            skippedBarcodeCount = originalCount - documentsList.Count;
+                        }
+
+                        if (documentsList.Count == 0)
+                        {
+                            scope.Ui(() =>
                             {
-                                Logger.Instance.Error("전체 문서 바코드 디코딩 실패", ex);
-                                // 바코드 디코딩 실패해도 마킹 리딩은 계속 진행
-                            }
+                                    MessageBox.Show("바코드 결과가 있는 문서가 없어 마킹 리딩을 진행할 수 없습니다.", "알림",
+                                    MessageBoxButton.OK, MessageBoxImage.Information);
+                            });
+                            return;
+
                         }
 
                         cancellationToken.ThrowIfCancellationRequested();
@@ -931,17 +891,21 @@ namespace SimpleOverlayEditor.ViewModels
                               $"마킹 리딩: {totalMarked}개\n" +
                               $"미마킹: {totalAreas - totalMarked}개\n\n" +
                               $"임계값: {MarkingThreshold}";
+                if (skippedBarcodeCount > 0)
+                {
+                    message += $"\n바코드 결과 없음으로 스킵: {skippedBarcodeCount}개";
+                }
 
-                if (allBarcodeResults != null && allBarcodeResults.Count > 0)
+                if (_session.BarcodeResults != null && _session.BarcodeResults.Count > 0)
                 {
                     int totalBarcodeAreas = 0;
                     int totalBarcodeSuccess = 0;
-                    foreach (var kvp in allBarcodeResults)
+                    foreach (var kvp in _session.BarcodeResults)
                     {
                         totalBarcodeAreas += kvp.Value.Count;
                         totalBarcodeSuccess += kvp.Value.Count(r => r.Success);
                     }
-                    message += $"\n\n바코드 디코딩:\n" +
+                    message += $"\n\n바코드 디코딩(세션 저장):\n" +
                                $"총 영역: {totalBarcodeAreas}개\n" +
                                $"성공: {totalBarcodeSuccess}개\n" +
                                $"실패: {totalBarcodeAreas - totalBarcodeSuccess}개";
@@ -957,8 +921,8 @@ namespace SimpleOverlayEditor.ViewModels
                         CurrentMarkingResults = currentResults;
                     }
 
-                    if (allBarcodeResults != null &&
-                        allBarcodeResults.TryGetValue(SelectedDocument.ImageId, out var currentBarcodeResults))
+                    if (_session.BarcodeResults != null &&
+                        _session.BarcodeResults.TryGetValue(SelectedDocument.ImageId, out var currentBarcodeResults))
                     {
                         CurrentBarcodeResults = currentBarcodeResults;
                     }
@@ -1041,6 +1005,12 @@ namespace SimpleOverlayEditor.ViewModels
                     {
                         List<ImageDocument>? loadedDocuments = null;
 
+                        Dictionary<string, List<BarcodeResult>>? loadedBarcodeResults = null;
+                        HashSet<string>? barcodeFailedImageIds = null;
+                        var barcodeSuccessCount = 0;
+                        var barcodeFailureCount = 0;
+                        var barcodeSkippedCount = 0;
+
                         var cancelled = await ProgressRunner.RunAsync(
                             Application.Current.MainWindow,
                             async scope =>
@@ -1079,6 +1049,8 @@ namespace SimpleOverlayEditor.ViewModels
                                     _session.Documents.Clear();
                                     _session.MarkingResults.Clear();
                                     _session.BarcodeResults.Clear();
+                                    _session.AlignmentFailedImageIds.Clear();
+                                    _session.BarcodeFailedImageIds.Clear();
                                     _workspace.InputFolderPath = folderPath;
                                 });
 
@@ -1086,6 +1058,10 @@ namespace SimpleOverlayEditor.ViewModels
 
                                 var completedCount = 0;
                                 var lockObject = new object();
+
+                                var barcodeLock = new object();
+                                loadedBarcodeResults = new Dictionary<string, List<BarcodeResult>>();
+                                barcodeFailedImageIds = new HashSet<string>();
 
                                 Parallel.ForEach(loadedDocuments, new ParallelOptions
                                 {
@@ -1097,6 +1073,54 @@ namespace SimpleOverlayEditor.ViewModels
 
                                     // 이미지 정렬 적용
                                     ApplyAlignmentToDocument(doc);
+
+                                    if (doc.AlignmentInfo?.Success == true &&
+                                        _workspace.Template.BarcodeAreas != null &&
+                                        _workspace.Template.BarcodeAreas.Count > 0)
+                                    {
+                                        try
+                                        {
+                                            var results = _barcodeReaderService.DecodeBarcodes(
+                                                doc,
+                                                _workspace.Template.BarcodeAreas);
+
+                                            lock (barcodeLock)
+                                            {
+                                                loadedBarcodeResults[doc.ImageId] = results;
+
+                                                if (results.Count == 0 || results.Any(r => !r.Success))
+                                                {
+                                                    barcodeFailedImageIds.Add(doc.ImageId);
+                                                    barcodeFailureCount++;
+                                                }
+                                                else
+                                                {
+                                                    barcodeSuccessCount++;
+                                                }
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Logger.Instance.Warning($"바코드 디코딩 실패: {doc.SourcePath}, {ex.Message}");
+                                            lock (barcodeLock)
+                                            {
+                                                loadedBarcodeResults[doc.ImageId] = new List<BarcodeResult>();
+                                                barcodeFailedImageIds.Add(doc.ImageId);
+                                                barcodeFailureCount++;
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (_workspace.Template.BarcodeAreas != null &&
+                                            _workspace.Template.BarcodeAreas.Count > 0)
+                                        {
+                                            lock (barcodeLock)
+                                            {
+                                                barcodeSkippedCount++;
+                                            }
+                                        }
+                                    }
 
                                     int current;
                                     lock (lockObject)
@@ -1119,6 +1143,17 @@ namespace SimpleOverlayEditor.ViewModels
 
                                 scope.Ui(() =>
                                 {
+                                    if (loadedBarcodeResults != null)
+                                    {
+                                        _session.BarcodeResults = loadedBarcodeResults;
+                                    }
+
+                                    if (barcodeFailedImageIds != null)
+                                    {
+                                        _session.BarcodeFailedImageIds = barcodeFailedImageIds;
+                                    }
+
+
                                     _stateStore.SaveWorkspaceState(_workspace);
                                     _sessionStore.Save(_session);
                                 });
@@ -1152,7 +1187,17 @@ namespace SimpleOverlayEditor.ViewModels
                         OnPropertyChanged(nameof(DocumentCount));
 
                         Logger.Instance.Info($"폴더 로드 완료. 총 {loadedDocuments.Count}개 이미지 로드됨");
-                        MessageBox.Show($"{loadedDocuments.Count}개의 이미지를 로드했습니다.", "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                        var message = $"{loadedDocuments.Count}개의 이미지를 로드했습니다.";
+                        if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
+                        {
+                            message += $"\n\n바코드 디코딩:\n" +
+                                       $"성공: {barcodeSuccessCount}개\n" +
+                                       $"실패: {barcodeFailureCount}개\n" +
+                                       $"스킵(정렬 실패): {barcodeSkippedCount}개";
+                        }
+                        MessageBox.Show(message, "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+
                     }
                     catch (Exception ex)
                     {

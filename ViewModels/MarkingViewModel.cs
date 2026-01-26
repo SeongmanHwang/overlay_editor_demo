@@ -1186,6 +1186,10 @@ namespace SimpleOverlayEditor.ViewModels
                 if (_workspace.Template.TimingMarks.Count == 0)
                 {
                     Logger.Instance.Debug($"타이밍 마크가 없어 정렬 생략: {document.SourcePath}");
+
+                    document.AlignmentInfo = new AlignmentInfo { Success = false, Confidence = 0.0 };
+                    _session.AlignmentFailedImageIds.Add(document.ImageId);
+
                     return;
                 }
 
@@ -1233,19 +1237,22 @@ namespace SimpleOverlayEditor.ViewModels
                         $"이미지 정렬 성공: {document.SourcePath}, " +
                         $"신뢰도={result.Confidence:F2}, " +
                         $"정렬된 이미지={alignedImagePath}");
+                        _session.AlignmentFailedImageIds.Remove(document.ImageId);
                 }
                 else
                 {
                     Logger.Instance.Info(
                         $"이미지 정렬 실패 또는 생략: {document.SourcePath}, " +
-                        $"신뢰도={result.Confidence:F2}, 원본 이미지 사용");
+                        $"신뢰도={result.Confidence:F2}");
+                    _session.AlignmentFailedImageIds.Add(document.ImageId);
                 }
             }
             catch (Exception ex)
             {
                 Logger.Instance.Error($"이미지 정렬 중 오류: {document.SourcePath}", ex);
-                // 오류 발생 시 정렬 정보를 실패로 설정하고 원본 사용
+                // 오류 발생 시 정렬 정보를 실패로 설정
                 document.AlignmentInfo = new AlignmentInfo { Success = false, Confidence = 0.0 };
+                _session.AlignmentFailedImageIds.Add(document.ImageId);
             }
             finally
             {
@@ -1342,12 +1349,19 @@ namespace SimpleOverlayEditor.ViewModels
             {
                 Logger.Instance.Debug($"오버레이 이미지 생성 시작: {SelectedDocument.SourcePath}");
 
-                // 정렬된 이미지 경로 사용 (정렬 실패 시 원본 사용)
+                // 정렬된 이미지 경로 사용 (정렬 실패 시 처리 중단)
                 var imagePath = SelectedDocument.GetImagePathForUse();
                 
+                if (string.IsNullOrWhiteSpace(imagePath))
+                {
+                    Logger.Instance.Warning($"정렬된 이미지 경로가 없어 오버레이 이미지를 표시할 수 없습니다: {SelectedDocument.SourcePath}");
+                    DisplayImage = null;
+                    return;
+                }
+
                 if (!File.Exists(imagePath))
                 {
-                    Logger.Instance.Warning($"이미지 파일을 찾을 수 없음: {imagePath}");
+                    Logger.Instance.Warning($"정렬된 이미지 파일을 찾을 수 없음: {imagePath}");
                     DisplayImage = null;
                     return;
                 }

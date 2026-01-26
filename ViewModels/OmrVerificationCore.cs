@@ -487,6 +487,13 @@ namespace SimpleOverlayEditor.ViewModels
             try
             {
                 var imagePath = document.GetImagePathForUse();
+
+                if (string.IsNullOrWhiteSpace(imagePath))
+                {
+                    Logger.Instance.Warning($"정렬된 이미지 경로가 없어 검산 오버레이 이미지를 표시할 수 없습니다: {document.SourcePath}");
+                    return null;
+                }
+
                 if (!File.Exists(imagePath))
                 {
                     Logger.Instance.Warning($"검산 이미지 파일을 찾을 수 없음: {imagePath}");

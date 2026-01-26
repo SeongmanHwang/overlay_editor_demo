@@ -14,6 +14,7 @@ namespace SimpleOverlayEditor.Models
         private ObservableCollection<ImageDocument> _documents = new();
         private Dictionary<string, List<MarkingResult>> _markingResults = new();
         private Dictionary<string, List<BarcodeResult>> _barcodeResults = new();
+        private HashSet<string> _alignmentFailedImageIds = new();
 
         /// <summary>
         /// 이미지 문서 목록 (이미지 로드 시 생성)
@@ -52,6 +53,19 @@ namespace SimpleOverlayEditor.Models
             set
             {
                 _barcodeResults = value ?? new Dictionary<string, List<BarcodeResult>>();
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// 정렬 실패 문서 ID 목록
+        /// </summary>
+        public HashSet<string> AlignmentFailedImageIds
+        {
+            get => _alignmentFailedImageIds;
+            set
+            {
+                _alignmentFailedImageIds = value ?? new HashSet<string>();
                 OnPropertyChanged();
             }
         }

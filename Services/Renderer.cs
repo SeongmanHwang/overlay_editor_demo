@@ -47,16 +47,22 @@ namespace SimpleOverlayEditor.Services
 
         private void RenderDocument(ImageDocument doc, Session session, Workspace workspace)
         {
-            if (!File.Exists(doc.SourcePath))
-            {
-                System.Diagnostics.Debug.WriteLine($"원본 이미지 파일을 찾을 수 없습니다: {doc.SourcePath}");
-                return;
-            }
 
             try
             {
-                // 정렬된 이미지 경로 사용 (정렬 실패 시 원본 사용)
+                // 정렬된 이미지 경로 사용 (정렬 실패 시 처리 중단)
                 var imagePath = doc.GetImagePathForUse();
+                if (string.IsNullOrWhiteSpace(imagePath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"정렬된 이미지 경로가 없어 렌더링을 건너뜁니다: {doc.SourcePath}");
+                    return;
+                }
+
+                if (!File.Exists(imagePath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"정렬된 이미지 파일을 찾을 수 없습니다: {imagePath}");
+                    return;
+                }
                 
                 // 이미지 로드
                 var originalImage = new BitmapImage();

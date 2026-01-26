@@ -65,7 +65,8 @@ namespace SimpleOverlayEditor.Services
                             Format = br.Format,
                             ErrorMessage = br.ErrorMessage
                         }).ToList()
-                    )
+                    ),
+                    AlignmentFailedImageIds = session.AlignmentFailedImageIds.ToList()
                 };
 
                 var json = JsonSerializer.Serialize(sessionData, new JsonSerializerOptions 
@@ -241,6 +242,20 @@ namespace SimpleOverlayEditor.Services
                         barcodeResults[imageId] = results;
                     }
                     session.BarcodeResults = barcodeResults;
+                }
+
+                if (root.TryGetProperty("AlignmentFailedImageIds", out var alignmentFailedElement))
+                {
+                    var failedIds = new HashSet<string>();
+                    foreach (var idElem in alignmentFailedElement.EnumerateArray())
+                    {
+                        var id = idElem.GetString();
+                        if (!string.IsNullOrWhiteSpace(id))
+                        {
+                            failedIds.Add(id);
+                        }
+                    }
+                    session.AlignmentFailedImageIds = failedIds;
                 }
 
                 return session;

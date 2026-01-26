@@ -35,11 +35,7 @@ namespace SimpleOverlayEditor.Services
         {
             Logger.Instance.Info($"마킹 리딩 시작: {document.SourcePath}");
 
-            if (!File.Exists(document.SourcePath))
-            {
-                Logger.Instance.Error($"이미지 파일을 찾을 수 없음: {document.SourcePath}");
-                throw new FileNotFoundException($"이미지 파일을 찾을 수 없습니다: {document.SourcePath}");
-            }
+
 
             var results = new List<MarkingResult>();
             var actualThreshold = threshold ?? DefaultThreshold;
@@ -49,8 +45,19 @@ namespace SimpleOverlayEditor.Services
             
             try
             {
-                // 정렬된 이미지 경로 사용 (정렬 실패 시 원본 사용)
+                // 정렬된 이미지 경로 사용 (정렬 실패 시 처리 중단)
                 var imagePath = document.GetImagePathForUse();
+                if (string.IsNullOrWhiteSpace(imagePath))
+                {
+                    Logger.Instance.Warning($"정렬된 이미지 경로가 없어 마킹 리딩을 건너뜁니다: {document.SourcePath}");
+                    return results;
+                }
+
+                if (!File.Exists(imagePath))
+                {
+                    Logger.Instance.Warning($"정렬된 이미지 파일을 찾을 수 없음: {imagePath}");
+                    return results;
+                }
                 
                 // 이미지 로드
                 bitmap = new BitmapImage();

@@ -454,28 +454,6 @@
                                    Margin="0,0,0,10"/>
                         </StackPanel>
                     </GroupBox>
-
-                    <GroupBox Margin="0,0,0,10">
-                        <GroupBox.Header>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="문서 목록"/>
-                                <TextBlock Text="{Binding DocumentCount, StringFormat=' (총 {0}개)'}" 
-                                          Margin="5,0,0,0"
-                                          Foreground="#666"
-                                          FontWeight="Normal"/>
-                            </StackPanel>
-                        </GroupBox.Header>
-                        <ListBox ItemsSource="{Binding Documents}"
-                                SelectedItem="{Binding SelectedDocument}"
-                                MaxHeight="300">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding SourcePath, Converter={StaticResource FileNameConverter}}" 
-                                              TextWrapping="Wrap"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </GroupBox>
                 </StackPanel>
             </ScrollViewer>
         </DockPanel>
@@ -525,7 +503,7 @@
                                   FontWeight="Bold" 
                                   Foreground="#F57C00"
                                   VerticalAlignment="Center"/>
-                        <TextBlock Text="개 중복" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="개 ID 중복" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <TextBlock Text=", " FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,3,0"/>
                         <TextBlock Text="{Binding NullCombinedIdCount, FallbackValue=0}" 
                                   FontWeight="Bold" 
@@ -559,7 +537,7 @@
                                     Margin="5,0"
                                     GroupName="FilterMode"
                                     VerticalAlignment="Center"/>
-                        <RadioButton Content="중복만" 
+                        <RadioButton Content="ID 중복만" 
                                     IsChecked="{Binding FilterMode, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Duplicates}"
                                     Command="{Binding SetFilterModeCommand}" 
                                     CommandParameter="Duplicates"
@@ -722,7 +700,7 @@
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                         <DataGridCheckBoxColumn Header="오류" Binding="{Binding IsSimpleError}" SortMemberPath="IsSimpleError" Width="60" IsReadOnly="True"/>
-                        <DataGridCheckBoxColumn Header="중복" Binding="{Binding IsDuplicate}" SortMemberPath="IsDuplicate" Width="60" IsReadOnly="True"/>
+                        <DataGridCheckBoxColumn Header="ID 중복" Binding="{Binding IsDuplicate}" SortMemberPath="IsDuplicate" Width="60" IsReadOnly="True"/>
                         <DataGridTextColumn Header="오류 메시지" Binding="{Binding ErrorMessage}" SortMemberPath="ErrorMessage" Width="*" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">

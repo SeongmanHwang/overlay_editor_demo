@@ -413,7 +413,7 @@ private void ReloadFromSession()
         public int ErrorCount => SheetResults?.Count(r => r.HasErrors) ?? 0;
 
         /// <summary>
-        /// 중복 결합ID를 가진 용지 수
+        /// ID 중복을 가진 용지 수
         /// </summary>
         public int DuplicateCount => SheetResults?.Count(r => r.IsDuplicate) ?? 0;
 
@@ -827,10 +827,9 @@ private void ReloadFromSession()
                 if (CurrentBarcodeResults != null && CurrentBarcodeResults.Count > 0)
                 {
                     var barcodeSuccessCount = CurrentBarcodeResults.Count(r => r.Success);
-                    message += $"\n\n바코드 디코딩:\n" +
-                              $"총 영역: {CurrentBarcodeResults.Count}개\n" +
+                    message += $"\n\n총 영역: {CurrentBarcodeResults.Count}개\n" +
                               $"성공: {barcodeSuccessCount}개\n" +
-                              $"실패: {CurrentBarcodeResults.Count - barcodeSuccessCount}개";
+                              $"바코드 디코딩 실패: {CurrentBarcodeResults.Count - barcodeSuccessCount}개";
                 }
 
                 message += "\n\n(오버레이 이미지는 파일로 저장하지 않습니다)";
@@ -978,10 +977,9 @@ private void ReloadFromSession()
                         totalBarcodeAreas += kvp.Value.Count;
                         totalBarcodeSuccess += kvp.Value.Count(r => r.Success);
                     }
-                    message += $"\n\n바코드 디코딩(세션 저장):\n" +
-                               $"총 영역: {totalBarcodeAreas}개\n" +
+                    message += $"\n\n총 영역: {totalBarcodeAreas}개\n" +
                                $"성공: {totalBarcodeSuccess}개\n" +
-                               $"실패: {totalBarcodeAreas - totalBarcodeSuccess}개";
+                               $"바코드 디코딩 실패: {totalBarcodeAreas - totalBarcodeSuccess}개";
                 }
 
                 Logger.Instance.Info($"전체 문서 마킹 리딩 완료: {totalMarked}/{totalAreas}개 마킹 리딩");
@@ -1014,7 +1012,7 @@ private void ReloadFromSession()
 
                     if (DuplicateCount > 0)
                     {
-                        message += $"\n중복 결합ID: {DuplicateCount}개";
+                        message += $"\nID 중복: {DuplicateCount}개";
                     }
 
                     if (NullCombinedIdCount > 0)
@@ -1137,7 +1135,7 @@ private void ReloadFromSession()
                                         if (!string.IsNullOrEmpty(fileName) && existingFileNames.Contains(fileName))
                                         {
                                             skippedByFilenameCount++;
-                                            Logger.Instance.Info($"파일명 중복으로 스킵: {fileName}");
+                                            Logger.Instance.Info($"파일명 중복: {fileName}");
                                             continue;
                                         }
 
@@ -1152,7 +1150,8 @@ private void ReloadFromSession()
                                     loadedDocuments = filteredDocuments;
                                     if (skippedByFilenameCount > 0)
                                     {
-                                        Logger.Instance.Info($"파일명 중복으로 스킵된 문서: {skippedByFilenameCount}개");
+                                        Logger.Instance.Info($"파일명 중복된 문서: {skippedByFilenameCount}개");
+                                        scope.Status($"파일명 중복: {skippedByFilenameCount}개");
                                     }
                                 }
 
@@ -1161,7 +1160,7 @@ private void ReloadFromSession()
                                     scope.Ui(() =>
                                     {
                                         MessageBox.Show(
-                                            $"새로 추가할 이미지가 없습니다.\n파일명 중복 스킵: {skippedByFilenameCount}개",
+                                            $"새로 추가할 이미지가 없습니다.\n파일명 중복: {skippedByFilenameCount}개",
                                             "알림",
                                             MessageBoxButton.OK,
                                             MessageBoxImage.Information);
@@ -1193,6 +1192,11 @@ private void ReloadFromSession()
                                 {
                                     cancellationToken.ThrowIfCancellationRequested();
 
+                                    var localBarcodeSuccess = 0;
+                                    var localBarcodeFailure = 0;
+                                    var localBarcodeSkipped = 0;
+                                    var localSkippedByFilename = 0;
+
                                     // 이미지 정렬 적용
                                     ApplyAlignmentToDocument(doc);
 
@@ -1219,6 +1223,11 @@ private void ReloadFromSession()
                                                 {
                                                     barcodeSuccessCount++;
                                                 }
+
+                                                localBarcodeSuccess = barcodeSuccessCount;
+                                                localBarcodeFailure = barcodeFailureCount;
+                                                localBarcodeSkipped = barcodeSkippedCount;
+                                                localSkippedByFilename = skippedByFilenameCount;
                                             }
                                         }
                                         catch (Exception ex)
@@ -1229,6 +1238,11 @@ private void ReloadFromSession()
                                                 loadedBarcodeResults[doc.ImageId] = new List<BarcodeResult>();
                                                 barcodeFailedImageIds.Add(doc.ImageId);
                                                 barcodeFailureCount++;
+
+                                                localBarcodeSuccess = barcodeSuccessCount;
+                                                localBarcodeFailure = barcodeFailureCount;
+                                                localBarcodeSkipped = barcodeSkippedCount;
+                                                localSkippedByFilename = skippedByFilenameCount;
                                             }
                                         }
                                     }
@@ -1240,6 +1254,11 @@ private void ReloadFromSession()
                                             lock (barcodeLock)
                                             {
                                                 barcodeSkippedCount++;
+
+                                                localBarcodeSuccess = barcodeSuccessCount;
+                                                localBarcodeFailure = barcodeFailureCount;
+                                                localBarcodeSkipped = barcodeSkippedCount;
+                                                localSkippedByFilename = skippedByFilenameCount;
                                             }
                                         }
                                     }
@@ -1256,7 +1275,28 @@ private void ReloadFromSession()
                                         if (cancellationToken.IsCancellationRequested) return;
 
                                         var fileName = Path.GetFileName(doc.SourcePath);
-                                        scope.Report(current, loadedDocuments.Count, $"정렬 중: {fileName}");
+
+                                        if (_workspace.Template.BarcodeAreas != null &&
+                                            _workspace.Template.BarcodeAreas.Count > 0)
+                                        {
+                                            var statusMessage = $"정렬 중: {fileName}";
+                                            if (localSkippedByFilename > 0)
+                                            {
+                                                statusMessage += $"\n파일명 중복: {localSkippedByFilename}";
+                                            }
+                                            statusMessage += $"\n정렬 실패: {localBarcodeSkipped}\n바코드 디코딩 실패: {localBarcodeFailure}\n성공: {localBarcodeSuccess}";
+                                            scope.Report(current, loadedDocuments.Count, statusMessage);
+                                        }
+                                        else
+                                        {
+                                            var statusMessage = $"정렬 중: {fileName}";
+                                            if (localSkippedByFilename > 0)
+                                            {
+                                                statusMessage += $"\n파일명 중복: {localSkippedByFilename}";
+                                            }
+                                            scope.Report(current, loadedDocuments.Count, statusMessage);
+                                        }
+
                                         _session.Documents.Add(doc);
                                     });
                                 });
@@ -1289,7 +1329,8 @@ private void ReloadFromSession()
                                 await Task.CompletedTask;
                             },
                             title: "진행 중...",
-                            initialStatus: "처리 중...");
+                            initialStatus: "처리 중...",
+                            showDelayMs: 0);
 
                         if (cancelled)
                         {
@@ -1315,20 +1356,19 @@ private void ReloadFromSession()
                         OnPropertyChanged(nameof(DocumentCount));
                         UpdateSheetResults();
 
-                        Logger.Instance.Info($"폴더 로드 완료. 새로 로드된 이미지: {loadedDocuments.Count}개, 파일명 스킵: {skippedByFilenameCount}개");
+                        Logger.Instance.Info($"폴더 로드 완료. 새로 로드된 이미지: {loadedDocuments.Count}개, 파일명 중복: {skippedByFilenameCount}개");
                         var message = $"{loadedDocuments.Count}개의 이미지를 로드했습니다.";
                         
                         if (skippedByFilenameCount > 0)
                         {
-                            message += $"\n파일명 중복으로 스킵: {skippedByFilenameCount}개";
+                            message += $"\n파일명 중복: {skippedByFilenameCount}개";
                         }
                         
                         if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
                         {
-                            message += $"\n\n바코드 디코딩:\n" +
-                                       $"성공: {barcodeSuccessCount}개\n" +
-                                       $"실패: {barcodeFailureCount}개\n" +
-                                       $"스킵(정렬 실패): {barcodeSkippedCount}개";
+                            message += $"\n정렬 실패: {barcodeSkippedCount}개\n" +
+                                       $"바코드 디코딩 실패: {barcodeFailureCount}개\n" +
+                                       $"성공: {barcodeSuccessCount}개";
                         }
                         MessageBox.Show(message, "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -1772,11 +1812,11 @@ private void ReloadFromSession()
                 var duplicateRowCount = groupedByCombinedId.Values.SelectMany(g => g).Count();
                 if (duplicateRowCount > 0)
                 {
-                    Logger.Instance.Warning($"중복 결합ID 검출: {duplicateRowCount}개 행");
+                    Logger.Instance.Warning($"ID 중복 검출: {duplicateRowCount}개 행");
                 }
                 else
                 {
-                    Logger.Instance.Info($"중복 결합ID 없음");
+                    Logger.Instance.Info($"ID 중복 없음");
                 }
                 
                 Logger.Instance.Info($"OMR 결과 업데이트 완료: {results.Count}개 용지");

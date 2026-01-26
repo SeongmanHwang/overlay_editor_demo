@@ -49,7 +49,7 @@ namespace SimpleOverlayEditor.Services
                 affected++;
 
                 var duplicateCount = groupedByCombinedId[result.CombinedId].Count;
-                var duplicateMessage = $"결합ID 중복 ({duplicateCount}개)";
+                var duplicateMessage = $"ID 중복 ({duplicateCount}개)";
 
                 if (string.IsNullOrEmpty(result.ErrorMessage))
                 {

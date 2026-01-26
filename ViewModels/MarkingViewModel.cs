@@ -755,7 +755,7 @@ namespace SimpleOverlayEditor.ViewModels
                 {
                     var barcodeSuccessCount = CurrentBarcodeResults.Count(r => r.Success);
                     message += $"\n\n바코드 디코딩:\n" +
-                              $"총 영역: {CurrentBarcodeResults.Count}개\n"
+                              $"총 영역: {CurrentBarcodeResults.Count}개\n" +
                               $"성공: {barcodeSuccessCount}개\n" +
                               $"실패: {CurrentBarcodeResults.Count - barcodeSuccessCount}개";
                 }
@@ -1011,6 +1011,18 @@ namespace SimpleOverlayEditor.ViewModels
                         var barcodeFailureCount = 0;
                         var barcodeSkippedCount = 0;
 
+                        var skippedByFilenameCount = 0;
+
+                        var existingFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var existingDocument in _session.Documents)
+                        {
+                            var existingFileName = Path.GetFileName(existingDocument.SourcePath);
+                            if (!string.IsNullOrEmpty(existingFileName))
+                            {
+                                existingFileNames.Add(existingFileName);
+                            }
+                        }
+
                         var cancelled = await ProgressRunner.RunAsync(
                             Application.Current.MainWindow,
                             async scope =>
@@ -1043,14 +1055,51 @@ namespace SimpleOverlayEditor.ViewModels
                                     return;
                                 }
 
+                                if (existingFileNames.Count > 0)
+                                {
+                                    var filteredDocuments = new List<ImageDocument>();
+                                    foreach (var document in loadedDocuments)
+                                    {
+                                        var fileName = Path.GetFileName(document.SourcePath);
+                                        if (!string.IsNullOrEmpty(fileName) && existingFileNames.Contains(fileName))
+                                        {
+                                            skippedByFilenameCount++;
+                                            Logger.Instance.Info($"파일명 중복으로 스킵: {fileName}");
+                                            continue;
+                                        }
+
+                                        if (!string.IsNullOrEmpty(fileName))
+                                        {
+                                            existingFileNames.Add(fileName);
+                                        }
+
+                                        filteredDocuments.Add(document);
+                                    }
+
+                                    loadedDocuments = filteredDocuments;
+                                    if (skippedByFilenameCount > 0)
+                                    {
+                                        Logger.Instance.Info($"파일명 중복으로 스킵된 문서: {skippedByFilenameCount}개");
+                                    }
+                                }
+
+                                if (loadedDocuments.Count == 0)
+                                {
+                                    scope.Ui(() =>
+                                    {
+                                        MessageBox.Show(
+                                            $"새로 추가할 이미지가 없습니다.\n파일명 중복 스킵: {skippedByFilenameCount}개",
+                                            "알림",
+                                            MessageBoxButton.OK,
+                                            MessageBoxImage.Information);
+                                    });
+                                    return;
+                                }
+
+
                                 scope.Ui(() =>
                                 {
                                     SelectedDocument = null;
-                                    _session.Documents.Clear();
-                                    _session.MarkingResults.Clear();
-                                    _session.BarcodeResults.Clear();
-                                    _session.AlignmentFailedImageIds.Clear();
-                                    _session.BarcodeFailedImageIds.Clear();
                                     _workspace.InputFolderPath = folderPath;
                                 });
 
@@ -1145,12 +1194,18 @@ namespace SimpleOverlayEditor.ViewModels
                                 {
                                     if (loadedBarcodeResults != null)
                                     {
-                                        _session.BarcodeResults = loadedBarcodeResults;
+                                        foreach (var kvp in loadedBarcodeResults)
+                                        {
+                                            _session.BarcodeResults[kvp.Key] = kvp.Value;
+                                        }
                                     }
 
                                     if (barcodeFailedImageIds != null)
                                     {
-                                        _session.BarcodeFailedImageIds = barcodeFailedImageIds;
+                                        foreach (var imageId in barcodeFailedImageIds)
+                                        {
+                                            _session.BarcodeFailedImageIds.Add(imageId);
+                                        }
                                     }
 
 
@@ -1186,9 +1241,14 @@ namespace SimpleOverlayEditor.ViewModels
                         OnPropertyChanged(nameof(Documents));
                         OnPropertyChanged(nameof(DocumentCount));
 
-                        Logger.Instance.Info($"폴더 로드 완료. 총 {loadedDocuments.Count}개 이미지 로드됨");
-
+                        Logger.Instance.Info($"폴더 로드 완료. 새로 로드된 이미지: {loadedDocuments.Count}개, 파일명 스킵: {skippedByFilenameCount}개");
                         var message = $"{loadedDocuments.Count}개의 이미지를 로드했습니다.";
+                        
+                        if (skippedByFilenameCount > 0)
+                        {
+                            message += $"\n파일명 중복으로 스킵: {skippedByFilenameCount}개";
+                        }
+                        
                         if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
                         {
                             message += $"\n\n바코드 디코딩:\n" +

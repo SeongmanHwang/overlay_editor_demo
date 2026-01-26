@@ -66,7 +66,7 @@ namespace SimpleOverlayEditor.Services
                             ErrorMessage = br.ErrorMessage
                         }).ToList()
                     ),
-                    AlignmentFailedImageIds = session.AlignmentFailedImageIds.ToList()
+                    AlignmentFailedImageIds = session.AlignmentFailedImageIds.ToList(),
                     BarcodeFailedImageIds = session.BarcodeFailedImageIds.ToList()
                 };
 

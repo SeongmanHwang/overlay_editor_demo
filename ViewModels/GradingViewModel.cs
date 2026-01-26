@@ -20,7 +20,7 @@ namespace SimpleOverlayEditor.ViewModels
     /// <summary>
     /// 채점 및 성적 처리 ViewModel입니다.
     /// </summary>
-    public class GradingViewModel : INotifyPropertyChanged, INavigationAware
+    public class GradingViewModel : INotifyPropertyChanged, INavigationAware, IRoundAware
     {
         private readonly NavigationViewModel _navigation;
         private readonly GradingCalculator _gradingCalculator = GradingCalculator.Instance;
@@ -92,6 +92,27 @@ namespace SimpleOverlayEditor.ViewModels
             InitializeFilterOptions();
 
             _ = LoadGradingDataAsync();
+        }
+
+        public void OnRoundChanged(string? previousRound, string? currentRound)
+        {
+            Logger.Instance.Info($"회차 변경 감지(Grading): {previousRound ?? "(null)"} → {currentRound ?? "(null)"}");
+            _ = ReloadForRoundAsync();
+        }
+
+        private async Task ReloadForRoundAsync()
+        {
+            await _gradingCalculator.InvalidateAsync();
+
+            UiThread.Invoke(() =>
+            {
+                GradingResults = new ObservableCollection<GradingResult>();
+                SelectedGradingResult = null;
+                InitializeFilterOptions();
+                OnPropertyChanged(nameof(HasWarnings));
+            });
+
+            await LoadGradingDataAsync();
         }
 
         private async Task LoadGradingDataAsync()

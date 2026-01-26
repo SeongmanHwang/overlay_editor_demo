@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using SimpleOverlayEditor.Models;
+using SimpleOverlayEditor.Services;
 
 namespace SimpleOverlayEditor.ViewModels
 {
@@ -30,6 +31,7 @@ namespace SimpleOverlayEditor.ViewModels
             NavigateToScoringRuleCommand = new RelayCommand(() => NavigateTo(ApplicationMode.ScoringRule));
             NavigateToManualVerificationCommand = new RelayCommand(() => NavigateTo(ApplicationMode.ManualVerification));
             GoBackCommand = new RelayCommand(GoBack, () => CanGoBack);
+            PathService.CurrentRoundChanged += OnCurrentRoundChanged;
         }
 
         /// <summary>
@@ -238,6 +240,28 @@ namespace SimpleOverlayEditor.ViewModels
             }
 
             ApplyPendingNavigationIfMatched(mode, viewModel);
+        }
+
+        private void OnCurrentRoundChanged(object? sender, RoundChangedEventArgs e)
+        {
+            var handledCurrent = false;
+            foreach (var cached in _cache.Values)
+            {
+                if (ReferenceEquals(cached, CurrentViewModel))
+                {
+                    handledCurrent = true;
+                }
+
+                if (cached is IRoundAware roundAware)
+                {
+                    roundAware.OnRoundChanged(e.PreviousRound, e.CurrentRound);
+                }
+            }
+
+            if (!handledCurrent && CurrentViewModel is IRoundAware currentAware)
+            {
+                currentAware.OnRoundChanged(e.PreviousRound, e.CurrentRound);
+            }
         }
 
         /// <summary>

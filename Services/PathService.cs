@@ -19,10 +19,26 @@ namespace SimpleOverlayEditor.Services
             get => _currentRound;
             set
             {
+
+                if (string.Equals(_currentRound, value, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                var previous = _currentRound;
+
                 _currentRound = value;
                 Logger.Instance.Debug($"PathService.CurrentRound 변경: {value ?? "(null)"}");
+            
+                CurrentRoundChanged?.Invoke(null, new RoundChangedEventArgs(previous, value));
             }
         }
+
+
+        /// <summary>
+        /// CurrentRound 변경 이벤트입니다.
+        /// </summary>
+        public static event EventHandler<RoundChangedEventArgs>? CurrentRoundChanged;
 
         public static string AppDataFolder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -434,6 +450,18 @@ namespace SimpleOverlayEditor.Services
         public static string DefaultInputFolder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                          "OverlayEditorInput");
+    }
+
+    public sealed class RoundChangedEventArgs : EventArgs
+    {
+        public RoundChangedEventArgs(string? previousRound, string? currentRound)
+        {
+            PreviousRound = previousRound;
+            CurrentRound = currentRound;
+        }
+
+        public string? PreviousRound { get; }
+        public string? CurrentRound { get; }
     }
 }
 

@@ -25,7 +25,7 @@ namespace SimpleOverlayEditor.ViewModels
     /// <summary>
     /// 마킹 리딩 전용 ViewModel입니다.
     /// </summary>
-    public class MarkingViewModel : INotifyPropertyChanged, INavigationAware
+    public class MarkingViewModel : INotifyPropertyChanged, INavigationAware, IRoundAware
     {
         private readonly MarkingDetector _markingDetector;
         private readonly BarcodeReaderService _barcodeReaderService;
@@ -33,7 +33,7 @@ namespace SimpleOverlayEditor.ViewModels
         private readonly Workspace _workspace;
         private readonly StateStore _stateStore;
         private readonly SessionStore _sessionStore;
-        private readonly Session _session;
+        private Session _session;
         private readonly ImageLoader _imageLoader;
         private readonly ImageAlignmentService _alignmentService;
         private readonly Renderer _renderer;
@@ -158,6 +158,12 @@ namespace SimpleOverlayEditor.ViewModels
             InitializeFromSessionWithoutBlocking();
         }
 
+        public void OnRoundChanged(string? previousRound, string? currentRound)
+        {
+            Logger.Instance.Info($"회차 변경 감지: {previousRound ?? "(null)"} → {currentRound ?? "(null)"}");
+            UiThread.Invoke(ReloadFromSession);
+        }
+
         /// <summary>
         /// 세션에 저장된 문서/결과를 UI에 즉시 반영합니다 (정렬은 수행하지 않음).
         /// </summary>
@@ -176,6 +182,58 @@ namespace SimpleOverlayEditor.ViewModels
                 UpdateSheetResults();
             }
         }
+
+private void ReloadFromSession()
+        {
+            _session = _sessionStore.Load();
+
+            Documents = _session.Documents;
+            OnPropertyChanged(nameof(Documents));
+            OnPropertyChanged(nameof(DocumentCount));
+
+            InitializeFilterOptions();
+
+            SelectedDocument = null;
+            CurrentMarkingResults = null;
+            CurrentBarcodeResults = null;
+            DisplayImage = null;
+
+            if ((_session.MarkingResults?.Count ?? 0) > 0 ||
+                (_session.BarcodeResults?.Count ?? 0) > 0)
+            {
+                UpdateSheetResults();
+            }
+            else
+            {
+                if (SheetResults != null)
+                {
+                    SheetResults.Clear();
+                }
+                else
+                {
+                    SheetResults = null;
+                    FilteredSheetResults = null;
+                }
+                OnPropertyChanged(nameof(SheetResults));
+                OnPropertyChanged(nameof(FilteredSheetResults));
+                OnPropertyChanged(nameof(ErrorCount));
+                OnPropertyChanged(nameof(DuplicateCount));
+                OnPropertyChanged(nameof(NullCombinedIdCount));
+                ReadyForReadingCount = CalculateReadyForReadingCount();
+                UpdateFilterOptions();
+            }
+
+            var selectedId = _workspace.SelectedDocumentId;
+            if (!string.IsNullOrWhiteSpace(selectedId) && Documents != null)
+            {
+                var target = Documents.FirstOrDefault(doc => doc.ImageId == selectedId);
+                if (target != null)
+                {
+                    SelectedDocument = target;
+                }
+            }
+        }
+
 
         public ImageDocument? SelectedDocument 
         { 

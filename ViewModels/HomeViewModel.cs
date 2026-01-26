@@ -137,28 +137,7 @@ namespace SimpleOverlayEditor.ViewModels
 
                     if (!string.IsNullOrEmpty(value))
                     {
-                        // 회차 변경 시 PathService.CurrentRound 업데이트
-                        PathService.CurrentRound = value;
-                        _appStateStore.UpdateRoundAccessTime(value);
-
-                        // Workspace 재로드
-                        try
-                        {
-                            var newWorkspace = _stateStore.Load();
-                            _workspace.InputFolderPath = newWorkspace.InputFolderPath;
-                            _workspace.SelectedDocumentId = newWorkspace.SelectedDocumentId;
-                            _workspace.Template = newWorkspace.Template;
-                            Logger.Instance.Info($"회차 변경: {value}, Workspace 재로드 완료");
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Instance.Error($"회차 변경 시 Workspace 재로드 실패: {ex.Message}", ex);
-                            MessageBox.Show(
-                                $"회차 변경 중 오류가 발생했습니다:\n\n{ex.Message}",
-                                "오류",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Warning);
-                        }
+                        ApplyRoundChange(value);
 
                         // 데이터 변경 여부 확인 후 필요시 새로고침
                         CheckAndRefreshIfNeeded(value);
@@ -264,6 +243,32 @@ namespace SimpleOverlayEditor.ViewModels
                     DataUsageItems.Add(item);
                 }
                 Logger.Instance.Debug($"데이터 변경 없음, 캐시된 데이터 사용: {roundName}");
+            }
+        }
+
+        private void ApplyRoundChange(string roundName)
+        {
+            // 회차 변경 시 PathService.CurrentRound 업데이트
+            PathService.CurrentRound = roundName;
+            _appStateStore.UpdateRoundAccessTime(roundName);
+
+            // Workspace 재로드
+            try
+            {
+                var newWorkspace = _stateStore.Load();
+                _workspace.InputFolderPath = newWorkspace.InputFolderPath;
+                _workspace.SelectedDocumentId = newWorkspace.SelectedDocumentId;
+                _workspace.Template = newWorkspace.Template;
+                Logger.Instance.Info($"회차 변경: {roundName}, Workspace 재로드 완료");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error($"회차 변경 시 Workspace 재로드 실패: {ex.Message}", ex);
+                MessageBox.Show(
+                    $"회차 변경 중 오류가 발생했습니다:\n\n{ex.Message}",
+                    "오류",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
         }
 

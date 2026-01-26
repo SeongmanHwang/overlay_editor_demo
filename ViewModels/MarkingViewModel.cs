@@ -55,6 +55,7 @@ namespace SimpleOverlayEditor.ViewModels
         private string? _selectedSessionFilter;
         private string? _selectedRoomFilter;
         private string? _selectedOrderFilter;
+        private int _readyForReadingCount;
 
         /// <summary>
         /// SheetResults 항목의 PropertyChanged 이벤트를 처리합니다.
@@ -169,7 +170,8 @@ namespace SimpleOverlayEditor.ViewModels
             Logger.Instance.Info($"Session.Documents 초기화(비차단): {_session.Documents.Count}개 문서 로드됨");
 
             // 기존 세션에 결과가 있으면 SheetResults 업데이트
-            if (_session.MarkingResults != null && _session.MarkingResults.Count > 0)
+            if ((_session.MarkingResults != null && _session.MarkingResults.Count > 0) ||
+                (_session.BarcodeResults != null && _session.BarcodeResults.Count > 0))
             {
                 UpdateSheetResults();
             }
@@ -330,6 +332,19 @@ namespace SimpleOverlayEditor.ViewModels
                 if (ExportToXlsxCommand is RelayCommand cmd)
                 {
                     cmd.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public int ReadyForReadingCount
+        {
+            get => _readyForReadingCount;
+            private set
+            {
+                if (_readyForReadingCount != value)
+                {
+                    _readyForReadingCount = value;
+                    OnPropertyChanged();
                 }
             }
         }
@@ -1240,6 +1255,7 @@ namespace SimpleOverlayEditor.ViewModels
                         Documents = _session.Documents;
                         OnPropertyChanged(nameof(Documents));
                         OnPropertyChanged(nameof(DocumentCount));
+                        UpdateSheetResults();
 
                         Logger.Instance.Info($"폴더 로드 완료. 새로 로드된 이미지: {loadedDocuments.Count}개, 파일명 스킵: {skippedByFilenameCount}개");
                         var message = $"{loadedDocuments.Count}개의 이미지를 로드했습니다.";
@@ -1640,6 +1656,8 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
                 OnPropertyChanged(nameof(NullCombinedIdCount));
+
+                ReadyForReadingCount = CalculateReadyForReadingCount();
                 
                 // 필터 옵션 초기화 (데이터 없음)
                 UpdateFilterOptions();
@@ -1687,6 +1705,8 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
                 OnPropertyChanged(nameof(NullCombinedIdCount));
+
+                ReadyForReadingCount = CalculateReadyForReadingCount();
                 
                 // 필터 옵션 업데이트 (실/순 필터 동적 추출)
                 UpdateFilterOptions();
@@ -1712,7 +1732,58 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(ErrorCount));
                 OnPropertyChanged(nameof(DuplicateCount));
                 OnPropertyChanged(nameof(NullCombinedIdCount));
+
+                ReadyForReadingCount = CalculateReadyForReadingCount();
             }
+        }
+
+        private int CalculateReadyForReadingCount()
+        {
+            if (_session.Documents == null || _session.Documents.Count == 0)
+            {
+                return 0;
+            }
+
+            var count = 0;
+
+            foreach (var document in _session.Documents)
+            {
+                if (document.AlignmentInfo?.Success != true)
+                {
+                    continue;
+                }
+
+                if (_session.MarkingResults != null &&
+                    _session.MarkingResults.TryGetValue(document.ImageId, out var markingResults) &&
+                    markingResults != null &&
+                    markingResults.Count > 0)
+                {
+                    continue;
+                }
+
+                if (_session.BarcodeResults == null ||
+                    !_session.BarcodeResults.TryGetValue(document.ImageId, out var barcodeResults) ||
+                    barcodeResults == null ||
+                    barcodeResults.Count == 0)
+                {
+                    continue;
+                }
+
+                if (_session.BarcodeFailedImageIds.Contains(document.ImageId))
+                {
+                    continue;
+                }
+
+                var barcodeOnlyResult = _markingAnalyzer.AnalyzeSheet(document, null, barcodeResults);
+                if (string.IsNullOrEmpty(barcodeOnlyResult.CombinedId))
+                {
+                    continue;
+                }
+
+                count++;
+            }
+
+            return count;
         }
 
         /// <summary>

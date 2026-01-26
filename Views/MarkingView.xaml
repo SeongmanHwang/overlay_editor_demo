@@ -532,6 +532,14 @@
                                   Foreground="#E64A19"
                                   VerticalAlignment="Center"/>
                         <TextBlock Text="개 결합ID 없음" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    
+                        <TextBlock Text=", " FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                        <TextBlock Text="{Binding ReadyForReadingCount, FallbackValue=0}"
+                                  FontWeight="Bold"
+                                  Foreground="#2E7D32"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="개 Ready" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    
                     </StackPanel>
                     
                     <!-- 필터 버튼 (중앙) -->

@@ -24,17 +24,6 @@ namespace SimpleOverlayEditor.ViewModels
             try
             {
 
-                if (!File.Exists(document.SourcePath))
-                {
-                    Logger.Instance.Warning($"원본 이미지 파일이 없음: {document.SourcePath}");
-                    ingestState.SetMissingFile(true);
-                    ingestState.SetAlignedOk(false);
-                    _session.AlignmentFailedImageIds.Add(document.ImageId);
-                    return;
-                }
-
-                ingestState.SetMissingFile(false);
-
                 // 타이밍 마크가 없으면 정렬 생략
                 if (_workspace.Template.TimingMarks.Count == 0)
                 {

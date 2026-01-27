@@ -942,7 +942,7 @@ namespace SimpleOverlayEditor.ViewModels
 
                         if (duplicatesDetectedCount > 0)
                         {
-                            message += $"\n중복 존재: {duplicatesDetectedCount}개";
+                            message += $"\nID 중복: {duplicatesDetectedCount}개";
                         }
 
                         if (unknownCount > 0)

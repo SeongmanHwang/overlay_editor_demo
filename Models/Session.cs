@@ -16,6 +16,7 @@ namespace SimpleOverlayEditor.Models
         private Dictionary<string, List<BarcodeResult>> _barcodeResults = new();
         private HashSet<string> _alignmentFailedImageIds = new();
         private HashSet<string> _barcodeFailedImageIds = new();
+        private Dictionary<string, IngestDocState> _ingestStateByImageId = new();
 
         /// <summary>
         /// 이미지 문서 목록 (이미지 로드 시 생성)
@@ -79,6 +80,19 @@ namespace SimpleOverlayEditor.Models
             set
             {
                 _barcodeFailedImageIds = value ?? new HashSet<string>();
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// ingest 상태 추적 정보 (ImageId -> IngestDocState)
+        /// </summary>
+        public Dictionary<string, IngestDocState> IngestStateByImageId
+        {
+            get => _ingestStateByImageId;
+            set
+            {
+                _ingestStateByImageId = value ?? new Dictionary<string, IngestDocState>();
                 OnPropertyChanged();
             }
         }

@@ -590,7 +590,8 @@ namespace SimpleOverlayEditor.ViewModels
                         HashSet<string>? barcodeFailedImageIds = null;
                         var barcodeSuccessCount = 0;
                         var barcodeFailureCount = 0;
-                        var barcodeSkippedCount = 0;
+                        var alignmentFailedCount = 0;
+                        var combinedIdMissingCount = 0;
 
                         var skippedByFilenameCount = 0;
 
@@ -704,7 +705,8 @@ namespace SimpleOverlayEditor.ViewModels
 
                                     var localBarcodeSuccess = 0;
                                     var localBarcodeFailure = 0;
-                                    var localBarcodeSkipped = 0;
+                                    var localAlignmentFailed = 0;
+                                    var localCombinedIdMissing = 0;
                                     var localSkippedByFilename = 0;
 
                                     // 이미지 정렬 적용
@@ -724,19 +726,32 @@ namespace SimpleOverlayEditor.ViewModels
                                             {
                                                 loadedBarcodeResults[doc.ImageId] = results;
 
-                                                if (results.Count == 0 || results.Any(r => !r.Success))
+                                                var barcodeSuccess = results.Count > 0 && results.All(r => r.Success);
+                                                var ingestState = GetOrCreateIngestState(doc.ImageId);
+                                                ingestState.SetBarcodeOk(barcodeSuccess);
+                                                
+                                                if (!barcodeSuccess)
                                                 {
                                                     barcodeFailedImageIds.Add(doc.ImageId);
                                                     barcodeFailureCount++;
+                                                    ingestState.SetCombinedIdOk(null);
                                                 }
                                                 else
                                                 {
                                                     barcodeSuccessCount++;
+                                                    var barcodeOnlyResult = _markingAnalyzer.AnalyzeSheet(doc, null, results);
+                                                    var combinedIdOk = !string.IsNullOrWhiteSpace(barcodeOnlyResult.CombinedId);
+                                                    ingestState.SetCombinedIdOk(combinedIdOk);
+                                                    if (!combinedIdOk)
+                                                    {
+                                                        combinedIdMissingCount++;
+                                                    }
                                                 }
 
                                                 localBarcodeSuccess = barcodeSuccessCount;
                                                 localBarcodeFailure = barcodeFailureCount;
-                                                localBarcodeSkipped = barcodeSkippedCount;
+                                                localAlignmentFailed = alignmentFailedCount;
+                                                localCombinedIdMissing = combinedIdMissingCount;
                                                 localSkippedByFilename = skippedByFilenameCount;
                                             }
                                         }
@@ -749,9 +764,14 @@ namespace SimpleOverlayEditor.ViewModels
                                                 barcodeFailedImageIds.Add(doc.ImageId);
                                                 barcodeFailureCount++;
 
+                                                var ingestState = GetOrCreateIngestState(doc.ImageId);
+                                                ingestState.SetBarcodeOk(false);
+                                                ingestState.SetCombinedIdOk(null);
+
                                                 localBarcodeSuccess = barcodeSuccessCount;
                                                 localBarcodeFailure = barcodeFailureCount;
-                                                localBarcodeSkipped = barcodeSkippedCount;
+                                                localAlignmentFailed = alignmentFailedCount;
+                                                localCombinedIdMissing = combinedIdMissingCount;
                                                 localSkippedByFilename = skippedByFilenameCount;
                                             }
                                         }
@@ -763,11 +783,18 @@ namespace SimpleOverlayEditor.ViewModels
                                         {
                                             lock (barcodeLock)
                                             {
-                                                barcodeSkippedCount++;
+                                                if (doc.AlignmentInfo?.Success != true)
+                                                {
+                                                    alignmentFailedCount++;
+                                                }
+
+                                                GetOrCreateIngestState(doc.ImageId).SetBarcodeOk(null);
+                                                GetOrCreateIngestState(doc.ImageId).SetCombinedIdOk(null);
 
                                                 localBarcodeSuccess = barcodeSuccessCount;
                                                 localBarcodeFailure = barcodeFailureCount;
-                                                localBarcodeSkipped = barcodeSkippedCount;
+                                                localAlignmentFailed = alignmentFailedCount;
+                                                localCombinedIdMissing = combinedIdMissingCount;
                                                 localSkippedByFilename = skippedByFilenameCount;
                                             }
                                         }
@@ -794,7 +821,10 @@ namespace SimpleOverlayEditor.ViewModels
                                             {
                                                 statusMessage += $"\n파일명 중복: {localSkippedByFilename}";
                                             }
-                                            statusMessage += $"\n정렬 실패: {localBarcodeSkipped}\n바코드 디코딩 실패: {localBarcodeFailure}\n성공: {localBarcodeSuccess}";
+                                            statusMessage += $"\n정렬 실패: {localAlignmentFailed}\n" +
+                                                            $"바코드 디코딩 실패: {localBarcodeFailure}\n" +
+                                                            $"결합ID 없음: {localCombinedIdMissing}\n" +
+                                                            $"성공: {localBarcodeSuccess}";
                                             scope.Report(current, loadedDocuments.Count, statusMessage);
                                         }
                                         else
@@ -867,18 +897,57 @@ namespace SimpleOverlayEditor.ViewModels
                         UpdateSheetResults();
 
                         Logger.Instance.Info($"폴더 로드 완료. 새로 로드된 이미지: {loadedDocuments.Count}개, 파일명 중복: {skippedByFilenameCount}개");
-                        var message = $"{loadedDocuments.Count}개의 이미지를 로드했습니다.";
-                        
-                        if (skippedByFilenameCount > 0)
+                        var ingestStates = loadedDocuments
+                            .Select(doc => _session.IngestStateByImageId.TryGetValue(doc.ImageId, out var state) ? state : null)
+                            .ToList();
+                        var alignFailedCount = ingestStates.Count(state =>
+                            state?.FailureReasons.HasFlag(IngestFailureReason.AlignFailed) == true);
+                        var barcodeFailedCount = ingestStates.Count(state =>
+                            state?.FailureReasons.HasFlag(IngestFailureReason.BarcodeFailed) == true);
+                        var combinedIdMissingSummaryCount = ingestStates.Count(state =>
+                            state?.FailureReasons.HasFlag(IngestFailureReason.CombinedIdMissing) == true);
+                        var missingFileCount = ingestStates.Count(state =>
+                            state?.FailureReasons.HasFlag(IngestFailureReason.MissingFile) == true);
+                        var quarantinedCount = ingestStates.Count(state => state?.IsQuarantined == true);
+                        var unknownCount = ingestStates.Count(state => state == null || state.IsUnknown);
+
+                        var duplicatesDetectedCount = 0;
+                        if (loadedBarcodeResults != null)
                         {
-                            message += $"\n파일명 중복: {skippedByFilenameCount}개";
+                             var duplicateCandidates = new List<OmrSheetResult>();
+                            foreach (var doc in loadedDocuments)
+                            {
+                                if (loadedBarcodeResults.TryGetValue(doc.ImageId, out var barcodeResults))
+                                {
+                                    var sheetResult = _markingAnalyzer.AnalyzeSheet(doc, null, barcodeResults);
+                                    duplicateCandidates.Add(sheetResult);
+                                }
+                            }
+
+                            var duplicateGroups = DuplicateDetector.DetectCombinedIdDuplicates(duplicateCandidates);
+                            duplicatesDetectedCount = duplicateGroups.Values.Sum(group => group.Count);
                         }
+
+                        var message = $"로드됨: {loadedDocuments.Count}개\n파일명 스킵: {skippedByFilenameCount}개";
                         
                         if (_workspace.Template.BarcodeAreas != null && _workspace.Template.BarcodeAreas.Count > 0)
                         {
-                            message += $"\n정렬 실패: {barcodeSkippedCount}개\n" +
-                                       $"바코드 디코딩 실패: {barcodeFailureCount}개\n" +
-                                       $"성공: {barcodeSuccessCount}개";
+                            message += $"\n격리: {quarantinedCount}개 " +
+                                       $"(정렬실패 {alignFailedCount}, " +
+                                       $"바코드실패 {barcodeFailedCount}, " +
+                                       $"ID없음 {combinedIdMissingSummaryCount}, " +
+                                       $"파일누락 {missingFileCount})" +
+                                       $"\n성공: {barcodeSuccessCount}개";
+                        }
+
+                        if (duplicatesDetectedCount > 0)
+                        {
+                            message += $"\n중복 존재: {duplicatesDetectedCount}개";
+                        }
+
+                        if (unknownCount > 0)
+                        {
+                            message += $"\n상태 미기록: {unknownCount}개 (재-ingest 권장)";
                         }
                         MessageBox.Show(message, "로드 완료", MessageBoxButton.OK, MessageBoxImage.Information);
 

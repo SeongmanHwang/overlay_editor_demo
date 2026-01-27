@@ -13,6 +13,17 @@ namespace SimpleOverlayEditor.Services
     /// </summary>
     public class SessionStore
     {
+        private static bool? ReadNullableBool(JsonElement element, string propertyName)
+        {
+            if (element.TryGetProperty(propertyName, out var value) &&
+                value.ValueKind != JsonValueKind.Null)
+            {
+                return value.GetBoolean();
+            }
+
+            return null;
+        }
+
         /// <summary>
         /// 세션을 저장합니다.
         /// </summary>
@@ -67,7 +78,18 @@ namespace SimpleOverlayEditor.Services
                         }).ToList()
                     ),
                     AlignmentFailedImageIds = session.AlignmentFailedImageIds.ToList(),
-                    BarcodeFailedImageIds = session.BarcodeFailedImageIds.ToList()
+                    BarcodeFailedImageIds = session.BarcodeFailedImageIds.ToList(),
+                    IngestStateByImageId = session.IngestStateByImageId.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new
+                        {
+                            AlignedOk = kvp.Value.AlignedOk,
+                            BarcodeOk = kvp.Value.BarcodeOk,
+                            CombinedIdOk = kvp.Value.CombinedIdOk,
+                            MissingFile = kvp.Value.MissingFile,
+                            FailureReasons = kvp.Value.FailureReasons.ToString(),
+                            QuarantineOverride = kvp.Value.QuarantineOverride
+                        })
                 };
 
                 var json = JsonSerializer.Serialize(sessionData, new JsonSerializerOptions 
@@ -271,6 +293,37 @@ namespace SimpleOverlayEditor.Services
                         }
                     }
                     session.BarcodeFailedImageIds = failedIds;
+                }
+
+                if (root.TryGetProperty("IngestStateByImageId", out var ingestStateElement))
+                {
+                    var ingestStates = new Dictionary<string, IngestDocState>();
+                    foreach (var kvp in ingestStateElement.EnumerateObject())
+                    {
+                        var imageId = kvp.Name;
+                        var stateElem = kvp.Value;
+                        var state = new IngestDocState
+                        {
+                            AlignedOk = ReadNullableBool(stateElem, "AlignedOk"),
+                            BarcodeOk = ReadNullableBool(stateElem, "BarcodeOk"),
+                            CombinedIdOk = ReadNullableBool(stateElem, "CombinedIdOk"),
+                            MissingFile = ReadNullableBool(stateElem, "MissingFile"),
+                            QuarantineOverride = ReadNullableBool(stateElem, "QuarantineOverride")
+                        };
+
+                        if (stateElem.TryGetProperty("FailureReasons", out var failureReasons))
+                        {
+                            var raw = failureReasons.GetString();
+                            if (!string.IsNullOrWhiteSpace(raw) &&
+                                Enum.TryParse(raw, true, out IngestFailureReason parsed))
+                            {
+                                state.FailureReasons = parsed;
+                            }
+                        }
+
+                        ingestStates[imageId] = state;
+                    }
+                    session.IngestStateByImageId = ingestStates;
                 }
 
                 return session;

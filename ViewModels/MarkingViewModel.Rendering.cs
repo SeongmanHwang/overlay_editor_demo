@@ -19,15 +19,29 @@ namespace SimpleOverlayEditor.ViewModels
         {
             BitmapImage? bitmap = null;
             AlignmentResult? result = null;
-            
+            var ingestState = GetOrCreateIngestState(document.ImageId);
+
             try
             {
+
+                if (!File.Exists(document.SourcePath))
+                {
+                    Logger.Instance.Warning($"원본 이미지 파일이 없음: {document.SourcePath}");
+                    ingestState.SetMissingFile(true);
+                    ingestState.SetAlignedOk(false);
+                    _session.AlignmentFailedImageIds.Add(document.ImageId);
+                    return;
+                }
+
+                ingestState.SetMissingFile(false);
+
                 // 타이밍 마크가 없으면 정렬 생략
                 if (_workspace.Template.TimingMarks.Count == 0)
                 {
                     Logger.Instance.Debug($"타이밍 마크가 없어 정렬 생략: {document.SourcePath}");
 
                     document.AlignmentInfo = new AlignmentInfo { Success = false, Confidence = 0.0 };
+                    ingestState.SetAlignedOk(false);
                     _session.AlignmentFailedImageIds.Add(document.ImageId);
 
                     return;
@@ -77,6 +91,7 @@ namespace SimpleOverlayEditor.ViewModels
                         $"이미지 정렬 성공: {document.SourcePath}, " +
                         $"신뢰도={result.Confidence:F2}, " +
                         $"정렬된 이미지={alignedImagePath}");
+                        ingestState.SetAlignedOk(true);
                         _session.AlignmentFailedImageIds.Remove(document.ImageId);
                 }
                 else
@@ -84,14 +99,28 @@ namespace SimpleOverlayEditor.ViewModels
                     Logger.Instance.Info(
                         $"이미지 정렬 실패 또는 생략: {document.SourcePath}, " +
                         $"신뢰도={result.Confidence:F2}");
+                    ingestState.SetAlignedOk(false);
                     _session.AlignmentFailedImageIds.Add(document.ImageId);
                 }
+            }
+            catch (FileNotFoundException ex)
+            {
+                Logger.Instance.Warning($"원본 이미지 파일이 없음: {document.SourcePath}, {ex.Message}");
+                ingestState.SetAlignedOk(false);
+                _session.AlignmentFailedImageIds.Add(document.ImageId);
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                Logger.Instance.Warning($"원본 이미지 경로가 없음: {document.SourcePath}, {ex.Message}");
+                ingestState.SetAlignedOk(false);
+                _session.AlignmentFailedImageIds.Add(document.ImageId);
             }
             catch (Exception ex)
             {
                 Logger.Instance.Error($"이미지 정렬 중 오류: {document.SourcePath}", ex);
                 // 오류 발생 시 정렬 정보를 실패로 설정
                 document.AlignmentInfo = new AlignmentInfo { Success = false, Confidence = 0.0 };
+                ingestState.SetAlignedOk(false);
                 _session.AlignmentFailedImageIds.Add(document.ImageId);
             }
             finally

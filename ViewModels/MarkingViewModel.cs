@@ -51,6 +51,7 @@ namespace SimpleOverlayEditor.ViewModels
         private string? _selectedOrderFilter;
         private int _readyForReadingCount;
         private ImageDocument? _selectedDocument;
+        private readonly object _ingestStateLock = new object();
 
         /// <summary>
         /// SheetResults 항목의 PropertyChanged 이벤트를 처리합니다.
@@ -115,6 +116,25 @@ namespace SimpleOverlayEditor.ViewModels
                 item.PropertyChanged -= OnSheetResultPropertyChanged;
             }
         }
+
+        /// <summary>
+        /// 이미지 ID에 대한 IngestDocState를 가져오거나 생성합니다.
+        /// </summary>
+        private IngestDocState GetOrCreateIngestState(string imageId)
+        {
+            lock (_ingestStateLock)
+            {
+                if (_session.IngestStateByImageId.TryGetValue(imageId, out var state))
+                {
+                    return state;
+                }
+
+                state = new IngestDocState();
+                _session.IngestStateByImageId[imageId] = state;
+                return state;
+            }
+        }
+
 
         public MarkingViewModel(MarkingDetector markingDetector, NavigationViewModel navigation, Workspace workspace, StateStore stateStore)
         {

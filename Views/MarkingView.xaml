@@ -451,6 +451,11 @@
                                    Command="{Binding DetectAllMarkingsCommand}"
                                    Style="{StaticResource CleanButtonSmall}"
                                    Background="#4CAF50"
+                                   Margin="0,0,0,5"/>
+                            <Button Content="미리딩만 전체 리딩" 
+                                   Command="{Binding DetectUnreadMarkingsCommand}"
+                                   Style="{StaticResource CleanButtonSmall}"
+                                   Background="#43A047"
                                    Margin="0,0,0,10"/>
                         </StackPanel>
                     </GroupBox>

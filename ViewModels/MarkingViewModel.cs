@@ -142,6 +142,11 @@ namespace SimpleOverlayEditor.ViewModels
             DetectAllMarkingsCommand = new RelayCommand(
                 OnDetectAllMarkings, 
                 () => Documents != null && Documents.Count() > 0 && ScoringAreas != null && ScoringAreas.Count() == OmrConstants.TotalScoringAreas);
+            
+            DetectUnreadMarkingsCommand = new RelayCommand(
+                OnDetectUnreadMarkings,
+                () => ReadyForReadingCount > 0 && ScoringAreas != null && ScoringAreas.Count() == OmrConstants.TotalScoringAreas);
+            
             LoadFolderCommand = new RelayCommand(OnLoadFolder);
             ExportToXlsxCommand = new RelayCommand(
                 OnExportToXlsx,
@@ -355,6 +360,7 @@ private void ReloadFromSession()
 
         public ICommand DetectMarkingsCommand { get; }
         public ICommand DetectAllMarkingsCommand { get; }
+        public ICommand DetectUnreadMarkingsCommand { get; }
         public ICommand LoadFolderCommand { get; }
         public ICommand ExportToXlsxCommand { get; }
         public ICommand SetFilterModeCommand { get; }
@@ -403,6 +409,10 @@ private void ReloadFromSession()
                 {
                     _readyForReadingCount = value;
                     OnPropertyChanged();
+                    if (DetectUnreadMarkingsCommand is RelayCommand cmd)
+                    {
+                        cmd.RaiseCanExecuteChanged();
+                    }
                 }
             }
         }
@@ -1048,6 +1058,143 @@ private void ReloadFromSession()
             {
                 Logger.Instance.Error("전체 마킹 리딩 실패", ex);
                 MessageBox.Show($"전체 마킹 리딩 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 미리딩 문서 중 Ready 상태만 마킹을 리딩합니다.
+        /// </summary>
+        private async void OnDetectUnreadMarkings()
+        {
+            if (Documents == null || !Documents.Any())
+            {
+                MessageBox.Show("로드된 이미지가 없습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (ScoringAreas == null || !ScoringAreas.Any())
+            {
+                MessageBox.Show("채점 영역(ScoringArea)이 없습니다.\n먼저 채점 영역을 추가해주세요.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var readyDocuments = GetReadyUnreadDocuments();
+            if (readyDocuments.Count == 0)
+            {
+                MessageBox.Show("리딩 가능한 미리딩 문서가 없습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                Dictionary<string, List<MarkingResult>>? newResults = null;
+
+                var cancelled = await ProgressRunner.RunAsync(
+                    Application.Current.MainWindow,
+                    async scope =>
+                    {
+                        var cancellationToken = scope.CancellationToken;
+
+                        Logger.Instance.Info($"미리딩 문서 마킹 리딩 시작: {readyDocuments.Count}개 문서");
+
+                        scope.Report(0, readyDocuments.Count, "마킹 리딩 시작");
+
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        newResults = _markingDetector.DetectAllMarkings(
+                            readyDocuments,
+                            _workspace.Template,
+                            MarkingThreshold,
+                            (current, total, message) =>
+                            {
+                                if (cancellationToken.IsCancellationRequested) return;
+                                scope.Report(current, total, message);
+                            },
+                            cancellationToken);
+
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        scope.Ui(() =>
+                        {
+                            if (_session.MarkingResults == null)
+                            {
+                                _session.MarkingResults = new Dictionary<string, List<MarkingResult>>();
+                            }
+
+                            foreach (var kvp in newResults)
+                            {
+                                _session.MarkingResults[kvp.Key] = kvp.Value;
+                            }
+
+                            _sessionStore.Save(_session);
+                        });
+
+                        await Task.CompletedTask;
+                    },
+                    title: "진행 중...",
+                    initialStatus: "처리 중...");
+
+                if (cancelled)
+                {
+                    Logger.Instance.Info("미리딩 문서 마킹 리딩이 취소되었습니다.");
+                    MessageBox.Show("작업이 취소되었습니다.", "취소됨", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                if (newResults == null)
+                {
+                    throw new InvalidOperationException("마킹 리딩 결과가 생성되지 않았습니다.");
+                }
+
+                var totalDocuments = newResults.Count;
+                var totalAreas = 0;
+                var totalMarked = 0;
+                foreach (var kvp in newResults)
+                {
+                    totalAreas += kvp.Value.Count;
+                    totalMarked += kvp.Value.Count(r => r.IsMarked);
+                }
+
+                var message = $"미리딩 문서 마킹 리딩 완료\n\n" +
+                              $"처리된 문서: {totalDocuments}개\n" +
+                              $"총 영역: {totalAreas}개\n" +
+                              $"마킹 리딩: {totalMarked}개\n" +
+                              $"미마킹: {totalAreas - totalMarked}개\n\n" +
+                              $"임계값: {MarkingThreshold}";
+
+                Logger.Instance.Info($"미리딩 문서 마킹 리딩 완료: {totalMarked}/{totalAreas}개 마킹 리딩");
+
+                if (SelectedDocument != null && newResults.TryGetValue(SelectedDocument.ImageId, out var currentResults))
+                {
+                    CurrentMarkingResults = currentResults;
+                    UpdateDisplayImage();
+                }
+
+                UpdateSheetResults();
+
+                if (SheetResults != null && SheetResults.Count > 0)
+                {
+                    message += $"\n\n결과 분석:\n" +
+                               $"총 용지: {SheetResults.Count}개\n" +
+                               $"오류 있는 용지: {ErrorCount}개";
+
+                    if (DuplicateCount > 0)
+                    {
+                        message += $"\nID 중복: {DuplicateCount}개";
+                    }
+
+                    if (NullCombinedIdCount > 0)
+                    {
+                        message += $"\n결합ID 없음: {NullCombinedIdCount}개";
+                    }
+                }
+
+                MessageBox.Show(message, "미리딩 문서 마킹 리딩 완료", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Error("미리딩 문서 마킹 리딩 실패", ex);
+                MessageBox.Show($"미리딩 문서 마킹 리딩 실패: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1837,12 +1984,17 @@ private void ReloadFromSession()
 
         private int CalculateReadyForReadingCount()
         {
+            return GetReadyUnreadDocuments().Count;
+        }
+
+        private List<ImageDocument> GetReadyUnreadDocuments()
+        {
             if (_session.Documents == null || _session.Documents.Count == 0)
             {
-                return 0;
+                return new List<ImageDocument>();
             }
 
-            var count = 0;
+            var documents = new List<ImageDocument>();
 
             foreach (var document in _session.Documents)
             {
@@ -1878,10 +2030,10 @@ private void ReloadFromSession()
                     continue;
                 }
 
-                count++;
+                documents.Add(document);
             }
 
-            return count;
+            return documents;
         }
 
         /// <summary>

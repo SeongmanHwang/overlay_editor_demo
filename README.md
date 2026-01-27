@@ -77,6 +77,18 @@ OMR(Optical Mark Recognition) 시트의 오버레이를 편집하고 마킹을 �
 - **명렬 관리**: 수험생/면접위원 명렬 관리
 - **상태 관리**: 작업 상태를 자동 저장하여 재실행 시 복구
 
+### 주요 개선사항 (최근 리팩터링)
+
+**OMR Ingest 파이프라인 개선**:
+- **누적 가능한 ingest 파이프라인**: 폴더 로드를 여러 번 수행해도 결과가 누적되어 추가 가능
+- **정렬 실패 문서 처리 개선**: 정렬 실패 시 원본 이미지로 fallback하지 않고 명시적으로 처리 제외하여 데이터 품질 보장
+- **바코드 디코딩 최적화**: 폴더 로드 시점에만 바코드를 디코딩하여 중복 처리 방지 및 성능 향상
+- **중복 허용 정책**: 동일 CombinedId를 가진 문서도 모두 유지하여 실제 중복 상황을 정확히 파악 가능
+- **파일명 기반 스킵**: 동일 파일명의 이미지는 자동으로 스킵하여 중복 로드 방지
+- **즉시 UI 피드백**: 폴더 로드 직후 바코드 결과를 기반으로 수험번호/면접번호가 즉시 하단뷰에 표시
+- **미리딩 전용 리딩**: 아직 마킹 리딩이 되지 않은 문서만 선별하여 빠르게 리딩 가능
+- **상세한 ingest 상태 추적**: 정렬 실패, 바코드 실패, ID 누락 등 원인별로 상태를 추적하고 요약 표시
+
 ## 로드맵 / TODO
 
 아래 항목들은 기능 확장 및 운영 편의성을 위한 우선 과제입니다.
@@ -98,7 +110,7 @@ overlay_editor/
 │   ├── RectangleOverlay.cs        # 직사각형 오버레이 데이터
 │   ├── ImageDocument.cs           # 이미지 문서 (이미지 정보)
 │   ├── Workspace.cs               # 프로그램 전반 상태 (템플릿, 입력 폴더 경로)
-│   ├── Session.cs                 # 이미지 로드 및 리딩 작업 세션 (문서 목록, 마킹/바코드 결과)
+│   ├── Session.cs                 # 이미지 로드 및 리딩 작업 세션 (문서 목록, 마킹/바코드 결과, ingest 상태)
 │   ├── OmrTemplate.cs             # OMR 템플릿 (타이밍 마크, 채점 영역, 바코드 영역, 문항)
 │   ├── Question.cs                # 문항 모델 (4개 문항, 각 12개 선택지)
 │   ├── OverlayType.cs             # 오버레이 타입 열거형 (TimingMark, ScoringArea, BarcodeArea)
@@ -111,20 +123,33 @@ overlay_editor/
 │   ├── StudentRegistry.cs         # 수험생 명렬 모델
 │   ├── InterviewerRegistry.cs     # 면접위원 명렬 모델
 │   ├── ApplicationMode.cs         # 애플리케이션 모드 열거형
-│   └── OmrConstants.cs            # OMR 구조 상수 (중앙화된 상수 관리)
+│   ├── OmrConstants.cs            # OMR 구조 상수 (중앙화된 상수 관리)
+│   ├── IngestDocState.cs          # ingest 문서 상태 모델 (정렬/바코드/ID 상태 추적)
+│   ├── IngestFailureReason.cs     # ingest 실패 원인 열거형
+│   ├── LoadFailureItem.cs         # 로드 실패 항목 모델
+│   ├── DataUsageItem.cs           # 데이터 사용 항목 모델
+│   └── RoundInfo.cs               # 회차 정보 모델
 │
 ├── ViewModels/                    # 뷰모델 (MVVM)
 │   ├── NavigationViewModel.cs     # 네비게이션 관리 뷰모델
 │   ├── HomeViewModel.cs           # 홈 화면 뷰모델
 │   ├── TemplateEditViewModel.cs   # 템플릿 편집 뷰모델
 │   ├── TemplateViewModel.cs       # 템플릿 관리 뷰모델
-│   ├── MarkingViewModel.cs        # 마킹 리딩 뷰모델
+│   ├── MarkingViewModel.cs        # 마킹 리딩 뷰모델 (partial class)
+│   │   ├── MarkingViewModel.Session.cs      # 세션 관리
+│   │   ├── MarkingViewModel.Commands.cs     # 커맨드 처리
+│   │   ├── MarkingViewModel.Export.cs       # Excel 내보내기
+│   │   ├── MarkingViewModel.Filters.cs     # 필터링
+│   │   ├── MarkingViewModel.LoadFailure.cs  # 로드 실패 처리
+│   │   └── MarkingViewModel.Rendering.cs   # 렌더링
 │   ├── GradingViewModel.cs        # 채점 및 성적 처리 뷰모델
 │   ├── RegistryViewModel.cs       # 명렬 관리 뷰모델
 │   ├── ScoringRuleViewModel.cs    # 정답 및 배점 관리 뷰모델
 │   ├── ManualVerificationViewModel.cs # 수기 검산 뷰모델
 │   ├── SingleStudentVerificationViewModel.cs # 단일 학생 검산 뷰모델 (Grading 서브모드)
 │   ├── OmrVerificationCore.cs      # 검산 공통 코어 (Manual/SingleStudent 공용)
+│   ├── OverlaySelectionViewModel.cs # 오버레이 선택 뷰모델
+│   ├── QuestionVerificationRow.cs   # 문항 검증 행 모델
 │   └── RelayCommand.cs            # 커맨드 패턴 구현
 │
 ├── Views/                         # UI 뷰
@@ -150,13 +175,21 @@ overlay_editor/
 │   ├── ImageAlignmentService.cs   # 타이밍 마크 기반 이미지 정렬 서비스
 │   ├── Renderer.cs                # 오버레이 + 이미지 합성 → output/
 │   ├── MarkingDetector.cs         # 마킹 리딩 서비스 (ROI 분석)
-│   ├── MarkingAnalyzer.cs         # 마킹 결과 분석 서비스 (OmrSheetResult 생성)
+│   ├── MarkingAnalyzer.cs        # 마킹 결과 분석 서비스 (OmrSheetResult 생성)
 │   ├── BarcodeReaderService.cs    # 바코드 디코딩 서비스 (ZXing.Net 사용)
 │   ├── Logger.cs                  # 로깅 서비스 (파일 로그)
+│   ├── AppStateStore.cs           # 앱 상태 저장/로드 (회차 관리)
+│   ├── DataUsageService.cs        # 데이터 사용 서비스
+│   ├── DuplicateDetector.cs       # 중복 검출 서비스
+│   ├── GradingCalculator.cs       # 채점 계산 서비스
+│   ├── OmrAnalysisCache.cs        # OMR 분석 캐시
+│   ├── ProgressRunner.cs          # 진행률 표시 러너
 │   ├── Mappers/                   # Mapper 패턴 구현
 │   │   └── QuestionResultMapper.cs # 문항 결과 매핑 (Template Method Pattern)
-│   └── Strategies/                # Strategy 패턴 구현
-│       └── BarcodeProcessingStrategy.cs # 바코드 처리 전략
+│   ├── Strategies/                # Strategy 패턴 구현
+│   │   └── BarcodeProcessingStrategy.cs # 바코드 처리 전략
+│   └── Validators/                # 검증 서비스
+│       └── OmrConfigurationValidator.cs # OMR 설정 검증
 │
 └── Utils/                         # 유틸리티
     ├── Commands/                  # Undo/Redo 지원 커맨드
@@ -168,7 +201,10 @@ overlay_editor/
     ├── UndoManager.cs             # Undo/Redo 관리자
     ├── CoordinateConverter.cs     # 화면 좌표 ↔ 원본 픽셀 좌표 변환
     ├── ZoomHelper.cs              # 줌/피트 계산 (Uniform 스케일)
-    └── Converters.cs              # XAML 데이터 바인딩 컨버터
+    ├── Converters.cs              # XAML 데이터 바인딩 컨버터
+    ├── DataGridMultiSortHelper.cs # DataGrid 다중 정렬 헬퍼
+    ├── OmrFilterUtils.cs          # OMR 필터 유틸리티
+    └── UiThread.cs                # UI 스레드 유틸리티
 ```
 
 ## 애플리케이션 모드 및 아키텍처
@@ -227,12 +263,13 @@ overlay_editor/
 - **Service 패턴**: `MarkingDetector`, `BarcodeReaderService`, `ImageAlignmentService` 등 서비스 분리
 - **Strategy 패턴**: `BarcodeProcessingStrategy`를 통한 바코드 의미 처리
 - **Observer 패턴**: `ICollectionView`를 통한 View 레벨 정렬/필터링
+- **Ingest 파이프라인 패턴**: 폴더 로드 → 정렬 → 바코드 디코딩 → 상태 추적의 단계별 처리
 
 **최적화 방법**:
 1. **병렬 처리** (`Parallel.ForEach`):
    - 이미지 로드: CPU 코어 수만큼 병렬 처리
    - 전체 마킹 리딩: 여러 이미지 동시 처리
-   - 전체 바코드 디코딩: 여러 이미지 동시 처리
+   - 폴더 로드 시 정렬 및 바코드 디코딩: 여러 이미지 동시 처리
    - 스레드 안전 컬렉션 사용: `ConcurrentBag`, `ConcurrentDictionary`
    - 진행률 업데이트: `lock`으로 동기화
 
@@ -241,26 +278,38 @@ overlay_editor/
    - 재실행 시 캐시 재사용으로 정렬 재계산 방지
    - `AlignmentInfo`에 캐시 경로 저장
 
-3. **비동기 처리** (`async/await`):
+3. **바코드 디코딩 최적화**:
+   - **폴더 로드 시점에만 수행**: 리딩 단계에서 중복 디코딩 방지
+   - 정렬 성공한 문서만 대상으로 처리하여 불필요한 작업 제거
+   - 결과를 `Session.BarcodeResults`에 저장하여 재사용
+
+4. **비동기 처리** (`async/await`):
    - UI 스레드 블로킹 방지
    - `Task.Run`으로 CPU 집약적 작업 백그라운드 실행
    - `CancellationToken`으로 작업 취소 지원
 
-4. **메모리 최적화**:
+5. **메모리 최적화**:
    - `BitmapDecoder`의 `DelayCreation` 옵션으로 이미지 메타데이터만 읽기
    - 처리 완료 후 명시적 참조 해제로 GC 촉진
 
-5. **View 레벨 정렬** (`ICollectionView.SortDescriptions`):
+6. **View 레벨 정렬** (`ICollectionView.SortDescriptions`):
    - 데이터 컬렉션은 정렬하지 않고 View에서만 정렬
    - MVVM 패턴 준수, 데이터와 View 분리
+
+7. **Ingest 상태 추적**:
+   - 각 문서의 정렬/바코드/ID 상태를 `IngestDocState`로 추적
+   - 원인별 집계(정렬 실패, 바코드 실패, ID 누락 등)를 즉시 확인 가능
 
 **주요 기능**:
 - 폴더에서 이미지 로드 (병렬 처리)
 - 타이밍 마크 기반 자동 정렬
+- **폴더 로드 시 자동 바코드 디코딩**: 정렬 성공한 문서에 대해 자동으로 바코드 디코딩 수행
 - 단일/전체 이미지 마킹 리딩 (병렬 처리)
-- 단일/전체 이미지 바코드 디코딩 (병렬 처리)
+- **미리딩만 전체 리딩**: 아직 마킹 리딩이 되지 않은 문서만 선별하여 빠르게 리딩
 - OMR 결과 요약 및 Excel 내보내기
 - 오류 필터링 (중복, 오류만 표시 등)
+- **파일명 기반 중복 스킵**: 동일 파일명의 이미지는 자동으로 스킵
+- **즉시 UI 피드백**: 폴더 로드 직후 바코드 결과를 기반으로 수험번호/면접번호가 하단뷰에 즉시 표시
 
 ---
 
@@ -669,6 +718,40 @@ view.SortDescriptions.Add(new SortDescription("HasErrors", ListSortDirection.Des
 
 ---
 
+### 7. Ingest 파이프라인 최적화
+**사용 위치**: `MarkingViewModel`, `ImageLoader`, `BarcodeReaderService`
+
+**기법**:
+- **바코드 디코딩 시점 최적화**: 폴더 로드 시점에만 바코드 디코딩 수행, 리딩 단계에서는 캐시된 결과만 사용
+- **정렬 실패 문서 명시적 처리**: 정렬 실패 시 원본 fallback 제거하여 불완전한 데이터 처리 방지
+- **파일명 기반 중복 스킵**: 동일 파일명 체크로 불필요한 재처리 방지
+- **상태 추적 및 집계**: `IngestDocState`를 통한 문서별 상태 추적 및 원인별 집계
+
+**효과**:
+- 바코드 디코딩 중복 처리 방지로 성능 향상
+- 데이터 품질 보장 (정렬 실패 문서는 처리 제외)
+- 사용자 피드백 개선 (즉시 상태 확인 가능)
+- 중복 로드 방지로 처리 시간 단축
+
+**예시**:
+```csharp
+// 폴더 로드 시점에 바코드 디코딩
+if (doc.AlignmentInfo?.Success == true)
+{
+    var results = _barcodeReaderService.DecodeBarcodes(doc, barcodeAreas);
+    _session.BarcodeResults[doc.ImageId] = results;
+}
+
+// 리딩 단계에서는 캐시된 결과만 사용
+if (!_session.BarcodeResults.TryGetValue(document.ImageId, out var cachedResults))
+{
+    // 바코드 결과 없음으로 스킵
+    return;
+}
+```
+
+---
+
 ## 애플리케이션 생애주기
 
 ### 1. 시작 (Startup)
@@ -735,7 +818,7 @@ MainWindow.ContentControl이 DataTemplate을 통해 자동으로 View 선택
 해당 View 표시
 ```
 
-### 3. 이미지 로드 및 정렬
+### 3. 이미지 로드 및 정렬 (Ingest 파이프라인)
 
 ```
 사용자 "폴더 로드" 버튼 클릭
@@ -747,22 +830,35 @@ MarkingViewModel.OnLoadFolder()
     - 폴더에서 이미지 파일 검색
     - Parallel.ForEach로 병렬 로드
     - ImageDocument 객체 생성
+    - 파일명 중복 체크 (기존 세션과 비교하여 스킵)
   ↓
-각 이미지에 대해 정렬 적용
+각 이미지에 대해 병렬 처리 (Parallel.ForEach)
   ↓
-MarkingViewModel.ApplyAlignmentToDocument()
+  - 정렬 적용: MarkingViewModel.ApplyAlignmentToDocument()
+    - ImageAlignmentService.AlignImage()
+      - 타이밍 마크 감지
+      - 변환 행렬 계산
+      - 정렬된 이미지 생성
+    - 정렬된 이미지를 캐시 폴더에 저장
+    - AlignmentInfo를 ImageDocument에 저장
+    - IngestDocState에 정렬 상태 기록
   ↓
-  - ImageAlignmentService.AlignImage()
-    - 타이밍 마크 감지
-    - 변환 행렬 계산
-    - 정렬된 이미지 생성
-  ↓
-  - 정렬된 이미지를 캐시 폴더에 저장
-  - AlignmentInfo를 ImageDocument에 저장
+  - 바코드 디코딩 (정렬 성공한 문서만 대상)
+    - BarcodeReaderService.DecodeBarcodes()
+    - 결과를 Session.BarcodeResults[imageId]에 저장
+    - IngestDocState에 바코드 상태 기록
+    - CombinedId 계산 및 상태 기록
   ↓
 Session.Documents에 추가
+Session.BarcodeResults에 바코드 결과 저장
+Session.IngestStateByImageId에 상태 저장
   ↓
-첫 번째 문서 자동 선택
+UpdateSheetResults() 호출
+  - 바코드 결과를 기반으로 임시 OmrSheetResult 생성
+  - 하단뷰에 즉시 표시 (수험번호/면접번호)
+  - ReadyForReadingCount 계산
+  ↓
+로드 완료 메시지 표시 (원인별 집계)
 ```
 
 ### 4. 템플릿 편집
@@ -793,16 +889,21 @@ PropertyChanged 이벤트로 UI 자동 업데이트
 Marking 모드 진입
   ↓
 MarkingViewModel 초기화
-  - Workspace.Documents 바인딩
+  - Session.Documents 바인딩
   - Workspace.Template.ScoringAreas 바인딩
   ↓
-사용자 "마킹 리딩" 또는 "전체 감지" 버튼 클릭
+사용자 "마킹 리딩", "전체 문서 리딩", 또는 "미리딩만 전체 리딩" 버튼 클릭
   ↓
-MarkingViewModel.DetectMarkings() 또는 DetectAllMarkings()
+MarkingViewModel.DetectMarkings() / DetectAllMarkings() / DetectUnreadMarkings()
+  ↓
+바코드 결과 확인 (Session.BarcodeResults에서 캐시된 결과 사용)
+  - 바코드 결과 없으면 리딩 스킵 및 경고 표시
   ↓
 MarkingDetector.DetectMarkings() (단일) 또는 Parallel.ForEach (전체)
   ↓
-  - 정렬된 이미지 로드 (캐시 또는 원본)
+  - GetImagePathForUse()로 정렬된 이미지 경로 확인
+    - 정렬 실패 문서(null 반환)는 리딩 스킵
+  - 정렬된 이미지 로드 (캐시)
   - 그레이스케일 변환
   - 각 ScoringArea ROI 추출
   - 평균 밝기 계산
@@ -811,9 +912,12 @@ MarkingDetector.DetectMarkings() (단일) 또는 Parallel.ForEach (전체)
   ↓
 MarkingResult 리스트 반환
   ↓
-BarcodeReaderService.DecodeBarcodes() (동시 실행)
+Session.MarkingResults[imageId]에 저장
   ↓
 MarkingAnalyzer.AnalyzeAllSheets() (OmrSheetResult 생성)
+  - 바코드 결과는 Session.BarcodeResults에서 사용
+  ↓
+UpdateSheetResults() 호출
   ↓
 UI에 결과 표시 (ICollectionView를 통한 정렬/필터링)
 ```
@@ -1014,8 +1118,15 @@ dotnet build
 
 ### 2. 이미지 로드 및 마킹 리딩
 - **Marking 모드**로 이동
-- **폴더 로드**: 이미지가 있는 폴더 선택 (병렬 처리로 자동 로드 및 정렬)
-- **마킹 리딩**: "마킹 리딩" (단일) 또는 "전체 감지" (병렬 처리) 버튼 클릭
+- **폴더 로드**: 이미지가 있는 폴더 선택
+  - 병렬 처리로 자동 로드 및 정렬
+  - **정렬 성공한 문서에 대해 자동으로 바코드 디코딩 수행**
+  - **폴더 로드 직후 하단뷰에 수험번호/면접번호가 즉시 표시** (바코드 결과 기반)
+  - **동일 파일명의 이미지는 자동으로 스킵** (중복 로드 방지)
+  - 로드 완료 시 원인별 집계 표시 (정렬 실패, 바코드 실패, ID 누락 등)
+- **마킹 리딩**: 
+  - "마킹 리딩" (단일) 또는 "전체 문서 리딩" (병렬 처리) 버튼 클릭
+  - **"미리딩만 전체 리딩"**: 아직 마킹 리딩이 되지 않은 문서만 선별하여 빠르게 리딩
 - **결과 확인**: 오른쪽 패널에서 마킹/바코드 결과 확인, 하단 패널에서 OMR 결과 요약 확인
 - **Excel 내보내기**: 하단 패널에서 "Excel 내보내기" 버튼 클릭하여 현재 필터링된 결과를 Excel 파일로 저장
 
@@ -1108,7 +1219,19 @@ dotnet build
 - **정렬 기능**:
   - 타이밍 마크가 설정되어 있어야 정렬이 수행됩니다
   - 정렬은 이미지 로드 시 자동으로 수행되며, 정렬된 이미지는 캐시에 저장됩니다
-  - 정렬 신뢰도가 70% 미만이거나 변환 범위가 초과되면 원본 이미지를 사용합니다
+  - **정렬 실패 시 해당 문서는 처리 대상에서 제외됩니다** (원본 이미지로 fallback하지 않음)
+  - 정렬 실패 문서는 로드 완료 메시지에서 "정렬 실패" 개수로 확인 가능
+
+- **바코드 디코딩**:
+  - **폴더 로드 시점에 자동으로 수행됩니다** (정렬 성공한 문서만 대상)
+  - 리딩 단계에서는 이미 디코딩된 결과를 사용하므로 추가 디코딩이 발생하지 않습니다
+  - 바코드 영역이 정확하게 지정되어 있어야 합니다 (바코드 주변 여백 포함 권장)
+  - 바코드 디코딩 실패 시 해당 문서는 마킹 리딩 대상에서 제외됩니다
+
+- **중복 처리**:
+  - **동일 파일명의 이미지는 자동으로 스킵**되어 중복 로드가 방지됩니다
+  - **동일 CombinedId를 가진 문서는 모두 유지**되며, 중복으로 표시됩니다
+  - 실제 중복 상황을 정확히 파악하기 위해 모든 문서를 유지하는 정책을 따릅니다
 
 - **템플릿 좌표**:
   - 오버레이 좌표는 템플릿 기준 이미지 픽셀 기준으로 저장됩니다
@@ -1122,10 +1245,7 @@ dotnet build
   - 정렬된 이미지에서 채점 영역의 평균 밝기를 분석하여 판단합니다
   - 임계값보다 어두우면 마킹으로 판단 (기본값: 220)
   - 이미지 품질과 조명 조건에 따라 임계값 조정이 필요할 수 있습니다
-
-- **바코드 디코딩**:
-  - 마킹 리딩와 동시에 자동으로 실행됩니다
-  - 바코드 영역이 정확하게 지정되어 있어야 합니다 (바코드 주변 여백 포함 권장)
+  - **"미리딩만 전체 리딩" 기능**을 사용하면 아직 리딩되지 않은 문서만 빠르게 처리할 수 있습니다
 
 - **채점 처리**:
   - 면접위원 3명 기준으로 점수 평균을 계산합니다

@@ -47,7 +47,7 @@ namespace SimpleOverlayEditor.Models
 
         /// <summary>
         /// 문서별 바코드 디코딩 결과 (ImageId -> BarcodeResult 리스트)
-        /// 리딩 작업 시 생성
+        /// 폴더 로드 시점에 생성 (정렬 성공한 문서만 대상)
         /// </summary>
         public Dictionary<string, List<BarcodeResult>> BarcodeResults
         {

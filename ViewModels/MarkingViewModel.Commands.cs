@@ -895,6 +895,7 @@ namespace SimpleOverlayEditor.ViewModels
                         OnPropertyChanged(nameof(Documents));
                         OnPropertyChanged(nameof(DocumentCount));
                         UpdateSheetResults();
+                        UpdateLoadFailureItems(loadedDocuments);
 
                         Logger.Instance.Info($"폴더 로드 완료. 새로 로드된 이미지: {loadedDocuments.Count}개, 파일명 중복: {skippedByFilenameCount}개");
                         var ingestStates = loadedDocuments

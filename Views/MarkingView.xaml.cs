@@ -201,6 +201,18 @@ namespace SimpleOverlayEditor.Views
             }
         }
 
+
+        private void LoadFailureDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is DataGrid dataGrid && dataGrid.SelectedItem is LoadFailureItem loadFailureItem)
+            {
+                if (DataContext is MarkingViewModel viewModel)
+                {
+                    viewModel.SelectDocumentByImageId(loadFailureItem.ImageId);
+                }
+            }
+        }
+
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is string imageId)

@@ -158,6 +158,7 @@ namespace SimpleOverlayEditor.ViewModels
                 
                 // 필터 옵션 업데이트 (실/순 필터 동적 추출)
                 UpdateFilterOptions();
+                UpdateLoadFailureItems(null);
                 
                 var duplicateRowCount = groupedByCombinedId.Values.SelectMany(g => g).Count();
                 if (duplicateRowCount > 0)
@@ -182,6 +183,8 @@ namespace SimpleOverlayEditor.ViewModels
                 OnPropertyChanged(nameof(NullCombinedIdCount));
 
                 ReadyForReadingCount = CalculateReadyForReadingCount();
+                UpdateLoadFailureItems(null);
+                
             }
         }
 
